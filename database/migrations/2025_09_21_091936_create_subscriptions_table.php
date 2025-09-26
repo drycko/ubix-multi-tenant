@@ -13,13 +13,14 @@ return new class extends Migration
     {
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->id();
-            $table->string('tenant_id')->constrained()->onDelete('cascade');
+            $table->foreignId('tenant_id')->constrained()->onDelete('cascade');
             $table->foreignId('subscription_plan_id')->constrained()->onDelete('cascade');
             $table->date('start_date');
             $table->date('end_date')->nullable();
             $table->enum('billing_cycle', ['monthly', 'yearly'])->default('monthly');
             $table->decimal('price', 10, 2);
-            $table->enum('status', ['active', 'inactive', 'canceled', 'expired'])->default('active');
+            $table->enum('status', ['trial', 'active', 'inactive', 'canceled', 'expired'])->default('active');
+            $table->date('trial_ends_at')->nullable();
             $table->timestamps();
         });
     }

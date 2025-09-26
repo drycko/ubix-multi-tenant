@@ -151,8 +151,8 @@
               <!--begin::Menu Footer-->
               <li class="user-footer">
 
-                <a href="#" class="btn btn-default btn-flat">Settings</a>
-                <a href="#" class="btn btn-default btn-flat">Profile</a>
+                <a hidden href="#" class="btn btn-default btn-flat">Settings</a>
+                <a hidden href="#" class="btn btn-default btn-flat">Profile</a>
                 <a href="#" class="btn btn-default btn-flat float-end" data-bs-toggle="modal" data-bs-target="#logoutModal">Logout</a>
               </li>
               <!--end::Menu Footer-->
@@ -301,7 +301,7 @@
             {{-- end Tenants --}}
             <li class="nav-header">REPORTS</li>
             <li class="nav-item">
-              <a class="nav-link {{ Request::is('admin/reports*') ? 'active' : '' }}" href="#">
+              <a class="nav-link {{ Request::is('central/reports*') ? 'active' : '' }}" href="#">
                 <i class="nav-icon bi bi-bar-chart"></i>
                 <p>Reports
                   <i class="nav-arrow bi bi-chevron-right"></i>
@@ -309,9 +309,9 @@
               </a>
             </li>
             <li class="nav-header">SYSTEM</li>
-            @can('manage property settings')
+            @can('manage settings')
             <li class="nav-item">
-              <a class="nav-link {{ Request::is('admin/property/settings*') ? 'active' : '' }}" href="{{ route('central.property.settings') }}">
+              <a class="nav-link {{ Request::is('central/settings*') ? 'active' : '' }}" href="{{ route('central.settings') }}">
                 <i class="nav-icon bi bi-gear"></i>
                 <p>Settings</p>
               </a>
@@ -332,12 +332,12 @@
     <!--begin::Footer-->
     <footer class="app-footer">
       <!--begin::To the end-->
-      <div class="float-end d-none d-sm-inline"> By NexusFlow</div>
+      <div class="float-end d-none d-sm-inline"> Version 1.0.0</div>
       <!--end::To the end-->
       <!--begin::Copyright-->
       <strong>
         Copyright &copy; 2025&nbsp;
-        <a href="https://ubix.nexusflow.co.za" class="text-decoration-none text-success"> Ubix</a>.
+        <a href="https://nexusflow.co.za" class="text-decoration-none text-success"> Ubix</a>.
       </strong>
       All rights reserved.
       <!--end::Copyright-->
@@ -409,9 +409,40 @@
     </div>
   </div>
   @endif
+
+  <!-- Success/Error Messages -->
+  @if(session('success'))
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div class="toast align-items-center text-white bg-success border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body">
+          {{ session('success') }}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  </div>
+  @endif
+
+  @if($errors->any())
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div class="toast align-items-center text-white bg-danger border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body">
+          <ul class="mb-0">
+            @foreach($errors->all() as $error)
+            <li>{{ $error }}</li>
+            @endforeach
+          </ul>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  </div>
+  @endif
+
+  {{-- adminlte js --}}
   <script src="{{ asset('vendor/admin-lte/dist/js/adminlte.min.js') }}"></script>
-  {{-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script> --}}
-  {{-- <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
   <script>
     // Auto-show toasts
     document.addEventListener('DOMContentLoaded', function() {

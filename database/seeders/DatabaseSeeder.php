@@ -1,77 +1,77 @@
 <?php
+// File: database/seeders/DatabaseSeeder.php
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
+use App\Models\User;
+use App\Models\CentralRole;
+use App\Models\CentralPermission;
 
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed the application's central database.
      */
     public function run(): void
     {
-        // Reset cached roles and permissions
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        // Temporarily override Spatie models to use central
+        $permissionRegistrar = app(\Spatie\Permission\PermissionRegistrar::class);
+        $originalRoleClass = $permissionRegistrar->getRoleClass();
+        $originalPermissionClass = $permissionRegistrar->getPermissionClass();
 
-        // Create permissions
+        $permissionRegistrar->setRoleClass(CentralRole::class);
+        $permissionRegistrar->setPermissionClass(CentralPermission::class);
+
+        // Reset cached roles and permissions
+        $permissionRegistrar->forgetCachedPermissions();
+
+        // -------------------------------
+        // Central Permissions
+        // -------------------------------
         $permissions = [
-            'manage tenants',
-            'view tenants',
-            'manage bookings',
-            'view bookings',
-            'manage rooms',
-            'view rooms',
-            'manage users',
-            'view users',
-            'manage settings',
-            'view settings',
-            'manage subscriptions',
-            'view subscriptions',
-            'manage plans',
-            'view plans',
-            'manage payments',
-            'view payments',
-            'manage reports',
-            'view reports',
-            'manage support',
-            'view support',
-            'manage notifications',
-            'view notifications',
-            'manage audits',
-            'view audits',
-            'manage roles',
-            'view roles',
-            'manage permissions',
-            'view permissions',
-            // will add more permissions as needed
+            'manage tenants', 'view tenants',
+            'manage bookings', 'view bookings',
+            'manage rooms', 'view rooms',
+            'manage users', 'view users',
+            'manage settings', 'view settings',
+            'manage subscriptions', 'view subscriptions',
+            'manage plans', 'view plans',
+            'manage payments', 'view payments',
+            'manage reports', 'view reports',
+            'manage support', 'view support',
+            'manage notifications', 'view notifications',
+            'manage audits', 'view audits',
+            'manage roles', 'view roles',
+            'manage permissions', 'view permissions',
         ];
 
         foreach ($permissions as $permissionName) {
-            \Spatie\Permission\Models\Permission::firstOrCreate([
+            CentralPermission::firstOrCreate([
                 'name' => $permissionName,
                 'guard_name' => 'web',
             ]);
         }
-        
-        // Seed central roles
-        $supportedRoles = \App\Models\User::SUPPORTED_ROLES;
+
+        // -------------------------------
+        // Central Roles
+        // -------------------------------
+        $supportedRoles = User::SUPPORTED_ROLES;
+
         foreach ($supportedRoles as $roleName) {
-            $role = Role::firstOrCreate([
+            $role = CentralRole::firstOrCreate([
                 'name' => $roleName,
                 'guard_name' => 'web',
             ]);
 
             // Assign all permissions to super-admin & super-manager
-            if ($roleName === 'super-admin' || $roleName === 'super-manager') {
-                $role->syncPermissions($permissions);
+            if (in_array($roleName, ['super-admin', 'super-manager'])) {
+                $role->syncPermissions(CentralPermission::whereIn('name', $permissions)->get());
             }
-            // exclude 'manage users', 'manage tenants' permission from support role
+
+            // Restrict support role permissions
             if ($roleName === 'support') {
-                $role->syncPermissions(array_diff($permissions, [
+                $supportPermissions = array_diff($permissions, [
                     'manage users',
                     'manage tenants',
                     'manage payments',
@@ -81,55 +81,75 @@ class DatabaseSeeder extends Seeder
                     'manage audits',
                     'manage roles',
                     'manage permissions',
-                ]));
-            }
+                ]);
 
-            // other roles can be added here with specific permissions as needed
-            
+                $role->syncPermissions(CentralPermission::whereIn('name', $supportPermissions)->get());
+            }
         }
 
-        // Seed admin users for each role
+        // -------------------------------
+        // Central Users
+        // -------------------------------
         $users = [
             [
                 'name' => 'Super Admin',
                 'email' => 'superadmin@ubix.com',
                 'password' => bcrypt('Python@273'),
+                'position' => 'Administrator',
                 'role' => 'super-admin',
             ],
             [
                 'name' => 'Super Manager',
                 'email' => 'supermanager@ubix.com',
                 'password' => bcrypt('GManager@273'),
+                'position' => 'Manager',
                 'role' => 'super-manager',
             ],
             [
                 'name' => 'Support',
                 'email' => 'support@ubix.com',
                 'password' => bcrypt('GSupport@273'),
+                'position' => 'Support',
                 'role' => 'support',
             ],
         ];
 
         foreach ($users as $userData) {
-            $user = User::firstOrCreate([
-                'email' => $userData['email'],
-            ], [
-                'name' => $userData['name'],
-                'password' => $userData['password'],
-            ]);
-            $user->assignRole($userData['role']);
+            $user = User::firstOrCreate(
+                ['email' => $userData['email']],
+                [
+                    'name' => $userData['name'],
+                    'password' => $userData['password'],
+                    'position' => $userData['position'],
+                    'email_verified_at' => now(), // mark as verified
+                    'role' => $userData['role'],
+                ]
+            );
 
-            $this->command->info("Created user: {$userData['email']} with role: {$userData['role']}");
+            // Assign central role
+            $user->assignRole(CentralRole::where('name', $userData['role'])->first());
+
+            $this->command->info("Created central user: {$userData['email']} with role: {$userData['role']}");
         }
 
-        // Seed central settings
-        $this->call(CentralSettingSeeder::class);
+        // -------------------------------
+        // Other central seeders
+        // -------------------------------
+        $this->call([
+            CentralSettingSeeder::class,
+            SubscriptionPlanSeeder::class,
+        ]);
 
-        // Seed subscription plans
-        $this->call(SubscriptionPlanSeeder::class);
-
-        // seed a default tenant for testing
+        // -------------------------------
+        // Default tenant (optional)
+        // -------------------------------
         $this->call(TenantSeeder::class);
 
+        // -------------------------------
+        // Restore original Spatie models (tenant)
+        // -------------------------------
+        $permissionRegistrar->setRoleClass($originalRoleClass);
+        $permissionRegistrar->setPermissionClass($originalPermissionClass);
+        $permissionRegistrar->forgetCachedPermissions();
     }
 }

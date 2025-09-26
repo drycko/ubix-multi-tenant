@@ -15,6 +15,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/central/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/central/dashboard', [DashboardController::class, 'index'])->name('central.dashboard');
 
+    Route::get('central/settings', [DashboardController::class, 'settings'])->name('central.settings');
     Route::get('central/stats', [DashboardController::class, 'stats'])->name('central.stats');
 
     Route::get('/central/tenants', [TenantController::class, 'index'])->name('central.tenants.index');
@@ -24,6 +25,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/central/tenants/{tenant}/edit', [TenantController::class, 'edit'])->name('central.tenants.edit');
     Route::put('/central/tenants/{tenant}', [TenantController::class, 'update'])->name('central.tenants.update');
     Route::delete('/central/tenants/{tenant}', [TenantController::class, 'destroy'])->name('central.tenants.destroy');
+    Route::get('/central/tenants/{tenant}/domains', [TenantController::class, 'domains'])->name('central.tenants.domains');
+    Route::get('/central/tenants/{tenant}/subscriptions', [TenantController::class, 'subscriptions'])->name('central.tenants.subscriptions');
+    Route::post('/central/tenants/{tenant}/switch-to-premium', [TenantController::class, 'switchToPremium'])->name('central.tenants.switch-to-premium');
+    Route::post('/central/tenants/{tenant}/cancel-subscription', [TenantController::class, 'cancelSubscription'])->name('central.tenants.cancel-subscription');
     Route::resource('tenants', TenantController::class);
 
 });

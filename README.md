@@ -88,10 +88,10 @@ Pull requests are welcome! Please open an issue first to discuss major changes.
 
 This project is open-sourced under the [MIT license](https://opensource.org/licenses/MIT).
 
-## design
+## Design
 Main colors: 
-    #373643 - dark
-    #18cb96 - green
+-  #373643 - dark
+-  #18cb96 - green
 
 ---
 

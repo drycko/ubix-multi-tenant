@@ -1,22 +1,34 @@
 <?php
-
+// database/seeders/tenant/RolesAndPermissionsSeeder.php
 namespace Database\Seeders\Tenant;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
+// use Spatie\Permission\Models\Role;
+// use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Config;
+use App\Models\Role;
+use App\Models\Permission;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
-        // Reset cached roles and permissions
+        // Ensure the models are using the tenant connection
+        $permissionRegistrar = app(\Spatie\Permission\PermissionRegistrar::class);
+        $originalRoleClass = $permissionRegistrar->getRoleClass();
+        $originalPermissionClass = $permissionRegistrar->getPermissionClass();
+
+        $permissionRegistrar->setRoleClass(Role::class);
+        $permissionRegistrar->setPermissionClass(Permission::class);
+
+        // Reset cached roles/permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
-//         [2025-09-22 20:16:11] production.ERROR: The given role or permission should use guard `tenant` instead of `web`. {"exception":"[object] (Spatie\\Permission\\Exceptions\\GuardDoesNotMatch(code: 0): The given role or permission should use guard `tenant` instead of `web`. at /home/nexusflo/ubix-multi-tenant/vendor/spatie/laravel-permission/src/Exceptions/GuardDoesNotMatch.php:12)
-// [stacktrace]
-// #0 /home/nexusflo/ubix-multi-tenant/vendor/spatie/laravel-permission/src/Traits/HasPermissions.php(536): 
+
+        // Wipe old tenant data to avoid FK mismatch
+        // \DB::connection('tenant')->table('role_has_permissions')->truncate();
+        // \DB::connection('tenant')->table('permissions')->truncate();
+        // \DB::connection('tenant')->table('roles')->truncate();
 
         // Create permissions
         $permissions = [

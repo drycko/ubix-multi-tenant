@@ -48,6 +48,11 @@ class SubscriptionPlan extends Model
         return $this->hasMany(Tenant::class);
     }
 
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
     public function isFree(): bool
     {
         return $this->monthly_price == 0 && $this->yearly_price == 0;

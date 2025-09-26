@@ -60,6 +60,7 @@
                             <tr>
 								<th>Tenant Name</th>
 								<th>Primary Domain</th>
+								<th>Database</th>
 								<th>Plan</th>
 								<th>Status</th>
 								<th>Created At</th>
@@ -70,7 +71,8 @@
 							@forelse($tenants as $tenant)
 							<tr>
 								<td>{{ $tenant->name }}</td>
-								<td>{{ $tenant->domains->where('is_primary', true)->pluck('domain')->join(', ') }}</td>
+								<td><a href="http://{{ $tenant->domains->where('is_primary', true)->pluck('domain')->join(', ') }}">{{ $tenant->domains->where('is_primary', true)->pluck('domain')->join(', ') }}</a></td>
+                                <td>{{ $tenant->database }}</td>
 								<td>{{ $tenant->plan }}</td>
 								<td>
 									@if($tenant->is_active)

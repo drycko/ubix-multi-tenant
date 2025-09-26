@@ -12,6 +12,11 @@ use Stancl\Tenancy\Events;
 use Stancl\Tenancy\Jobs;
 use Stancl\Tenancy\Listeners;
 use Stancl\Tenancy\Middleware;
+use Stancl\Tenancy\Events\TenancyBootstrapped;
+use Stancl\Tenancy\Events\EndingTenancy;
+use Spatie\Permission\PermissionRegistrar;
+use App\Models\Role;
+use App\Models\Permission;
 
 class TenancyServiceProvider extends ServiceProvider
 {
@@ -25,16 +30,12 @@ class TenancyServiceProvider extends ServiceProvider
             Events\CreatingTenant::class => [],
             Events\TenantCreated::class => [
                 JobPipeline::make([
-                    // Jobs\CreateDatabase::class, // Not needed since we are using pre-created databases
+                    Jobs\CreateDatabase::class, // Not needed since we are using pre-created databases
                     Jobs\MigrateDatabase::class,
                     // Jobs\SeedDatabase::class,
-
-                    // Your own jobs to prepare the tenant.
-                    // Provision API keys, create S3 buckets, anything you want!
-
                 ])->send(function (Events\TenantCreated $event) {
                     return $event->tenant;
-                })->shouldBeQueued(false), // `false` by default, but you probably want to make this `true` for production.
+                })->shouldBeQueued(false),
             ],
             Events\SavingTenant::class => [],
             Events\TenantSaved::class => [],
@@ -46,7 +47,7 @@ class TenancyServiceProvider extends ServiceProvider
                     Jobs\DeleteDatabase::class,
                 ])->send(function (Events\TenantDeleted $event) {
                     return $event->tenant;
-                })->shouldBeQueued(false), // `false` by default, but you probably want to make this `true` for production.
+                })->shouldBeQueued(false),
             ],
 
             // Domain events
@@ -72,14 +73,62 @@ class TenancyServiceProvider extends ServiceProvider
                 Listeners\BootstrapTenancy::class,
             ],
 
-            Events\EndingTenancy::class => [],
+            // Events\EndingTenancy::class => [
+            //     function (EndingTenancy $event) {
+            //         $permissionRegistrar = app(PermissionRegistrar::class);
+            //         $permissionRegistrar->cacheKey = 'spatie.permission.cache';
+            //     },
+            // ],
+            // EndingTenancy::class => [
+            //     function (EndingTenancy $event) {
+            //         // Revert Spatie models to central DB connection
+            //         Role::resolveConnection(config('database.default'));
+            //         Permission::resolveConnection(config('database.default'));
+
+            //         // Reset cache key
+            //         $permissionRegistrar = app(\Spatie\Permission\PermissionRegistrar::class);
+            //         $permissionRegistrar->cacheKey = 'spatie.permission.cache';
+            //     },
+            // ],
+            Events\EndingTenancy::class => [
+                function (EndingTenancy $event) {
+                    // Revert Spatie models to central DB connection
+                    // \App\Models\Role::resolveConnection(config('database.default'));
+                    // \App\Models\Permission::resolveConnection(config('database.default'));
+
+                    // Reset cache key
+                    $permissionRegistrar = app(PermissionRegistrar::class);
+                    $permissionRegistrar->cacheKey = 'spatie.permission.cache';
+                },
+            ],
+
             Events\TenancyEnded::class => [
                 Listeners\RevertToCentralContext::class,
             ],
 
             Events\BootstrappingTenancy::class => [],
+            // Events\TenancyBootstrapped::class => [
+            //     function (TenancyBootstrapped $event) {
+            //         $permissionRegistrar = app(PermissionRegistrar::class);
+            //         $permissionRegistrar->cacheKey =
+            //             'spatie.permission.cache.tenant.' . $event->tenant->getTenantKey();
+            //     },
+            // ],
+            
             Events\TenancyBootstrapped::class => [
-                // we will add spatie here
+                function (TenancyBootstrapped $event) {
+                    // Get tenant instance
+                    $tenant = $event->tenancy->tenant;
+
+                    // Optional: adjust Spatie cache key per tenant
+                    $permissionRegistrar = app(PermissionRegistrar::class);
+                    $permissionRegistrar->cacheKey =
+                        'spatie.permission.cache.tenant.' . $tenant->getTenantKey();
+
+                    // Ensure Role/Permission models use tenant connection
+                    // \App\Models\Role::resolveConnection('tenant');
+                    // \App\Models\Permission::resolveConnection('tenant');
+                },
             ],
             Events\RevertingToCentralContext::class => [],
             Events\RevertedToCentralContext::class => [],
@@ -89,7 +138,6 @@ class TenancyServiceProvider extends ServiceProvider
                 Listeners\UpdateSyncedResource::class,
             ],
 
-            // Fired only when a synced resource is changed in a different DB than the origin DB (to avoid infinite loops)
             Events\SyncedResourceChangedInForeignDatabase::class => [],
         ];
     }

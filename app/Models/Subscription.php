@@ -34,6 +34,11 @@ class Subscription extends Model
         return $this->belongsTo(SubscriptionPlan::class);
     }
 
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionInvoice::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active' && ($this->end_date === null || $this->end_date->isFuture());

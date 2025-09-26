@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\CentralSetting;
 use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
 // use tenancy from stancl/tenancy
 use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
@@ -26,16 +27,23 @@ class TenantSeeder extends Seeder
 				['value' => $defaultPlan->id]
 			);
 		}
-		$availableDb = Tenant::getNextAvailableDatabase() ?? null;
-		$this->command->info('Assigning database: ' . ($availableDb ?? 'none') . ' to default tenant');
-		if (!$availableDb) {
-			$this->command->error('No available pre-created databases in the pool. Please seed the database_pool table with pre-created databases before running this seeder.');
-			return;
+
+		if (!app()->environment('local')) {
+			$availableDb = Tenant::getNextAvailableDatabase() ?? null;
+			$this->command->info('Assigning database: ' . ($availableDb ?? 'none') . ' to default tenant');
+			if (!$availableDb) {
+				$this->command->error('No available pre-created databases in the pool. Please seed the database_pool table with pre-created databases before running this seeder.');
+				return;
+			}
+		}
+		else {
+			// allow tenant to create a database
+			$availableDb = null;
 		}
 		// Create a default tenant
 		$tenant = Tenant::create([
 			'name' => 'Demo Tenant',
-			'tenancy_db_name' => $availableDb, // assign next available pre-created database
+			'tenancy_db_name' => $availableDb, // assign next available pre-created database (production only)
 			'email' => 'demo@example.com',
 			'phone' => '1234567890',
 			'logo' => null,
@@ -44,34 +52,44 @@ class TenantSeeder extends Seeder
 			'currency' => 'ZAR',
 			'locale' => 'za',
 			'plan' => $defaultPlan ? $defaultPlan->name : 'starter',
-			'trial_ends_at' => now()->addDays(14),
+			'subscription_plan_id' => $defaultPlan->id,
+			'billing_cycle' => 'monthly',
+			'trial_ends_at' => date('Y-m-d H:i:s', strtotime(now()->addDays(14))), // 14 days trial
+			'properties_count' => 0,
 			'is_active' => true,
 			'data' => null
 
 		]);
 
-		$centralDomain = config('tenancy.central_domains')[0] ?? 'nexusflow.co.za';
-
-		// Create a unique domain for the tenant
-		$tenant_prefix = \Illuminate\Support\Str::slug($tenant->name, '-');
-		// $domain_base = '.nexusflow.co.za';
-		$existingDomains = DB::table('domains')->pluck('domain')->toArray();
-		$unique_domain = $tenant_prefix .'.'. $centralDomain;
-		$i = 1;
-		while (in_array($unique_domain, $existingDomains)) {
-			$unique_domain = $tenant_prefix . '-' . $i .'.'. $centralDomain;
-			$i++;
+		if ($tenant->plan) {
+			// check if the plan exists (this is the central connection so we will have to do this outside the tenant context)
+			// incase we are in a tenant context already
+			// switch to central connection
+			config(['database.connections.tenant' => config('database.connections.central')]);
+			$defaultPlan = SubscriptionPlan::where('name', $tenant->plan)->first();
+			if ($defaultPlan) {
+				$trial_ends_at_formatted = $tenant->trial_ends_at ?? null;
+				// if this is a trial tenant set the end date to 14 days from now
+				if ($trial_ends_at_formatted && $trial_ends_at_formatted > now()) {
+					$endDate = $trial_ends_at_formatted;
+				} else {
+					$endDate = now()->addMonth();
+				}
+				$planPrice = $tenant->billing_cycle === 'yearly' ? $defaultPlan->yearly_price : $defaultPlan->monthly_price;
+				$tenant->subscriptions()->create([
+						'tenant_id' => $tenant->id,
+						'subscription_plan_id' => $defaultPlan->id,
+						'price' => $planPrice,
+						'billing_cycle' => $tenant->billing_cycle,
+						'start_date' => now(),
+						'end_date' => $endDate,
+						'status' => $trial_ends_at_formatted && $trial_ends_at_formatted > now() ? 'trial' : 'active',
+						'trial_ends_at' => $trial_ends_at_formatted && $trial_ends_at_formatted > now() ? $trial_ends_at_formatted : null,
+				]);
+			}
 		}
-		$tenant->domains()->create([
-			'domain' => $unique_domain,
-			'is_primary' => true,
-		]);
-		// $tenant->domains()->create(['domain' => 'tenant1.nexusflow.co.za'])
 
-		// Create the tenant's database Run tenant migrations and seeding
-		// $this->setupTenantDatabase($tenant);
-
-		$this->command->info('Default tenant created successfully with domain: ' . $unique_domain);
+		$this->command->info('Default tenant created successfully with plan: ' . $defaultPlan->name);
 	}
 
 	// seed the database pool with some pre-created databases if not already seeded

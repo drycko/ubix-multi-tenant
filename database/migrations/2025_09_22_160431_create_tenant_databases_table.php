@@ -13,13 +13,13 @@ return new class extends Migration
     {
         Schema::create('tenant_databases', function (Blueprint $table) {
             $table->id();
-            $table->string('tenant_id')->unique();
+            $table->foreignId('tenant_id')->constrained()->onDelete('cascade');
             $table->string('name')->unique(); // Database name
             $table->string('username')->nullable();
             $table->string('password')->nullable();
             $table->timestamps();
 
-            $table->foreign('tenant_id')->references('id')->on('tenants')->onUpdate('cascade')->onDelete('cascade');
+            // $table->foreign('tenant_id')->references('id')->on('tenants')->onUpdate('cascade')->onDelete('cascade');
         });
     }
 

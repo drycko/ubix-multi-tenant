@@ -7,7 +7,8 @@ use Stancl\Tenancy\Database\Models\Domain;
 
 return [
     'tenant_model' => \App\Models\Tenant::class,
-    'id_generator' => Stancl\Tenancy\UUIDGenerator::class,
+    // 'id_generator' => Stancl\Tenancy\UUIDGenerator::class,
+    'id_generator' => null,
 
     'domain_model' => Domain::class,
 
@@ -19,9 +20,9 @@ return [
     'central_domains' => [
         // 'nexusflow.co.za', // for project nexusflow.co.za in production
         // 'www.nexusflow.co.za', // for project www.nexusflow.co.za in production
+        'ubixcentral.local',
         'localhost', // for local development
         '127.0.0.1', // for local development
-        'ubixcentral.local',
     ],
 
     'middleware' => [

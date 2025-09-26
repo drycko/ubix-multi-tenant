@@ -23,6 +23,7 @@ class Property extends Model
         'phone',
         'email',
         'timezone',
+        'locale',
         'currency',
         'is_active',
         'settings',

@@ -27,6 +27,11 @@ class SubscriptionPayment extends Model
         return $this->belongsTo(Subscription::class);
     }
 
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionInvoice::class);
+    }
+
     public function isSuccessful(): bool
     {
         return $this->status === 'completed';

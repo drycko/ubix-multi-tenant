@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('phone')->nullable();
             $table->string('email')->nullable();
             $table->string('timezone')->default('UTC');
+            $table->string('locale')->default('za');
             $table->string('currency', 3)->default('USD');
             $table->boolean('is_active')->default(true);
             $table->integer('max_rooms')->default(1);

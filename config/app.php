@@ -125,4 +125,16 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | App Version
+    |--------------------------------------------------------------------------
+    |
+    | Here you may specify the application's version, environment, and other
+    | settings that are specific to your application.
+    |
+    */
+
+    'version' => env('APP_VERSION', '1.0.0'),
+
 ];

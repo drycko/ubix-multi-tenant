@@ -6,33 +6,22 @@ use Stancl\Tenancy\Database\Models\Tenant as BaseTenant;
 use Stancl\Tenancy\Contracts\TenantWithDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDomains;
-
 use Illuminate\Support\Facades\DB;
+use App\Models\DatabasePool;
+use App\Models\SubscriptionPlan;
+use App\Models\Subscription;
+
 
 class Tenant extends BaseTenant implements TenantWithDatabase
 {
     use HasDatabase, HasDomains;
 
-    // can we add fillable fields
-    // protected $fillable = [
-    //     'name',
-    //     'email',
-    //     'phone',
-    //     'address',
-    //     'timezone',
-    //     'currency',
-    //     'locale',
-    //     'plan',
-    //     'trial_ends_at',
-    //     'is_active',
-    //     'data',
-    // ];
-
-    // protected $casts = [
-    //     'trial_ends_at' => 'datetime',
-    //     'is_active' => 'boolean',
-    //     'data' => 'array',
-    // ];
+    const BILLING_CYCLE_MONTHLY = 'monthly';
+    const BILLING_CYCLE_YEARLY = 'yearly';
+    const BILLING_CYCLES = [
+        self::BILLING_CYCLE_MONTHLY,
+        self::BILLING_CYCLE_YEARLY,
+    ];
 
     /**
      * The "booted" method of the model.
@@ -45,34 +34,14 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         static::creating(function (Tenant $tenant) {
             if (!$tenant->name) $tenant->name = 'Default Tenant';
             if (!$tenant->plan) $tenant->plan = 'starter';
-            if (!$tenant->trial_ends_at) $tenant->trial_ends_at = now()->addDays(14);
+            if (!$tenant->billing_cycle) $tenant->billing_cycle = 'monthly';
+            if (!$tenant->trial_ends_at) $tenant->trial_ends_at = now()->addMonth();
             if (is_null($tenant->is_active)) $tenant->is_active = true;
         });
 
         static::created(function (Tenant $tenant) {
-            // $centralDomain = config('tenancy.central_domains')[0] ?? 'ubix.local';
-            // // if (request() && request()->getHost() === $centralDomain) {
-            // //     // we are in the central domain context
-            // // }
-            // // else {
-            // //     // we are in the tenant context already
-            // //     return;
-            // // }
-            // // Create a unique domain for the tenant
-            // $tenant_prefix = \Illuminate\Support\Str::slug($tenant->name, '-');
-            // // $domain_base = '.nexusflow.co.za';
-            // $existingDomains = DB::table('domains')->pluck('domain')->toArray();
-            // $unique_domain = $tenant_prefix . $centralDomain;
-            // $i = 1;
-            // while (in_array($unique_domain, $existingDomains)) {
-            //     $unique_domain = $tenant_prefix . '-' . $i . $centralDomain;
-            //     $i++;
-            // }
-            // this will not trigger for some reason?
-            // $tenant->domains()->create([
-            //     'domain' => $unique_domain,
-            //     // 'is_primary' => true,
-            // ]);
+
+            $tenant->setupTenantDomain($tenant);
 
             \Log::info('Current sent tenancy_db_name: '. $tenant->tenancy_db_name);
 
@@ -83,23 +52,6 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             else {
                 // if tenancy_db_name is set we can setup the database
                 $tenant->setupDatabase($tenant->tenancy_db_name);
-            }
-
-            // subscription creation
-            if ($tenant->plan) {
-                // check if the plan exists
-                $defaultPlan = SubscriptionPlan::where('name', $tenant->plan)->first();
-                if ($defaultPlan) {
-                    Subscription::create([
-                        'tenant_id' => $tenant->id,
-                        'subscription_plan_id' => $defaultPlan->id,
-                        'price' => $defaultPlan->monthly_price,
-                        'billing_cycle' => 'monthly',
-                        'start_date' => now(),
-                        'end_date' => now()->addMonth(),
-                    ]);
-                }
-                
             }
         });
     }
@@ -122,32 +74,16 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             throw new \Exception('No available databases. Please create more databases in cPanel.');
         }
     }
-    /**
-     * Run tenant migrations and seeders after database assignment
-     */
-    // public function setupDatabase(): void
-    // {
-    //     \Artisan::call('tenants:migrate', [
-    //         '--tenants' => [$this->id],
-    //         '--force' => true,
-    //     ]);
 
-    //     \Artisan::call('tenants:seed', [
-    //         '--tenants' => [$this->id],
-    //         '--force' => true,
-    //     ]);
-    // }
     /**
      * Create database and run setup using package methods
      */
-    public function setupDatabase($tenancy_db_name): void
+    public function setupDatabase(string $tenancy_db_name): void
     {
-        // try {
-            // can this run in the context of the tenant? it should be able to pick up the database from the tenant's data field
-            // we make sure the tenant databases is populated before running the migrations and seeders
-            // $tenancy_db_name = $this->data['tenancy_db_name'];
-            \Log::debug("tenancy_db_name: ". $tenancy_db_name);
-            // check if tenant database exists and create if not
+        try {
+            \Log::info("Setting up tenant database: {$tenancy_db_name}");
+
+            // Assign the database in tenant_databases table if not exists
             $tenantDb = DB::table('tenant_databases')->where('tenant_id', $this->id)->first();
             if (!$tenantDb) {
                 DB::table('tenant_databases')->insert([
@@ -157,7 +93,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
                     'updated_at' => now(),
                 ]);
 
-                // update database_pool to mark database as assigned
+                // Mark database as assigned in pool
                 DatabasePool::where('database_name', $tenancy_db_name)->update([
                     'is_available' => false,
                     'assigned_to_tenant' => $this->id,
@@ -165,34 +101,54 @@ class Tenant extends BaseTenant implements TenantWithDatabase
                 ]);
             }
 
-            // tenancy()->initialize($this); not needed because we are already in the tenant context
-            // Run migrations
+            // ---------------------------
+            // Initialize tenancy context
+            // ---------------------------
+            tenancy()->initialize($this);
+
+            // ---------------------------
+            // Run tenant migrations
+            // ---------------------------
             $migrationStatus = \Artisan::call('migrate', [
                 '--path' => 'database/migrations/tenants',
                 '--force' => true,
             ]);
+            \Log::debug("Tenant migrations executed. Status: {$migrationStatus}");
 
-            \Log::debug('tenant migrationStatus: '. $migrationStatus);
-            
-            // Run seeders we should not run seeders here rather
-            // php artisan tenant:seed my-custom-id
-            // # Or, to seed all tenants
-            // php artisan tenant:seed 
+            // ---------------------------
+            // Run tenant seeders
+            // ---------------------------
             $seederStatus = \Artisan::call('db:seed', [
                 '--class' => 'Database\\Seeders\\Tenant\\TenantDatabaseSeeder',
                 '--force' => true,
             ]);
+            \Log::debug("Tenant seeders executed. Status: {$seederStatus}");
 
-            \Log::debug('tenant seederStatus: '. $seederStatus);
-            
-            $this->command->info("Tenant database setup completed for: {$this->name}");
-            
-        // } catch (\Exception $e) {
-        //     \Log::error("Failed to setup tenant database: " . $e->getMessage());
-        //     // $this->command->info("Failed to setup tenant database: " . $e->getMessage());
-        // } finally {
-        //     tenancy()->end();
-        // }
+            // ---------------------------
+            // Optionally, create subscription (this is supposed to happen in the central context but I am doing it here because I have access to the tenant model)
+            // ---------------------------
+            // if ($this->plan) {
+            //     $defaultPlan = SubscriptionPlan::where('name', $this->plan)->first();
+            //     if ($defaultPlan) {
+            //         Subscription::create([
+            //             'tenant_id' => $this->id,
+            //             'subscription_plan_id' => $defaultPlan->id,
+            //             'price' => $defaultPlan->monthly_price,
+            //             'billing_cycle' => 'monthly',
+            //             'start_date' => now(),
+            //             'end_date' => now()->addMonth(),
+            //         ]);
+            //     }
+            // }
+
+            \Log::info("Tenant database setup completed for tenant: {$this->name}");
+        } catch (\Exception $e) {
+            \Log::error("Tenant database setup failed for {$this->name}: " . $e->getMessage());
+            throw $e;
+        } finally {
+            // End tenant context so Eloquent returns to central DB
+            tenancy()->end();
+        }
     }
 
     /**
@@ -234,5 +190,56 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             // get databases from database_pool table instead (this a pre-created list of databases I prefer to use)
             return DB::table('database_pool')->pluck('database_name')->toArray();
         }
+    }
+
+    /**
+     * give the domain to tenant
+     */
+    protected function setupTenantDomain($tenant): void
+    {
+        $centralDomain = config('tenancy.central_domains')[0] ?? 'ubixcentral.local';
+
+        \Log::debug('Setting up tenant domain...');
+
+		// Create a unique domain for the tenant
+		$tenant_prefix = \Illuminate\Support\Str::slug($tenant->name, '-');
+		// $domain_base = '.nexusflow.co.za';
+		$existingDomains = DB::table('domains')->pluck('domain')->toArray();
+		$unique_domain = $tenant_prefix .'.'. $centralDomain;
+		$i = 1;
+		while (in_array($unique_domain, $existingDomains)) {
+			$unique_domain = $tenant_prefix . '-' . $i .'.'. $centralDomain;
+			$i++;
+		}
+		$tenant->domains()->create([
+			'domain' => $unique_domain,
+			'is_primary' => true,
+		]);
+        // update domain in tenant model
+        $tenant->domain = $unique_domain;
+        $tenant->save();
+        \Log::info("Tenant domain set to: {$unique_domain}");
+    }
+    /**
+     * relationship with subscriptions
+     */
+    public function subscriptions()
+    {
+        return $this->hasMany(Subscription::class);
+    }
+    /**
+     * relationship with subscription plan through subscriptions
+     */
+    public function subscriptionPlan()
+    {
+        return $this->hasOneThrough(SubscriptionPlan::class, Subscription::class);
+    }
+
+    /**
+     * current subscription
+     */
+    public function currentSubscription()
+    {
+        return $this->hasOne(Subscription::class)->whereIn('status', ['active', 'trial']);
     }
 }

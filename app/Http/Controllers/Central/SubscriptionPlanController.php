@@ -13,6 +13,9 @@ class SubscriptionPlanController extends Controller
      */
     public function index()
     {
+        // use the central database connection from here because I am in the central app
+        config(['database.connections.tenant' => config('database.connections.central')]);
+        
         // Display a listing of subscription plans
         $subscriptionPlans = SubscriptionPlan::all();
         return view('subscription_plans.index', compact('subscriptionPlans'));

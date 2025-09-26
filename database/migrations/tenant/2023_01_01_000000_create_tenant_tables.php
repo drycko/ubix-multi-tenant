@@ -52,11 +52,19 @@ return new class extends Migration
             $table->primary(['permission_id', 'role_id']);
         });
 
+        // Cache table for tenant
+        Schema::create('cache', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->text('value');
+            $table->integer('expiration');
+        });
+
         // Users table
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('phone')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->unsignedBigInteger('property_id')->nullable();
@@ -79,38 +87,6 @@ return new class extends Migration
             $table->timestamp('expires_at')->nullable();
             $table->timestamps();
         });
-
-        // Business tables will be create with their own migrations
-        // Example business tables for a hotel management system:
-        // Schema::create('properties', function (Blueprint $table) {
-        //     $table->id();
-        //     $table->string('name');
-        //     $table->string('address')->nullable();
-        //     $table->string('phone')->nullable();
-        //     $table->string('email')->nullable();
-        //     $table->timestamps();
-        // });
-
-        // Schema::create('rooms', function (Blueprint $table) {
-        //     $table->id();
-        //     $table->foreignId('property_id')->constrained();
-        //     $table->string('room_number');
-        //     $table->string('type');
-        //     $table->decimal('price', 10, 2);
-        //     $table->boolean('is_available')->default(true);
-        //     $table->timestamps();
-        // });
-
-        // Schema::create('bookings', function (Blueprint $table) {
-        //     $table->id();
-        //     $table->foreignId('room_id')->constrained();
-        //     $table->foreignId('user_id')->constrained();
-        //     $table->date('check_in');
-        //     $table->date('check_out');
-        //     $table->decimal('total_amount', 10, 2);
-        //     $table->string('status')->default('confirmed');
-        //     $table->timestamps();
-        // });
     }
 
     public function down(): void
@@ -126,6 +102,8 @@ return new class extends Migration
         Schema::dropIfExists($tableNames['model_has_permissions']);
         Schema::dropIfExists($tableNames['roles']);
         Schema::dropIfExists($tableNames['permissions']);
+
+        Schema::dropIfExists('cache');
         
         Schema::dropIfExists('users');
     }

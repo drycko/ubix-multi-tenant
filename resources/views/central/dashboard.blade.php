@@ -59,7 +59,7 @@
             <div class="col-md-3 col-6">
                 <div class="small-box text-bg-warning">
                     <div class="inner">
-                        <h3>0</h3>
+                        <h3>{{ $stats['trialing_tenants'] }}</h3>
                         <p>Trialing Tenants</p>
                     </div>
                     <i class="bi bi-hourglass-split small-box-icon" style="font-size:2.5rem; opacity:0.5;"></i>
@@ -72,7 +72,7 @@
             <div class="col-md-3 col-6">
                 <div class="small-box text-bg-danger">
                     <div class="inner">
-                        <h3>0</h3>
+                        <h3>{{ $stats['invoiced_tenants'] }}</h3>
                         <p>Invoiced Tenants</p>
                     </div>
                     <i class="bi bi-file-earmark-text small-box-icon" style="font-size:2.5rem; opacity:0.5;"></i>
@@ -138,7 +138,8 @@
                         <thead>
                             <tr>
                                 <th>Tenant</th>
-                                <th>Domain</th>
+                                <th>Primary Domain</th>
+                                <th>Database</th>
                                 <th>Email</th>
                                 <th>Date Created</th>
                                 <th>Status</th>
@@ -149,14 +150,11 @@
                             <tr>
                                 <td><strong>{{ $tenant->name }}</strong><br><small>Created {{ $tenant->created_at->diffForHumans() }}</small></td>
                                 <td>
-                                    @if($tenant->domains->isNotEmpty())
-                                        @foreach($tenant->domains as $domain)
-                                            <span class="badge bg-info">{{ $domain->name }}</span>
-                                        @endforeach
-                                    @else
-                                        N/A
-                                    @endif
-                                 </td>
+                                    <a href="http://{{ $tenant->domains->where('is_primary', true)->pluck('domain')->join(', ') }}" target="_blank" rel="noopener">
+                                        {{ $tenant->domains->where('is_primary', true)->pluck('domain')->join(', ') }}
+                                    </a>
+                                </td>
+                                <td>{{ $tenant->database }}</td>
                                 <td>{{ $tenant->email }}</td>
                                 <td>{{ $tenant->created_at->format('M d, Y') }}</td>
                                 <td>
@@ -167,13 +165,13 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="5" class="text-center">No tenants found.</td>
+                                <td colspan="6" class="text-center">No tenants found.</td>
                             </tr>
                             @endforelse
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="5" class="text-end">
+                                <td colspan="6" class="text-end">
                                     <a href="{{ route('central.tenants.index') }}" class="btn btn-sm btn-outline-success">
                                         <i class="fas fa-eye"></i> View All Tenants
                                     </a>
