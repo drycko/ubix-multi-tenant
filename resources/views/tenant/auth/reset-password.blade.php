@@ -1,10 +1,12 @@
 @extends('layouts.auth')
 
-@section('title', 'Login')
+@section('title', 'Reset Password')
 
 @section('content')
-<form method="POST" action="{{ route('login') }}">
+<form method="POST" action="{{ route('tenant.password.store') }}">
     @csrf
+
+    <input type="hidden" name="token" value="{{ $request->route('token') }}">
 
     @if(session('status'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -29,7 +31,7 @@
         <div class="input-group">
             <span class="input-group-text"><i class="fas fa-envelope"></i></span>
             <input id="email" type="email" class="form-control @error('email') is-invalid @enderror" 
-                   name="email" value="{{ old('email') }}" required autocomplete="email" autofocus
+                   name="email" value="{{ old('email', $request->email) }}" required autocomplete="email" autofocus
                    placeholder="Enter your email">
         </div>
         @error('email')
@@ -40,14 +42,14 @@
     </div>
 
     <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
+        <label for="password" class="form-label">New Password</label>
         <div class="input-group">
             <span class="input-group-text"><i class="fas fa-lock"></i></span>
             <input id="password" type="password" class="form-control @error('password') is-invalid @enderror" 
-                   name="password" required autocomplete="current-password"
-                   placeholder="Enter your password">
-            <button type="button" class="input-group-text" onclick="togglePassword(this)">
-                <i class="fas fa-eye-slash" id="toggleIcon"></i>
+                   name="password" required autocomplete="new-password"
+                   placeholder="Enter your new password">
+            <button type="button" class="input-group-text" onclick="togglePassword('password')">
+                <i class="fas fa-eye-slash"></i>
             </button>
         </div>
         @error('password')
@@ -58,42 +60,36 @@
     </div>
 
     <div class="mb-3">
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }}>
-            <label class="form-check-label" for="remember">
-                Remember Me
-            </label>
+        <label for="password_confirmation" class="form-label">Confirm New Password</label>
+        <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+            <input id="password_confirmation" type="password" class="form-control" 
+                   name="password_confirmation" required autocomplete="new-password"
+                   placeholder="Confirm your new password">
+            <button type="button" class="input-group-text" onclick="togglePassword('password_confirmation')">
+                <i class="fas fa-eye-slash"></i>
+            </button>
         </div>
     </div>
 
     <div class="mb-3">
         <button type="submit" class="btn btn-auth w-100">
-            <i class="fas fa-sign-in-alt me-2"></i>Sign In
+            <i class="fas fa-key me-2"></i>Reset Password
         </button>
-    </div>
-
-    <div class="text-center">
-        @if(Route::has('password.request'))
-            <a href="{{ route('password.request') }}" class="text-decoration-none">
-                Forgot Your Password?
-            </a>
-        @endif
     </div>
 </form>
 
 <script>
-    function togglePassword(button) {
-        const passwordInput = document.getElementById('password');
-        const eyeIcon = button.querySelector('i');
+    function togglePassword(id) {
+        const passwordInput = document.getElementById(id);
+        const eyeIcon = passwordInput.nextElementSibling.querySelector('i');
         
         if (passwordInput.type === 'password') {
             passwordInput.type = 'text';
-            eyeIcon.classList.remove('fa-eye-slash');
-            eyeIcon.classList.add('fa-eye');
+            eyeIcon.classList.replace('fa-eye-slash', 'fa-eye');
         } else {
             passwordInput.type = 'password';
-            eyeIcon.classList.remove('fa-eye');
-            eyeIcon.classList.add('fa-eye-slash');
+            eyeIcon.classList.replace('fa-eye', 'fa-eye-slash');
         }
     }
 </script>

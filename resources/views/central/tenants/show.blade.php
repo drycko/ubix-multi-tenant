@@ -118,7 +118,10 @@
 					<div class="col-md-6">
 						<div class="float-end">
 							{{-- buttons to manage domains and subscriptions --}}
-							<a href="{{ route('central.tenants.domains', $tenant->id) }}" class="btn btn-sm btn-primary">
+							<a href="{{ route('central.tenants.login-as-tenant', $tenant->id) }}" class="btn btn-sm btn-warning me-2" target="_blank">
+								<i class="fas fa-user-secret me-2"></i> Test as Tenant
+							</a>
+							<a href="{{ route('central.tenants.domains', $tenant->id) }}" class="btn btn-sm btn-primary me-2">
 								<i class="fas fa-globe me-2"></i> Domains
 							</a>
 							<a href="{{ route('central.tenants.subscriptions', $tenant->id) }}" class="btn btn-sm btn-success">

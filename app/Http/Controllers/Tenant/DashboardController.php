@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\Booking;
-use App\Models\Room;
-use App\Models\RoomType;
-use App\Models\Guest;
+use App\Models\Tenant\Booking;
+use App\Models\Tenant\Room;
+use App\Models\Tenant\RoomType;
+use App\Models\Tenant\Guest;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller

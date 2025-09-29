@@ -3,6 +3,14 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Tenant\DashboardController;
+use App\Http\Controllers\Tenant\BookingController;
+use App\Http\Controllers\Tenant\RoomController;
+use App\Http\Controllers\Tenant\RateController;
+use App\Http\Controllers\Tenant\GuestController;
+use App\Http\Controllers\Tenant\SettingController;
+use App\Http\Controllers\Tenant\TenantUserActivityController;
+use App\Http\Controllers\Tenant\TenantUserNotificationController;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 
@@ -24,7 +32,7 @@ Route::middleware([
     PreventAccessFromCentralDomains::class,
 ])->group(function () {
     // Tenant authentication routes
-    require __DIR__.'/auth.php';
+    require __DIR__.'/tenant-auth.php';
 
     // Public routes
     Route::get('/', function () {
@@ -32,7 +40,7 @@ Route::middleware([
     })->name('tenant.home');
 
     // Protected routes
-    Route::middleware(['auth'])->group(function () {
+    Route::middleware(['auth:tenant'])->group(function () {
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('tenant.dashboard');
 
@@ -91,6 +99,20 @@ Route::middleware([
         // Settings
         Route::get('settings', [SettingController::class, 'index'])->name('tenant.settings');
         Route::put('settings', [SettingController::class, 'update'])->name('tenant.settings.update');
+
+        // User Activities
+        Route::get('activities', [TenantUserActivityController::class, 'index'])->name('tenant.activities.index');
+        Route::get('activities/{activity}', [TenantUserActivityController::class, 'show'])->name('tenant.activities.show');
+        Route::post('activities/mark-as-read', [TenantUserActivityController::class, 'markAsRead'])->name('tenant.activities.mark-as-read');
+        Route::post('activities/mark-all-as-read', [TenantUserActivityController::class, 'markAllAsRead'])->name('tenant.activities.mark-all-as-read');
+        Route::delete('activities/clear-all', [TenantUserActivityController::class, 'clearAll'])->name('tenant.activities.clear-all');
+
+        // User Notifications
+        Route::get('notifications', [TenantUserNotificationController::class, 'index'])->name('tenant.notifications.index');
+        Route::get('notifications/{notification}', [TenantUserNotificationController::class, 'show'])->name('tenant.notifications.show');
+        Route::post('notifications/mark-as-read', [TenantUserNotificationController::class, 'markAsRead'])->name('tenant.notifications.mark-as-read');
+        Route::post('notifications/mark-all-as-read', [TenantUserNotificationController::class, 'markAllAsRead'])->name('tenant.notifications.mark-all-as-read');
+        Route::delete('notifications/clear-all', [TenantUserNotificationController::class, 'clearAll'])->name('tenant.notifications.clear-all');
     });
 });
 

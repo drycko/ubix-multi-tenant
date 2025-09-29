@@ -40,6 +40,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/central/tenants/{tenant}/domains', [TenantController::class, 'domains'])->name('central.tenants.domains');
     Route::get('/central/tenants/{tenant}/subscriptions', [TenantController::class, 'subscriptions'])->name('central.tenants.subscriptions');
     Route::post('/central/tenants/{tenant}/switch-to-premium', [TenantController::class, 'switchToPremium'])->name('central.tenants.switch-to-premium');
+    Route::get('/central/tenants/{tenant}/login-as-tenant', [TenantController::class, 'loginAsTenant'])->name('central.tenants.login-as-tenant');
     // Route::post('/central/tenants/{tenant}/cancel-subscription', [TenantController::class, 'cancelSubscription'])->name('central.tenants.cancel-subscription');
     Route::resource('tenants', TenantController::class);
 

@@ -1,9 +1,9 @@
-@extends('layouts.auth')
+@extends('tenant.layouts.auth')
 
-@section('title', 'Login')
+@section('title', 'Tenant Login')
 
 @section('content')
-<form method="POST" action="{{ route('login') }}">
+<form method="POST" action="{{ route('tenant.login') }}">
     @csrf
 
     @if(session('status'))
@@ -73,8 +73,8 @@
     </div>
 
     <div class="text-center">
-        @if(Route::has('password.request'))
-            <a href="{{ route('password.request') }}" class="text-decoration-none">
+        @if(Route::has('tenant.password.request'))
+            <a href="{{ route('tenant.password.request') }}" class="text-decoration-none">
                 Forgot Your Password?
             </a>
         @endif

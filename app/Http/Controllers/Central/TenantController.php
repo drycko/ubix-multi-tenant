@@ -543,6 +543,42 @@ class TenantController extends Controller
         }
     }
 
+    /**
+     * Log in as a tenant user for testing purposes
+     */
+    public function loginAsTenant(Tenant $tenant)
+    {
+        // Store central user session info
+        session()->put('central_user_id', auth()->id());
+        session()->put('central_user_email', auth()->user()->email);
+
+        // Get or create a test user for the tenant
+        tenancy()->initialize($tenant);
+        
+        $tenantUser = \App\Models\User::firstOrCreate(
+            ['email' => 'test@' . $tenant->domains->first()->domain],
+            [
+                'name' => 'Test User',
+                'email' => 'test@' . $tenant->domains->first()->domain,
+                'password' => bcrypt('password'),
+                'email_verified_at' => now(),
+            ]
+        );
+
+        // Login as the tenant user
+        auth()->login($tenantUser);
+
+        $this->logAdminActivity(
+            "login",
+            "tenants",
+            $tenant->id,
+            "Admin logged in as tenant user for '{$tenant->name}'"
+        );
+
+        // Redirect to tenant dashboard with the tenant's domain
+        return redirect('http://' . $tenant->domains->first()->domain . '/dashboard');
+    }
+
     public function destroy(Tenant $tenant)
     {   
         // use the central database connection from here because I am in the central app
