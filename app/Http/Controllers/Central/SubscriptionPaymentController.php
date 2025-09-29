@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Central;
 
 use App\Http\Controllers\Controller;
 use App\Models\SubscriptionPayment;
+use App\Traits\LogsAdminActivity;
 use Illuminate\Http\Request;
 
 class SubscriptionPaymentController extends Controller
 {
+    use LogsAdminActivity;
     /**
      * Display a listing of the resource.
      */

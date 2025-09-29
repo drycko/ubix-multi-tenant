@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Central;
 
-use App\Models\SubscriptionInvoice;
+use App\Http\Controllers\Controller;
+use App\Models\AdminActivity;
 use Illuminate\Http\Request;
 
-class SubscriptionInvoiceController extends Controller
+class AdminActivityController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -34,7 +35,7 @@ class SubscriptionInvoiceController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(SubscriptionInvoice $subscriptionInvoice)
+    public function show(AdminActivity $adminActivity)
     {
         //
     }
@@ -42,7 +43,7 @@ class SubscriptionInvoiceController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(SubscriptionInvoice $subscriptionInvoice)
+    public function edit(AdminActivity $adminActivity)
     {
         //
     }
@@ -50,7 +51,7 @@ class SubscriptionInvoiceController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, SubscriptionInvoice $subscriptionInvoice)
+    public function update(Request $request, AdminActivity $adminActivity)
     {
         //
     }
@@ -58,7 +59,7 @@ class SubscriptionInvoiceController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(SubscriptionInvoice $subscriptionInvoice)
+    public function destroy(AdminActivity $adminActivity)
     {
         //
     }

@@ -135,3 +135,24 @@ if (!function_exists('getCountries')) {
         return json_decode($json, true);
     }
 }
+
+if (!function_exists('format_price')) {
+    /**
+     * Format a price with the given currency.
+     *
+     * @param float|int $price The price to format
+     * @param string|null $currency The currency code (e.g., USD, EUR)
+     * @param bool $showCurrency Whether to show the currency code
+     * @return string
+     */
+    function format_price($price, $currency = null, $showCurrency = true): string
+    {
+        if ($currency === null) {
+            $currency = config('app.currency', 'USD');
+        }
+        
+        $formattedPrice = number_format((float) $price, 2, '.', ',');
+        
+        return $showCurrency ? "{$currency} {$formattedPrice}" : $formattedPrice;
+    }
+}

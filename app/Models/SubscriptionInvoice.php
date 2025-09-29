@@ -5,15 +5,32 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SubscriptionInvoice extends Model
 {
-    CONST INVOICE_STATUSES = [
+    // must soft deleteable
+    use SoftDeletes;
+    const INVOICE_STATUSES = [
         'pending',
         'partially_paid',
         'paid',
         'overdue',
         'cancelled',
+    ];
+    
+    const INVOICE_PAYMENT_STATUSES = [
+        'pending',
+        'completed',
+        'failed',
+    ];
+
+    const INVOICE_PAYMENT_METHODS = [
+        'credit_card',
+        'paypal',
+        'bank_transfer',
+        'stripe',
+        'cash_payment',
     ];
 
     // fillable properties
@@ -41,7 +58,7 @@ class SubscriptionInvoice extends Model
 
     public function payments(): HasMany
     {
-        return $this->hasMany(SubscriptionPayment::class);
+        return $this->hasMany(SubscriptionPayment::class, 'invoice_id');
     }
 
     public function tenant(): BelongsTo
@@ -88,8 +105,12 @@ class SubscriptionInvoice extends Model
     public static function generateInvoiceNumber(): string
     {
         $lastInvoice = self::orderBy('id', 'desc')->first();
-        $nextId = $lastInvoice ? $lastInvoice->id + 1 : 1;
-        return 'INV-' . strtoupper(dechex($nextId));
+        if (!$lastInvoice) {
+            return 'INV-00001';
+        }
+        $lastNumber = (int) str_replace('INV-', '', $lastInvoice->invoice_number);
+        $newNumber = $lastNumber + 1;
+        return 'INV-' . str_pad($newNumber, 5, '0', STR_PAD_LEFT);
     }
 
 }

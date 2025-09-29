@@ -4,14 +4,16 @@ namespace App\Http\Controllers\Central;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Models\SubscriptionPlan;
+use App\Traits\LogsAdminActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\DatabasePool;
-// use Stancl\Tenancy\Database\Models\Tenant;
+use App\Models\SubscriptionInvoice;
 
 
 class TenantController extends Controller
 {
+    use LogsAdminActivity;
     public function index()
     {
         // use the central database connection from here because I am in the central app
@@ -201,6 +203,14 @@ class TenantController extends Controller
             // commit transaction
             // DB::commit();
 
+            $this->logAdminActivity(
+                "create",
+                "tenants",
+                $tenant->id,
+                "Created new tenant '{$request->name}' with domain {$request->domain}"
+            );
+            $this->createAdminNotification("New tenant '{$request->name}' was created");
+
             return redirect()->route('tenants.index')
                 ->with('success', "Tenant {$request->name} created successfully! Access: {$request->domain}");
         } catch (\Exception $e) {
@@ -214,7 +224,7 @@ class TenantController extends Controller
     {
         // use the central database connection from here because I am in the central app
         config(['database.connections.tenant' => config('database.connections.central')]);
-
+        
         $centralDomain = config('tenancy.central_domains')[0] ?? 'ubixcentral.local';
         
         // subscription plans for the tenant from database table
@@ -227,10 +237,24 @@ class TenantController extends Controller
         // load tenant relationships
         $tenant->load('domains');
         // current subscription where plan name is tenant->plan and status is active or trial
-        $currentSubscription = $tenant->currentSubscription;
-        $currentSubscription->plan = SubscriptionPlan::find($currentSubscription->subscription_plan_id);
-        $tenant->current_plan = $currentSubscription;
-        $tenant->current_plan->trial_days_left = $currentSubscription && $currentSubscription->status === 'trial' && $currentSubscription->trial_ends_at ? round(now()->diffInDays($currentSubscription->trial_ends_at)) : null;
+        $currentSubscription = $tenant->currentSubscription ?? null;
+        if ($currentSubscription) {
+
+            $currentSubscription->plan = SubscriptionPlan::find($currentSubscription->subscription_plan_id) ?? null;
+            $tenant->current_plan = $currentSubscription;
+            // if current subscription is trialing calculate trial days left, but if there is no trial_ends_at set it to
+            if ($currentSubscription && $currentSubscription->status === 'trial') {
+                $tenant->current_plan->trial_ends_at = $currentSubscription->trial_ends_at ?? $currentSubscription->end_date;
+                $tenant->current_plan->trial_days_left = $currentSubscription->trial_ends_at ? round(now()->diffInDays($currentSubscription->trial_ends_at ?? $currentSubscription->end_date)) : null;
+            }
+            else {
+                $tenant->current_plan->trial_days_left = null;
+            }
+        }
+        else {
+            $tenant->current_plan = null;
+
+        }
         // set tenant->database
         $tenant->database = $tenant->tenancy_db_name; // in case tenancy decide to rename these attributes in future
         // check if tenant has a primary domain
@@ -258,7 +282,17 @@ class TenantController extends Controller
         $availableDbs = DB::table('database_pool')->whereNull('assigned_to_tenant')->pluck('database_name')->toArray();
         // current tenant primary domain
         $tenant->primary_domain = $tenant->domains->where('is_primary', true)->pluck('domain')->first();
-        // set tenant->database
+        // set tenant->plan to null if the plan does not exist in subscriptions table or subscription_plans table
+        $currentPlan = $tenant->subscriptions()->where('status', 'active')->first();
+        if (!$currentPlan) {
+            $tenant->current_plan = null;
+            $tenant->current_plan_name = null;
+        }
+        else {
+            $tenant->current_plan = $currentPlan;
+            $tenant->current_plan_name = $currentPlan->name;
+        }
+
         // get app currency from config
         $currency = config('app.currency', 'USD');
         return view('central.tenants.edit', compact('tenant', 'plans', 'availableDbs', 'currency', 'centralDomain'));
@@ -363,9 +397,24 @@ class TenantController extends Controller
                     'status' => 'active',
                     'trial_ends_at' => null,
                 ]);
+
+                $this->logAdminActivity(
+                    "update",
+                    "tenants",
+                    $tenant->id,
+                    "Changed tenant '{$tenant->name}' plan to {$plan->name} ({$billing_cycle})"
+                );
+                $this->createAdminNotification("Tenant '{$tenant->name}' was switched to {$plan->name} plan ({$billing_cycle})");
             }
         }
 
+        $this->logAdminActivity(
+            "update",
+            "tenants",
+            $tenant->id,
+            "Updated tenant '{$tenant->name}' details"
+        );
+        
         return redirect()->route('tenants.index')->with('success', 'Tenant updated successfully.');
     }
 
@@ -383,8 +432,13 @@ class TenantController extends Controller
         // use the central database connection from here because I am in the central app
         config(['database.connections.tenant' => config('database.connections.central')]);
         
-        $subscriptions = $tenant->subscriptions()->with('plan')->get();
-        return view('central.tenants.subscriptions', compact('tenant', 'subscriptions'));
+        $subscriptions = $tenant->subscriptions()->with('plan')->paginate(10);
+        $subscriptions->getCollection()->transform(function ($subscription) {
+            $subscription->plan = SubscriptionPlan::find($subscription->subscription_plan_id) ?? null;
+            return $subscription;
+        });
+        $currency = config('app.currency', 'USD');
+        return view('central.subscriptions.tenant-subs', compact('tenant', 'subscriptions', 'currency'));
     }
 
     public function switchToPremium(Request $request, Tenant $tenant)
@@ -392,55 +446,65 @@ class TenantController extends Controller
         // use the central database connection from here because I am in the central app
         config(['database.connections.tenant' => config('database.connections.central')]);
 
-        // Accept Request $request as parameter
-        // Validate that the sent plan exists in the subscription_plans table
-        $planName = $request->input('plan_name');
-        $basePlanName = str_replace('_yearly', '', $planName);
+        try {
+            \Log::info('Switching tenant: ' . $tenant->name . ' to premium plan with request data: ' . json_encode($request->all()));
+            // transaction can be added here if needed
+            DB::beginTransaction();
 
-        $request->merge(['base_plan_name' => $basePlanName]);
-        $request->validate([
-            'base_plan_name' => 'required|exists:subscription_plans,name',
-        ]);
+            // Accept Request $request as parameter
+            // Validate that the sent plan exists in the subscription_plans table
+            $planName = $request->input('plan_name');
+            $basePlanName = str_replace('_yearly', '', $planName);
 
-        $planName = $request->input('plan_name');
-        $billing_cycle = str_ends_with($planName, '_yearly') ? 'yearly' : 'monthly';
-        $basePlanName = str_replace('_yearly', '', $planName);
-        $premiumPlan = SubscriptionPlan::where('name', $basePlanName)->first();
-
-        if ($premiumPlan) {
-            $plan_amount = $billing_cycle === 'yearly' ? $premiumPlan->yearly_price : $premiumPlan->monthly_price;
-            $endDate = $billing_cycle === 'yearly' ? now()->addYear() : now()->addMonth();
-
-            // Create new subscription record with status 'pending' (not assigned to tenant until payment is confirmed)
-            $newSubscription = $tenant->subscriptions()->create([
-                'tenant_id' => $tenant->id,
-                'subscription_plan_id' => $premiumPlan->id,
-                'price' => $plan_amount,
-                'billing_cycle' => $billing_cycle,
-                'start_date' => now(),
-                'end_date' => $endDate,
-                'status' => 'inactive', // will be set to active when payment is confirmed
-                'trial_ends_at' => null,
+            $request->merge(['base_plan_name' => $basePlanName]);
+            $request->validate([
+                'base_plan_name' => 'required|exists:subscription_plans,name',
             ]);
 
-            // Create a subscription invoice linked to the new subscription
-            SubscriptionInvoice::create([
-                'tenant_id' => $tenant->id,
-                'subscription_id' => $newSubscription->id,
-                'invoice_number' => SubscriptionInvoice::generateInvoiceNumber(),
-                'invoice_date' => now(),
-                'due_date' => now()->addDays(7),
-                'amount' => $plan_amount,
-                'status' => 'pending',
-                'notes' => 'Invoice for switching to ' . $premiumPlan->name . ' plan.',
-            ]);
+            $planName = $request->input('plan_name');
+            $billing_cycle = str_ends_with($planName, '_yearly') ? 'yearly' : 'monthly';
+            $basePlanName = str_replace('_yearly', '', $planName);
+            $premiumPlan = SubscriptionPlan::where('name', $basePlanName)->first();
 
-            // Do NOT update tenant plan fields until payment is confirmed
-            // This should be handled in a payment confirmation callback/webhook
+            if ($premiumPlan) {
+                $plan_amount = $billing_cycle === 'yearly' ? $premiumPlan->yearly_price : $premiumPlan->monthly_price;
+                $endDate = $billing_cycle === 'yearly' ? now()->addYear() : now()->addMonth();
 
-            return redirect()->route('tenants.show', $tenant)->with('success', 'Tenant switched to ' . $premiumPlan->name . ' plan. Awaiting payment confirmation.');
-        } else {
-            return redirect()->route('tenants.show', $tenant)->withErrors(['plan' => 'Premium plan does not exist.']);
+                // Create new subscription record with status 'pending' (not assigned to tenant until payment is confirmed)
+                $newSubscription = $tenant->subscriptions()->create([
+                    'subscription_plan_id' => $premiumPlan->id,
+                    'price' => $plan_amount,
+                    'billing_cycle' => $billing_cycle,
+                    'start_date' => now(),
+                    'end_date' => $endDate,
+                    'status' => 'inactive', // will be set to active when payment is confirmed
+                    'trial_ends_at' => null,
+                ]);
+
+                // Create a subscription invoice linked to the new subscription
+                SubscriptionInvoice::create([
+                    'tenant_id' => $tenant->id,
+                    'subscription_id' => $newSubscription->id,
+                    'invoice_number' => SubscriptionInvoice::generateInvoiceNumber(),
+                    'invoice_date' => now(),
+                    'due_date' => now()->addDays(7),
+                    'amount' => $plan_amount,
+                    'status' => 'pending',
+                    'notes' => 'Invoice for switching to ' . $premiumPlan->name . ' plan.',
+                ]);
+
+                // Do NOT update tenant plan fields until payment is confirmed
+                // This should be handled in a payment confirmation callback/webhook
+                DB::commit();
+                return redirect()->route('central.tenants.subscriptions', $tenant)->with('success', 'Tenant switched to ' . $premiumPlan->name . ' ' . ucfirst($billing_cycle) . ' plan. Awaiting payment confirmation.');
+            } else {
+                DB::rollBack();
+                return redirect()->route('central.tenants.show', $tenant)->withErrors(['plan' => 'Premium plan does not exist.']);
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error logging switch to premium request data: ' . $e->getMessage());
+            return redirect()->route('central.tenants.show', $tenant)->withErrors(['error' => 'Error switching to premium plan: ' . $e->getMessage()]);
         }
     }
 
@@ -456,14 +520,22 @@ class TenantController extends Controller
                 'status' => 'cancelled',
                 'end_date' => now(),
             ]);
-            // switch tenant back to starter plan
-            $starterPlan = SubscriptionPlan::where('name', 'starter')->first();
-            if ($starterPlan) {
-                $tenant->plan = 'starter';
-                $tenant->subscription_plan_id = $starterPlan->id;
+            // switch tenant back to default plan
+            $plan = SubscriptionPlan::where('is_default', true)->first();
+            if ($plan) {
+                $tenant->plan = $plan->name;
+                $tenant->subscription_plan_id = $plan->id;
                 $tenant->billing_cycle = 'monthly';
                 $tenant->is_active = true;
                 $tenant->save();
+
+                $this->logAdminActivity(
+                    "cancel_subscription",
+                    "subscriptions",
+                    $activeSubscription->id,
+                    "Cancelled subscription '{$activeSubscription->id}' for tenant '{$tenant->name}' and reverted to default plan"
+                );
+                $this->createAdminNotification("Subscription cancelled for tenant '{$tenant->name}'");
             }
             return redirect()->route('tenants.show', $tenant)->with('success', 'Tenant subscription cancelled successfully.');
         } else {
@@ -476,7 +548,17 @@ class TenantController extends Controller
         // use the central database connection from here because I am in the central app
         config(['database.connections.tenant' => config('database.connections.central')]);
         
+        $tenantName = $tenant->name;
         $tenant->delete();
+        
+        $this->logAdminActivity(
+            "delete",
+            "tenants",
+            $tenant->id,
+            "Deleted tenant '{$tenantName}'"
+        );
+        $this->createAdminNotification("Tenant '{$tenantName}' was deleted");
+        
         return redirect()->route('tenants.index')->with('success', 'Tenant deleted successfully.');
     }
 }

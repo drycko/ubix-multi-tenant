@@ -10,9 +10,11 @@ class SubscriptionPayment extends Model
     // Model properties and relationships can be defined here
     protected $fillable = [
         'subscription_id',
+        'invoice_id',
         'amount',
         'payment_date',
         'payment_method',
+        'notes',
         'transaction_id',
         'status',
     ];
@@ -29,7 +31,7 @@ class SubscriptionPayment extends Model
 
     public function invoice(): BelongsTo
     {
-        return $this->belongsTo(SubscriptionInvoice::class);
+        return $this->belongsTo(SubscriptionInvoice::class, 'invoice_id');
     }
 
     public function isSuccessful(): bool

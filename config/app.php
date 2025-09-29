@@ -14,6 +14,7 @@ return [
     */
 
     'name' => env('APP_NAME', 'Laravel'),
+    'name_long' => env('APP_NAME_LONG', 'Laravel Application'),
 
     /*
     |--------------------------------------------------------------------------
@@ -136,5 +137,15 @@ return [
     */
 
     'version' => env('APP_VERSION', '1.0.0'),
+
+    'email' => env('MAIL_REPLYTO_ADDRESS', 'info@nexusflow.com'),
+    'phone' => env('APP_PHONE', '(555) 555-5555'),
+    'address_line_1' => env('APP_ADDRESS_LINE_1', '1234 Main St'),
+    'address_line_2' => env('APP_ADDRESS_LINE_2', 'Suite 100'),
+    'address_city' => env('APP_ADDRESS_CITY', 'Anytown'),
+    'address_state' => env('APP_ADDRESS_STATE', 'CA'),
+    'address_zip' => env('APP_ADDRESS_ZIP', '12345'),
+    'address_country' => env('APP_ADDRESS_COUNTRY', 'USA'),
+    'website' => env('APP_WEBSITE', 'https://nexusflow.com'),
 
 ];

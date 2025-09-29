@@ -146,8 +146,8 @@
 								<option value="" disabled selected>Select a plan</option>
 								@foreach($plans as $plan)
 								{{-- make sure we have both yearly and monthly price in the plans as separate options --}}
-								<option value="{{ $plan->name }}" {{ old('plan', $tenant->plan) == $plan->name ? 'selected' : '' }}>{{ $plan->name }} - {{ $currency }} {{ $plan->monthly_price }} / month</option>
-								<option value="{{ $plan->name }}_yearly" {{ old('plan', $tenant->plan) == $plan->name.'_yearly' ? 'selected' : '' }}>{{ $plan->name }} - {{ $currency }} {{ $plan->yearly_price }} / year</option>
+								<option value="{{ $plan->name }}" {{ old('plan', $tenant->current_plan_name) == $plan->name ? 'selected' : '' }}>{{ $plan->name }} - {{ $currency }} {{ $plan->monthly_price }} / month</option>
+								<option value="{{ $plan->name }}_yearly" {{ old('plan', $tenant->current_plan_name) == $plan->name.'_yearly' ? 'selected' : '' }}>{{ $plan->name }} - {{ $currency }} {{ $plan->yearly_price }} / year</option>
 								@endforeach
 							</select>
 							@error('plan')

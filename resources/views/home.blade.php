@@ -1,6 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
+{{-- redirect to central dashboard --}}
+<script>
+    window.location.href = "{{ route('central.dashboard') }}";
+</script>
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-8">

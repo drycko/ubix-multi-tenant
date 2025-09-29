@@ -42,5 +42,13 @@ class User extends Authenticatable
     {
         return tenant() ? 'tenant' : 'web';
     }
+    /**
+     * admin activities.
+     * Only in admin context for users with these roles in SUPPORTED_ROLES.
+     */
+    public function adminActivities()
+    {
+        return $this->hasMany(AdminActivity::class, 'admin_id');
+    }
 
 }

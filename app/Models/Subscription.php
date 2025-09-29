@@ -3,10 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Subscription extends Model
 {
+    use HasFactory, SoftDeletes;
     // Model properties and relationships can be defined here
     protected $fillable = [
         'tenant_id',
@@ -31,12 +35,12 @@ class Subscription extends Model
 
     public function plan(): BelongsTo
     {
-        return $this->belongsTo(SubscriptionPlan::class);
+        return $this->belongsTo(SubscriptionPlan::class, 'subscription_plan_id');
     }
 
-    public function invoice(): BelongsTo
+    public function invoices(): HasMany
     {
-        return $this->belongsTo(SubscriptionInvoice::class);
+        return $this->hasMany(SubscriptionInvoice::class);
     }
 
     public function isActive(): bool
@@ -65,5 +69,34 @@ class Subscription extends Model
                          $q->whereNull('end_date')
                            ->orWhere('end_date', '>', now());
                      });
+    }
+
+    public function scopeExpired($query)
+    {
+        return $query->where('status', 'expired')
+                     ->orWhere(function ($q) {
+                         $q->whereNotNull('end_date')
+                           ->where('end_date', '<=', now());
+                     });
+    }
+
+    public function hasInvoice(): bool
+    {
+        return $this->invoices()->exists();
+    }
+
+    public function hasActiveInvoice(): bool
+    {
+        return $this->invoices()->where('status', 'paid')->exists();
+    }
+
+    public function latestInvoice()
+    {
+        return $this->invoices()->orderBy('created_at', 'desc')->first();
+    }
+
+    public function hasOutstandingInvoices(): bool
+    {
+        return $this->invoices()->where('status', 'pending')->exists();
     }
 }

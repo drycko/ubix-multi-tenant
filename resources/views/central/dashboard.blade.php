@@ -63,7 +63,7 @@
                         <p>Trialing Tenants</p>
                     </div>
                     <i class="bi bi-hourglass-split small-box-icon" style="font-size:2.5rem; opacity:0.5;"></i>
-                    <a href="#" class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
+                    <a href="{{ route('central.tenants.index') }}" class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
                         More info <i class="bi bi-link-45deg"></i>
                     </a>
                 </div>
@@ -76,7 +76,7 @@
                         <p>Invoiced Tenants</p>
                     </div>
                     <i class="bi bi-file-earmark-text small-box-icon" style="font-size:2.5rem; opacity:0.5;"></i>
-                    <a href="#" class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
+                    <a href="{{ route('central.invoices.index') }}" class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
                         More info <i class="bi bi-link-45deg"></i>
                     </a>
                 </div>
@@ -110,12 +110,12 @@
                 </a>
             </div>
             <div class="col-md-3 mb-3">
-                <a href="#" class="btn btn-outline-warning w-100 py-3">
+                <a href="{{ route('central.tenants.create') }}" class="btn btn-outline-warning w-100 py-3">
                     <i class="fas fa-plus me-2"></i> New Trialing Tenant
                 </a>
             </div>
             <div class="col-md-3 mb-3">
-                <a href="" class="btn btn-outline-danger w-100 py-3">
+                <a href="{{ route('central.invoices.create') }}" class="btn btn-outline-danger w-100 py-3">
                     <i class="fas fa-plus me-2"></i> New Invoice
                 </a>
             </div>

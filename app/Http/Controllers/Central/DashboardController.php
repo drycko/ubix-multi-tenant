@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Models\SubscriptionPlan;
 use App\Models\Subscription;
+use App\Models\SubscriptionInvoice;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -30,24 +31,27 @@ class DashboardController extends Controller
             $tenant->database = $tenant->tenancy_db_name; // in case tenancy decide to rename these attributes in future
         }
 
+        // get unpaid invoices count
+        $unpaidInvoicesCount = SubscriptionInvoice::whereIn('status', ['pending', 'partially_paid', 'overdue'])->count();
+
         $stats = [
 			'total_tenants' => $totalTenants,
 			'active_tenants' => $activeTenantsWithSubscription,
             'trialing_tenants' => $trialingTenants,
-            'invoiced_tenants' => 0,
+            'invoiced_tenants' => $unpaidInvoicesCount,
 			// Add more stats as needed
 		];
         
         return view('central.dashboard', compact('stats', 'tenants'));
     }
 
-    public function settings()
-    {
-        // use the central database connection from here because I am in the central app
-        config(['database.connections.tenant' => config('database.connections.central')]);
+    // public function settings()
+    // {
+    //     // use the central database connection from here because I am in the central app
+    //     config(['database.connections.tenant' => config('database.connections.central')]);
         
-        return view('central.settings');
-    }
+    //     return view('central.settings');
+    // }
 
     public function stats()
     {
@@ -57,7 +61,6 @@ class DashboardController extends Controller
         // Example stats data
         $stats = [
             'total_tenants' => Tenant::count(),
-            'active_tenants' => Tenant::where('is_active', true)->count(),
             // Add more stats as needed
         ];
 

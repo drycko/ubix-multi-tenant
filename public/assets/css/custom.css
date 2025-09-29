@@ -1,0 +1,39 @@
+/*!
+ *   Ubix - Multi-tenant SaaS Application
+ *   Version: 1.0.0
+ *   Author: Drycko
+ *   Website: Nexusflow.io <https://nexusflow.co.za>
+ *   License: MIT
+ */
+
+/* Custom Styles */
+body {
+  background-color: #f8f9fa; /* Light gray background */
+  color: #343a40; /* Dark text color for better readability */
+}
+
+/* button tooltip styles */
+.btn[tooltip] {
+  position: relative;
+}
+
+.btn[tooltip]::after {
+  content: attr(tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #343a40;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s;
+}
+
+.btn[tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+}

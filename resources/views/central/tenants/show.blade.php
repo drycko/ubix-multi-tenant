@@ -83,6 +83,7 @@
 				<div class="col-md-6 mb-4">
 					<h5>Current Subscription</h5>
 					<hr>
+					@if($tenant->current_plan)
 					<p><strong>Current Plan:</strong> {{ $tenant->current_plan ? $tenant->current_plan->plan->name : 'N/A' }}</br>
 					<p><strong>Plan Status:</strong> {{ $tenant->current_plan->status ?? 'N/A' }}</br>
 					<p><strong>Plan Expiry:</strong> {{ $tenant->current_plan->end_date ? date('d M Y', strtotime($tenant->current_plan->end_date)) : 'N/A' }}</br>
@@ -94,23 +95,30 @@
 						<a href="#" class="btn btn-sm btn-outline-success me-2" data-bs-toggle="modal" data-bs-target="#switchToPremiumModal">
 							<i class="fas fa-exchange-alt me-2"></i>Switch to Paid Plan
 						</a>
-						<a href="#" class="btn btn-sm btn-outline-danger me-2" data-bs-toggle="modal" data-bs-target="#cancelSubscriptionModal">
-							<i class="fas fa-times-circle me-2"></i>Cancel Trial
+						<a href="{{ route('central.subscriptions.show', $tenant->current_plan->id) }}" class="btn btn-sm btn-outline-primary me-2">
+							<i class="fas fa-eye me-2"></i>View Subscription
 						</a>
+					@endif
+					@else
+					<p>No active subscription plan.</p>
+					{{-- button to open modal to switch to premium plan --}}
+					<a href="#" class="btn btn-sm btn-outline-success me-2" data-bs-toggle="modal" data-bs-target="#switchToPremiumModal">
+						<i class="fas fa-exchange-alt me-2"></i>Switch to Paid Plan
+					</a>
 					@endif
 				</div>
 			</div>
 			<div class="card-footer">
 				<div class="row">
 					<div class="col-md-6">
-						<a href="{{ route('central.tenants.index') }}" class="btn btn-sm btn-secondary">
+						<a href="{{ route('central.tenants.index') }}" class="btn btn-sm btn-outline-secondary">
 							<i class="fas fa-arrow-left me-2"></i>Back to All Tenants
 						</a>
 					</div>
 					<div class="col-md-6">
 						<div class="float-end">
 							{{-- buttons to manage domains and subscriptions --}}
-							<a href="{{ route('central.tenants.domains', $tenant->id) }}" class="btn btn-sm btn-info">
+							<a href="{{ route('central.tenants.domains', $tenant->id) }}" class="btn btn-sm btn-primary">
 								<i class="fas fa-globe me-2"></i> Domains
 							</a>
 							<a href="{{ route('central.tenants.subscriptions', $tenant->id) }}" class="btn btn-sm btn-success">
@@ -161,7 +169,7 @@
 <!--end::Switch to Premium Plan Modal-->
 
 <!--start::Cancel Current Subscription Modal-->
-<div class="modal fade" id="cancelSubscriptionModal" tabindex="-1" aria-labelledby="cancelSubscriptionModalLabel" aria-hidden="true">
+{{-- <div class="modal fade" id="cancelSubscriptionModal" tabindex="-1" aria-labelledby="cancelSubscriptionModalLabel" aria-hidden="true">
 	<div class="modal-dialog">
 		<div class="modal-content">
 			<div class="modal-header">
@@ -173,9 +181,9 @@
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-				<a href="{{ route('central.tenants.cancel-subscription', $tenant->id) }}" class="btn btn-danger">Yes, Cancel Subscription</a>
+				<a href="#" class="btn btn-danger">Yes, Cancel Subscription</a>
 			</div>
 		</div>
 	</div>
-</div>
+</div> --}}
 @endsection

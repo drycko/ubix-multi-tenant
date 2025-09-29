@@ -19,7 +19,9 @@
   <!--end::Accessibility Meta Tags-->
   @vite(['resources/sass/app.scss', 'resources/js/app.js'])
   <link rel="stylesheet" href="{{ asset('vendor/admin-lte/dist/css/adminlte.min.css') }}">
-  {{-- icon --}}
+  {{-- custom css --}}
+  <link rel="stylesheet" href="{{ asset('assets/css/custom.css') }}">
+  {{-- favicon --}}
   <link rel="icon" type="image/x-icon" href="{{ asset('assets/images/favicon.ico') }}"/>
   {{-- bootstrap icons --}}
   <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/images/apple-touch-icon.png') }}">
@@ -299,6 +301,91 @@
               </ul>
             </li>
             {{-- end Tenants --}}
+            {{-- Plans --}}
+            <li class="nav-item {{ Request::is('central/plans*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('central/plans*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-card-list"></i>
+                <p>Plans
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/plans') ? 'active' : '' }}" href="{{ route('central.plans.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Plans</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/plans/create') ? 'active' : '' }}" href="{{ route('central.plans.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Add Plan</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/plans/trashed') ? 'active' : '' }}" href="{{ route('central.plans.trashed') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Trashed Plans</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            {{-- end Plans --}}
+            {{-- Subscriptions --}}
+            <li class="nav-item">
+              <a class="nav-link {{ Request::is('central/subscriptions') ? 'active' : '' }}" href="{{ route('central.subscriptions.index') }}">
+                <i class="nav-icon bi bi-journal-text"></i>
+                <p>Subscriptions</p>
+              </a>
+            </li>
+            {{-- <li class="nav-item {{ Request::is('central/subscriptions*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('central/subscriptions*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-journal-text"></i>
+                <p>Subscriptions
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/subscriptions') ? 'active' : '' }}" href="{{ route('central.subscriptions.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Subscriptions</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/subscriptions/create') ? 'active' : '' }}" href="{{ route('central.subscriptions.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Add Subscription</p>
+                  </a>
+                </li>
+              </ul>
+            </li> --}}
+            {{-- end Subscriptions --}}
+            {{-- Invoices --}}
+            <li class="nav-item {{ Request::is('central/invoices*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('central/invoices*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-receipt"></i>
+                <p>Invoices
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/invoices') ? 'active' : '' }}" href="{{ route('central.invoices.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Invoices</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/invoices/create') ? 'active' : '' }}" href="{{ route('central.invoices.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Add Invoice</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            {{-- end Invoices --}}
+            {{-- Reports --}}
             <li class="nav-header">REPORTS</li>
             <li class="nav-item">
               <a class="nav-link {{ Request::is('central/reports*') ? 'active' : '' }}" href="#">
@@ -317,6 +404,38 @@
               </a>
             </li>
             @endcan
+            {{-- users management --}}
+            @can('manage users')
+            <li class="nav-item {{ Request::is('central/users*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('central/users*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-people"></i>
+                <p>Users
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/users') ? 'active' : '' }}" href="{{ route('central.users.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Users</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/users/create') ? 'active' : '' }}" href="{{ route('central.users.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Add User</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            @endcan
+            {{-- end users management --}}
+            <li class="nav-item">
+              <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#logoutModal">
+                <i class="nav-icon bi bi-box-arrow-right"></i>
+                <p>Logout</p>
+              </a>
+            </li>
           </ul>
           <!--end::Sidebar Menu-->
         </nav>
