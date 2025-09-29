@@ -6,9 +6,15 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\BookingController;
 use App\Http\Controllers\Tenant\RoomController;
-use App\Http\Controllers\Tenant\RateController;
+use App\Http\Controllers\Tenant\RoomRateController;
 use App\Http\Controllers\Tenant\GuestController;
+use App\Http\Controllers\Tenant\GuestClubController;
 use App\Http\Controllers\Tenant\SettingController;
+use App\Http\Controllers\Tenant\PropertyController;
+use App\Http\Controllers\Tenant\RoomTypeController;
+use App\Http\Controllers\Tenant\RoomPackageController;
+use App\Http\Controllers\Tenant\BookingInvoiceController;
+// tenancy controllers
 use App\Http\Controllers\Tenant\TenantUserActivityController;
 use App\Http\Controllers\Tenant\TenantUserNotificationController;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
@@ -44,6 +50,9 @@ Route::middleware([
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('tenant.dashboard');
 
+        // stats
+        Route::get('/stats', [DashboardController::class, 'stats'])->name('tenant.stats');
+
         // Bookings
         Route::resource('bookings', BookingController::class)->names([
             'index' => 'tenant.bookings.index',
@@ -54,10 +63,21 @@ Route::middleware([
             'update' => 'tenant.bookings.update',
             'destroy' => 'tenant.bookings.destroy',
         ]);
+
+        Route::post('/bookings/package', [BookingController::class, 'storeWithPackage'])->name('tenant.bookings.store.package');
+        Route::get('/bookings/import', [BookingController::class, 'importBookings'])->name('tenant.bookings.import');
+        Route::post('/bookings/import', [BookingController::class, 'import'])->name('tenant.bookings.import.post');
+
         Route::post('bookings/{booking}/check-in', [BookingController::class, 'checkIn'])->name('tenant.bookings.check-in');
         Route::post('bookings/{booking}/check-out', [BookingController::class, 'checkOut'])->name('tenant.bookings.check-out');
         Route::get('bookings/{booking}/invoice', [BookingController::class, 'invoice'])->name('tenant.bookings.invoice');
+        Route::get('/bookings/{booking}/download', [BookingController::class, 'downloadRoomInfo'])->name('tenant.bookings.download-room-info');
+        Route::get('/bookings/{booking}/send', [BookingController::class, 'sendRoomInfo'])->name('tenant.bookings.send-room-info');
         Route::get('calendar', [BookingController::class, 'calendar'])->name('tenant.bookings.calendar');
+
+        // booking invoices
+        Route::get('/booking-invoices', [BookingInvoiceController::class, 'index'])->name('tenant.booking-invoices.index');
+        Route::get('/booking-invoices/{bookingInvoice}', [BookingInvoiceController::class, 'show'])->name('tenant.booking-invoices.show');
 
         // Rooms
         Route::resource('rooms', RoomController::class)->names([
@@ -71,18 +91,42 @@ Route::middleware([
         ]);
         Route::post('rooms/{room}/toggle-status', [RoomController::class, 'toggleStatus'])->name('tenant.rooms.toggle-status');
         Route::get('rooms/{room}/availability', [RoomController::class, 'availability'])->name('tenant.rooms.availability');
+        Route::get('rooms/{room}/bookings', [RoomController::class, 'bookings'])->name('tenant.rooms.bookings');
+        Route::get('rooms/{room}/invoices', [RoomController::class, 'invoices'])->name('tenant.rooms.invoices');
+        Route::get('rooms/{room}/payments', [RoomController::class, 'payments'])->name('tenant.rooms.payments');
+        Route::post('/rooms/{room}/clone', [RoomController::class, 'clone'])->name('tenant.rooms.clone-room');
 
         // Rates
-        Route::resource('rates', RateController::class)->names([
-            'index' => 'tenant.rates.index',
-            'create' => 'tenant.rates.create',
-            'store' => 'tenant.rates.store',
-            'show' => 'tenant.rates.show',
-            'edit' => 'tenant.rates.edit',
-            'update' => 'tenant.rates.update',
-            'destroy' => 'tenant.rates.destroy',
+        Route::resource('room-rates', RoomRateController::class)->names([
+            'index' => 'tenant.room-rates.index',
+            'create' => 'tenant.room-rates.create',
+            'store' => 'tenant.room-rates.store',
+            'show' => 'tenant.room-rates.show',
+            'edit' => 'tenant.room-rates.edit',
+            'update' => 'tenant.room-rates.update',
+            'destroy' => 'tenant.room-rates.destroy',
         ]);
-        Route::post('rates/{rate}/toggle-status', [RateController::class, 'toggleStatus'])->name('tenant.rates.toggle-status');
+        
+        // add rates import route
+        Route::get('room-rates/import', [RoomRateController::class, 'importRates'])->name('tenant.room-rates.import');
+        Route::post('room-rates/import', [RoomRateController::class, 'import'])->name('tenant.room-rates.import.post');
+        Route::post('room-rates/{rate}/toggle-status', [RoomRateController::class, 'toggleStatus'])->name('tenant.room-rates.toggle-status');
+        Route::get('room-rates/{rate}/rooms', [RoomRateController::class, 'rooms'])->name('tenant.room-rates.rooms');
+        Route::post('/room-rates/{rate}/clone', [RoomRateController::class, 'clone'])->name('tenant.room-rates.clone');
+
+        // room types
+        Route::resource('room-types', RoomTypeController::class)->names([
+            'index' => 'tenant.room-types.index',
+            'create' => 'tenant.room-types.create',
+            'store' => 'tenant.room-types.store',
+            'show' => 'tenant.room-types.show',
+            'edit' => 'tenant.room-types.edit',
+            'update' => 'tenant.room-types.update',
+            'destroy' => 'tenant.room-types.destroy',
+        ]);
+        Route::post('room-types/{roomType}/toggle-status', [RoomTypeController::class, 'toggleStatus'])->name('tenant.room-types.toggle-status');
+        Route::get('room-types/{roomType}/rooms', [RoomTypeController::class, 'rooms'])->name('tenant.room-types.rooms');
+        Route::post('/room-types/{roomType}/clone', [RoomTypeController::class, 'clone'])->name('tenant.room-types.clone');
 
         // Guests
         Route::resource('guests', GuestController::class)->names([
@@ -95,10 +139,48 @@ Route::middleware([
             'destroy' => 'tenant.guests.destroy',
         ]);
         Route::get('guests/{guest}/bookings', [GuestController::class, 'bookings'])->name('tenant.guests.bookings');
+        Route::get('guests/{guest}/invoices', [GuestController::class, 'invoices'])->name('tenant.guests.invoices');
+        Route::get('guests/{guest}/payments', [GuestController::class, 'payments'])->name('tenant.guests.payments');
+
+        // guest clubs
+        Route::resource('guest-clubs', GuestClubController::class)->names([
+            'index' => 'tenant.guest-clubs.index',
+            'create' => 'tenant.guest-clubs.create',
+            'store' => 'tenant.guest-clubs.store',
+            'show' => 'tenant.guest-clubs.show',
+            'edit' => 'tenant.guest-clubs.edit',
+            'update' => 'tenant.guest-clubs.update',
+            'destroy' => 'tenant.guest-clubs.destroy',
+        ]);
+        Route::post('guest-clubs/{guestClub}/toggle-status', [GuestClubController::class, 'toggleStatus'])->name('tenant.guest-clubs.toggle-status');
+        Route::get('guest-clubs/{guestClub}/guests', [GuestClubController::class, 'guests'])->name('tenant.guest-clubs.guests');
+        Route::post('/guest-clubs/{guestClub}/clone', [GuestClubController::class, 'clone'])->name('tenant.guest-clubs.clone');
+
+        // room packages
+        Route::resource('room-packages', RoomPackageController::class)->names([
+            'index' => 'tenant.room-packages.index',
+            'create' => 'tenant.room-packages.create',
+            'store' => 'tenant.room-packages.store',
+            'show' => 'tenant.room-packages.show',
+            'edit' => 'tenant.room-packages.edit',
+            'update' => 'tenant.room-packages.update',
+            'destroy' => 'tenant.room-packages.destroy',
+        ]);
+        Route::post('room-packages/{roomPackage}/toggle-status', [RoomPackageController::class, 'toggleStatus'])->name('tenant.room-packages.toggle-status');
+        Route::get('room-packages/{roomPackage}/rooms', [RoomPackageController::class, 'rooms'])->name('tenant.room-packages.rooms');
+        Route::post('/room-packages/{roomPackage}/clone', [RoomPackageController::class, 'clone'])->name('tenant.room-packages.clone');
 
         // Settings
         Route::get('settings', [SettingController::class, 'index'])->name('tenant.settings');
         Route::put('settings', [SettingController::class, 'update'])->name('tenant.settings.update');
+
+        // properties
+        Route::get('properties', [PropertyController::class, 'index'])->name('tenant.properties.index');
+        Route::get('properties/create', [PropertyController::class, 'create'])->name('tenant.properties.create');
+        Route::post('properties', [PropertyController::class, 'store'])->name('tenant.properties.store');
+        Route::get('properties/{property}/edit', [PropertyController::class, 'edit'])->name('tenant.properties.edit');
+        Route::put('properties/{property}', [PropertyController::class, 'update'])->name('tenant.properties.update');
+        Route::delete('properties/{property}', [PropertyController::class, 'destroy'])->name('tenant.properties.destroy');
 
         // User Activities
         Route::get('activities', [TenantUserActivityController::class, 'index'])->name('tenant.activities.index');

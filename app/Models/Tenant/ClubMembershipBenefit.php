@@ -1,6 +1,6 @@
 <?php
 
-namespace App\App\Models\Tenant\Tenant\Tenant;
+namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClubMembershipBenefit extends Model
 {
-    use HasFactory, SoftDeletes;, SoftDeletes
+    use HasFactory, SoftDeletes;
     // Define fillable attributes
     protected $fillable = [
         'guest_club_id',

@@ -1,17 +1,17 @@
 <?php
 
-namespace App\App\Models\Tenant\Tenant\Tenant;
+namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\App\Models\Tenant\Tenant\Scopes\PropertyScope; // ← Add this import
+use App\Models\Tenant\Scopes\PropertyScope; // ← Add this import
 
 class GuestClub extends Model
 {
-    use HasFactory, SoftDeletes;, SoftDeletes
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'property_id',

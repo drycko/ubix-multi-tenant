@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Booking;
-use App\Models\Room;
-use App\Models\Property;
+use App\Models\Tenant\Booking;
+use App\Models\Tenant\Room;
+use App\Models\Tenant\Property;
 use Carbon\Carbon;
 
 class ReportController extends Controller

@@ -1,14 +1,15 @@
 <?php
 
-namespace App\App\Models\Tenant\Tenant\Tenant;
+namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RoomPackage extends Model
 {
-    use HasFactory, SoftDeletes;, SoftDeletes
+    use HasFactory, SoftDeletes;
     // Fillable fields
     protected $fillable = [
         'room_id',
@@ -16,12 +17,12 @@ class RoomPackage extends Model
     ];
 
     // Relationships
-    public function room()
+    public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class);
     }
 
-    public function package()
+    public function package(): BelongsTo
     {
         return $this->belongsTo(Package::class);
     }

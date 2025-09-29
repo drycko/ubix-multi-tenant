@@ -16,7 +16,7 @@ if (!function_exists('current_property')) {
     function current_property()
     {
         if (is_super_user()) {
-            return request()->attributes->get('current_property') ?? \App\Models\Property::first();
+            return request()->attributes->get('current_property') ?? \App\Models\Tenant\Property::first();
         }
         return Auth::user()->property ?? request()->attributes->get('current_property');
     }

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\BookingInvoice;
+use App\Models\Tenant\BookingInvoice;
 use Illuminate\Http\Request;
 
 class BookingInvoiceController extends Controller

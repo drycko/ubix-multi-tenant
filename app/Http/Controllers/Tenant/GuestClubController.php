@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\GuestClub;
+use App\Models\Tenant\GuestClub;
 use Illuminate\Http\Request;
 
 class GuestClubController extends Controller

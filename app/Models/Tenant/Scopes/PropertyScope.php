@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Scopes;
+namespace App\Models\Tenant\Scopes;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;

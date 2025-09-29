@@ -1,18 +1,18 @@
 <?php
 
-namespace App\App\Models\Tenant\Tenant\Tenant;
+namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Tonysm\RichTextLaravel\App\Models\Tenant\Traits\HasRichText;
+use Tonysm\RichTextLaravel\Models\Traits\HasRichText;
 
-use App\App\Models\Tenant\Tenant\Scopes\PropertyScope;
+use App\Models\Tenant\Scopes\PropertyScope;
 
 class Package extends Model
 {
-    use HasFactory, SoftDeletes, HasRichText;, SoftDeletes  
+    use HasFactory, SoftDeletes, HasRichText; 
 
     /**
      * The dynamic rich text attributes.

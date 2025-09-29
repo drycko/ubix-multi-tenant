@@ -1,6 +1,31 @@
 <?php
 
-use App\Models\Property;
+use App\Models\Tenant\Property;
+
+// Get the current tenant using Stancl Tenancy
+if (!function_exists('current_tenant')) {
+    function current_tenant()
+    {
+        // Use the tenancy() helper from Stancl package
+        if (tenancy()->initialized) {
+            return tenant();
+        }
+
+        // If tenancy is not initialized (e.g., in central domain)
+        return null;
+    }
+}
+
+/**
+ * Get the tenant ID if we're in a tenant context
+ */
+if (!function_exists('current_tenant_id')) {
+    function current_tenant_id()
+    {
+        $tenant = current_tenant();
+        return $tenant ? $tenant->getTenantKey() : null;
+    }
+}
 
 if (!function_exists('current_property')) {
     function current_property()

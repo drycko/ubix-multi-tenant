@@ -5,12 +5,12 @@ namespace App\Http\Controllers\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Collection;
 use App\Http\Controllers\Controller;
-use App\Models\Booking;
-use App\Models\Room;
-use App\Models\Guest;
-use App\Models\BookingInvoice;
-use App\Models\Package;
-use App\Models\RoomType;
+use App\Models\Tenant\Booking;
+use App\Models\Tenant\Room;
+use App\Models\Tenant\Guest;
+use App\Models\Tenant\BookingInvoice;
+use App\Models\Tenant\Package;
+use App\Models\Tenant\RoomType;
 use Exception;
 use PDF;
 

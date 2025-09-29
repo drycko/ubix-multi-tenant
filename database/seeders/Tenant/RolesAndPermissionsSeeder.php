@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\DB;
 // use Spatie\Permission\Models\Role;
 // use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Config;
-use App\Models\Role;
-use App\Models\Permission;
+use App\Models\Tenant\Role;
+use App\Models\Tenant\Permission;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -40,7 +40,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view rooms', 'create rooms', 'edit rooms', 'delete rooms', 'manage room types',
             'view room availability', 'manage room maintenance',
             
-            // Guests
+            // Guests (and all related to guest tables)
             'view guests', 'create guests', 'edit guests', 'delete guests', 'view guest history',
             'manage guest profiles',
             
@@ -48,18 +48,33 @@ class RolesAndPermissionsSeeder extends Seeder
             'view reports', 'export reports', 'view financial reports', 'view occupancy reports',
             
             // Settings
-            'manage company settings', 'manage users', 'manage rates', 'manage packages',
+            'manage property settings', 'manage users', 'manage rates', 'manage packages',
             'manage taxes', 'manage discounts',
             
             // Financials
             'view invoices', 'create invoices', 'edit invoices', 'process payments',
             'issue refunds', 'view payment history',
+
+            // admin single property
+            'manage property integrations', 'manage property api keys', 'view property api usage',
+            'manage property roles', 'manage property permissions', 'assign property roles',
+
             
-            // Admin (cross-company)
-            'manage companies', 'view all companies', 'impersonate users', 'manage system settings',
+            // Admin (cross-property)
+            'manage properties', 'view all properties', 'impersonate users', 'manage system settings',
             'view audit logs', 'manage subscription plans', 'manage subscriptions', 'view system reports',
-            'delete users', 'delete companies', 'manage integrations', 'manage api keys', 'view api usage',
+            'delete users', 'delete properties', 'manage integrations', 'manage api keys', 'view api usage',
             'manage roles', 'manage permissions', 'assign roles',
+
+            // activity logs
+            'view activity logs', 'clear activity logs',
+
+            // notifications
+            'view notifications', 'send notifications', 'manage notification settings',
+
+            // guest clubs
+            'manage guest clubs', 'view guest clubs', 'create guest clubs', 'edit guest clubs', 'delete guest clubs',
+            'manage guest club members', 'view guest club members', 'add guest club members', 'edit guest club members', 'remove guest club members'
         ];
 
         foreach ($permissions as $permission) {
@@ -67,34 +82,22 @@ class RolesAndPermissionsSeeder extends Seeder
         }
         
         // Create roles and assign permissions
-        $this->createTenantUserRoles();
-        // $this->createCompanyAdminRole();
-        // $this->createManagerRole();
-        // $this->createStaffRole();
+        $this->createTenantUserRoles();    // Creates super-user and other supported tenant roles
+        $this->createPropertyAdminRole();   // Creates property admin role with property-level permissions
+        $this->createManagerRole();         // Creates manager role with limited permissions
+        $this->createStaffRole();          // Creates staff role with basic permissions
         $this->command->info('Roles and permissions seeded successfully.');
     }
 
     protected function createTenantUserRoles(): void
     {
-        $supportedRoles = \App\Models\User::SUPPORTED_TENANT_ROLES;
-        foreach ($supportedRoles as $role) {
+        $supportedRoles = \App\Models\Tenant\User::SUPPORTED_ROLES;
+        foreach ($supportedRoles as $roleName) {
             // if the role does not exist, create it and assign all permissions
-            // will the create in the tenant database table or globally? How does this work with multi-tenancy? -
-            $role = Role::firstOrCreate(['name' => $role, 'guard_name' => 'tenant']);
+            $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'tenant']);
             // only assign all permissions to super-user
             if ($role->name === 'super-user') {
                 $role->syncPermissions(Permission::all());
-            }
-            else {
-                // give them limited permissions for now, can be customized later
-                $role->syncPermissions([
-                    'view bookings', 'create bookings', 'edit bookings', 'checkin bookings',
-                    'checkout bookings', 'cancel bookings',
-                    'view rooms', 'view room availability',
-                    'view guests', 'create guests', 'edit guests', 'view guest history',
-                    'view reports', 'view financial reports', 'view occupancy reports',
-                    'view invoices', 'process payments', 'issue refunds'
-                ]);
             }
         }
     }
@@ -110,10 +113,15 @@ class RolesAndPermissionsSeeder extends Seeder
             'view guests', 'create guests', 'edit guests', 'delete guests', 'view guest history',
             'manage guest profiles',
             'view reports', 'export reports', 'view financial reports', 'view occupancy reports',
-            'manage company settings', 'manage users', 'manage rates', 'manage packages',
+            'manage property settings', 'manage users', 'manage rates', 'manage packages',
             'manage taxes', 'manage discounts',
             'view invoices', 'create invoices', 'edit invoices', 'process payments',
-            'issue refunds', 'view payment history'
+            'issue refunds', 'view payment history',
+            'manage guest clubs', 'view guest clubs', 'create guest clubs', 
+            'edit guest clubs', 'delete guest clubs',
+            'manage guest club members', 'view guest club members',
+            'view activity logs',
+            'view notifications', 'manage notification settings'
         ]);
     }
 

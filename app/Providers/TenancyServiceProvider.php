@@ -15,8 +15,8 @@ use Stancl\Tenancy\Middleware;
 use Stancl\Tenancy\Events\TenancyBootstrapped;
 use Stancl\Tenancy\Events\EndingTenancy;
 use Spatie\Permission\PermissionRegistrar;
-use App\Models\Role;
-use App\Models\Permission;
+use App\Models\Tenant\Role;
+use App\Models\Tenant\Permission;
 
 class TenancyServiceProvider extends ServiceProvider
 {

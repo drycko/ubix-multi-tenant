@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\Room;
-use App\Models\Package;
-use App\Models\RoomPackage;
+use App\Models\Tenant\Room;
+use App\Models\Tenant\Package;
+use App\Models\Tenant\RoomPackage;
 use Illuminate\Http\Request;
 use App\Services\HtmlSanitizerService;
 use Illuminate\Support\Facades\Storage;

@@ -1,8 +1,8 @@
 <?php
 
-namespace App\App\Models\Tenant\Tenant\Tenant;
+namespace App\Models\Tenant;
 
-use Spatie\Permission\App\Models\Tenant\Permission as SpatiePermission;
+use Spatie\Permission\Models\Permission as SpatiePermission;
 
 class Permission extends SpatiePermission
 {

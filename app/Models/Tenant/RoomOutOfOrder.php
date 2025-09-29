@@ -1,19 +1,20 @@
 <?php
 
-namespace App\App\Models\Tenant\Tenant\Tenant;
+namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\App\Models\Tenant\Tenant\Room;
-use App\App\Models\Tenant\Tenant\Property;
-use App\App\Models\Tenant\Tenant\User;
-use App\App\Models\Tenant\Tenant\Scopes\PropertyScope; // ← Add this import
+use App\Models\Tenant\Room;
+use App\Models\Tenant\Property;
+use App\Models\Tenant\User;
+
+use App\Models\Tenant\Scopes\PropertyScope; // ← Add this import
 
 class RoomOutOfOrder extends Model
 {
-    use HasFactory;, SoftDeletes
+    use HasFactory, SoftDeletes;
     // Mass assignable attributes
     protected $fillable = [
         'property_id',

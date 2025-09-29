@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\Helpers;
-use App\Models\Guest;
-use App\Models\Property;
-use App\Models\GuestClub;
-use App\Models\GuestClubMember;
+use App\Models\Tenant\Guest;
+use App\Models\Tenant\Property;
+use App\Models\Tenant\GuestClub;
+use App\Models\Tenant\GuestClubMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 

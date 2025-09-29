@@ -6,9 +6,9 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Tenant;
-use App\Models\User;
-use App\Models\Role;
-use App\Models\Permission;
+use App\Models\Tenant\User;
+use App\Models\Tenant\Role;
+use App\Models\Tenant\Permission;
 
 class TenantUserSeeder extends Seeder
 {

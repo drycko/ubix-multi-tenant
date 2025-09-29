@@ -1,15 +1,18 @@
 <?php
-namespace App\App\Models\Tenant\Tenant\Tenant;
+namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
+use App\Models\Tenant\Booking;
+use App\Models\Tenant\RoomChange;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles, SoftDeletes;, SoftDeletes
+    use HasFactory, Notifiable, HasRoles, SoftDeletes;
 
     const SUPPORTED_ROLES = [
         'super-user',
@@ -50,7 +53,7 @@ class User extends Authenticatable
      */
     public function bookings()
     {
-        return $this->hasMany(\App\App\Models\Tenant\Tenant\Booking::class, 'created_by');
+        return $this->hasMany(Booking::class, 'created_by');
     }
 
     /**
@@ -58,7 +61,7 @@ class User extends Authenticatable
      */
     public function roomChanges()
     {
-        return $this->hasMany(\App\App\Models\Tenant\Tenant\RoomChange::class, 'changed_by');
+        return $this->hasMany(RoomChange::class, 'changed_by');
     }
 
     /**

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\TenantSetting;
+use App\Models\Tenant\TenantSetting;
 use Illuminate\Http\Request;
 
 class TenantSettingController extends Controller

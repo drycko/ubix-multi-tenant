@@ -1,17 +1,17 @@
 <?php
 
-namespace App\App\Models\Tenant\Tenant\Tenant;
+namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-use App\App\Models\Tenant\Tenant\Scopes\PropertyScope;
+use App\Models\Tenant\Scopes\PropertyScope;
 
 class Guest extends Model
 {
-    use HasFactory, SoftDeletes;, SoftDeletes
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'property_id',

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Tenant;
 
-use App\Models\ClubMembershipBenefit;
+use App\Models\Tenant\ClubMembershipBenefit;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 

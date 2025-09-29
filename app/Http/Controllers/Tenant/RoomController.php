@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\Room;
-use App\Models\RoomType;
-use App\Models\Property;
+use App\Models\Tenant\Room;
+use App\Models\Tenant\RoomType;
+use App\Models\Tenant\Property;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;

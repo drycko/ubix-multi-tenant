@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\Property;
+use App\Models\Tenant\Property;
 use Illuminate\Http\Request;
 
 class PropertyController extends Controller

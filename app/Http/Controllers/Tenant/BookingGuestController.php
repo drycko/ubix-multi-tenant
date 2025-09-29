@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\BookingGuest;
+use App\Models\Tenant\BookingGuest;
 use Illuminate\Http\Request;
 
 class BookingGuestController extends Controller

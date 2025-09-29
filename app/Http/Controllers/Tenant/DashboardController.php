@@ -16,7 +16,8 @@ class DashboardController extends Controller
         $stats = [
             'total_bookings' => Booking::count(),
             // Count of bookings with status 'confirmed' and arrival date today or in the future
-            'active_bookings' => Booking::where('status', 'confirmed')->where('arrival_date', '>=', now())->count(),
+            'current_bookings' => Booking::where('status', 'confirmed')->where('arrival_date', '>=', now())->count(),
+            'cancelled_bookings' => Booking::where('status', 'cancelled')->count(),
             'total_rooms' => Room::count(),
             'available_rooms' => Room::where('is_enabled', true)->count(),
             'total_guests' => Guest::count(),

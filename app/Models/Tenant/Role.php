@@ -1,8 +1,8 @@
 <?php
 
-namespace App\App\Models\Tenant\Tenant\Tenant;
+namespace App\Models\Tenant;
 
-use Spatie\Permission\App\Models\Tenant\Role as SpatieRole;
+use Spatie\Permission\Models\Role as SpatieRole;
 
 class Role extends SpatieRole
 {

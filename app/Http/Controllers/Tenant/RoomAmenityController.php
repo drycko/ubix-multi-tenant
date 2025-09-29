@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\RoomAmenity;
+use App\Models\Tenant\RoomAmenity;
 use Illuminate\Http\Request;
 
 class RoomAmenityController extends Controller

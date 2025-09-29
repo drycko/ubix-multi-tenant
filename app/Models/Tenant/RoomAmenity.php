@@ -1,6 +1,6 @@
 <?php
 
-namespace App\App\Models\Tenant\Tenant\Tenant;
+namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class RoomAmenity extends Model
 {
-    use HasFactory;, SoftDeletes
+    use HasFactory, SoftDeletes;
     // The RoomAmenity model represents global amenities that can be assigned to room types.
     protected $fillable = ['property_id', 'name', 'slug', 'icon', 'description'];
 
