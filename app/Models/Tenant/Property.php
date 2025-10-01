@@ -63,6 +63,16 @@ class Property extends Model
         return $this->hasMany(Package::class);
     }
 
+    public function country(): BelongsTo
+    {
+        return $this->belongsTo(Country::class, 'country', 'code');
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
 
     public function apiActivities()
     {

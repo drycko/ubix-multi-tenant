@@ -29,7 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'property.access' => \App\Http\Middleware\PropertyAccessMiddleware::class,
-            'identify.property' => \App\Http\Middleware\IdentifyPropertyMiddleware::class,
+            'property.selector' => \App\Http\Middleware\PropertySelector::class, // Replaces identify.property
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,

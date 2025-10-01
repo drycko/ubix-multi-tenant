@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('room_types', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('property_id')->nullable(); // No foreign key constraint
+            $table->unsignedBigInteger('property_id')->nullable(); // Null or 0 for global room types
             $table->string('legacy_code')->nullable()->comment('Original RMTYPE value'); // For import mapping
             $table->string('name');
             $table->string('code')->unique();

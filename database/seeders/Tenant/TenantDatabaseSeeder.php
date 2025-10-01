@@ -18,6 +18,7 @@ class TenantDatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             TenantPropertySeeder::class,
             TenantUserSeeder::class,
+            // RoomSeeder::class, // This will automatically call RoomTypeSeeder for Brookdale only
         ]);
 
         // create demo property for this tenant

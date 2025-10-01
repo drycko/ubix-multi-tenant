@@ -13,27 +13,69 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $stats = [
-            'total_bookings' => Booking::count(),
-            // Count of bookings with status 'confirmed' and arrival date today or in the future
-            'current_bookings' => Booking::where('status', 'confirmed')->where('arrival_date', '>=', now())->count(),
-            'cancelled_bookings' => Booking::where('status', 'cancelled')->count(),
-            'total_rooms' => Room::count(),
-            'available_rooms' => Room::where('is_enabled', true)->count(),
-            'total_guests' => Guest::count(),
-        ];
+        if (is_super_user() && !is_property_selected()) {
+            // Global stats for super-user viewing all properties
+            $stats = [
+                'total_properties' => \App\Models\Tenant\Property::where('is_active', true)->count(),
+                'total_bookings' => Booking::count(),
+                'current_bookings' => Booking::where('status', 'confirmed')->where('arrival_date', '>=', now())->count(),
+                'cancelled_bookings' => Booking::where('status', 'cancelled')->count(),
+                'total_rooms' => Room::count(),
+                'total_room_types' => RoomType::count(),
+                'total_guests' => Guest::count(),
+            ];
 
-        // Get the currency of the current property
+            // Get stats per property
+            $properties = \App\Models\Tenant\Property::with(['rooms'])
+                ->where('is_active', true)
+                ->get()
+                ->map(function ($property) {
+                    return [
+                        'id' => $property->id,
+                        'name' => $property->name,
+                        'rooms_count' => Room::where('property_id', $property->id)->count(),
+                        'bookings_count' => Booking::where('property_id', $property->id)->count(),
+                        'guests_count' => Guest::where('property_id', $property->id)->count(),
+                        'recent_bookings' => Booking::where('property_id', $property->id)
+                            ->latest()
+                            ->take(5) // Limit to 5 recent bookings
+                            ->get()
+                    ];
+                });
 
-        $currency = current_property()->currency;
-        // Fetch recent bookings with related room and primary guest information, ordered by latest bcode
-        $recent_bookings = Booking::with(['room', 'bookingGuests.guest'])
-            ->where('property_id', current_property()->id)
-            ->latest('created_at')
-            ->paginate(20);
+            $currency = config('app.currency', 'USD');
+            
+            return view('tenant.dashboard-global', compact('stats', 'properties', 'currency'));
+        } else {
+            // Property-specific dashboard
+            $propertyId = is_super_user() ? selected_property_id() : current_property()->id;
+            
+            $stats = [
+                'total_bookings' => Booking::where('property_id', $propertyId)->count(),
+                'current_bookings' => Booking::where('property_id', $propertyId)
+                    ->where('status', 'confirmed')
+                    ->where('arrival_date', '>=', now())
+                    ->count(),
+                'cancelled_bookings' => Booking::where('property_id', $propertyId)
+                    ->where('status', 'cancelled')
+                    ->count(),
+                'total_rooms' => Room::where('property_id', $propertyId)->count(),
+                'available_rooms' => Room::where('property_id', $propertyId)
+                    ->where('is_enabled', true)
+                    ->count(),
+                'total_guests' => Guest::where('property_id', $propertyId)->count(),
+            ];
 
-        // return view('tenant.bookings.index', compact('bookings'));
-        return view('tenant.dashboard', compact('stats', 'recent_bookings', 'currency'));
+            $currency = current_property()->currency ?? config('app.currency', 'USD');
+            
+            // Fetch recent bookings for the selected property
+            $recent_bookings = Booking::with(['room', 'bookingGuests.guest'])
+                ->where('property_id', $propertyId)
+                ->latest('created_at')
+                ->paginate(20);
+
+            return view('tenant.dashboard', compact('stats', 'recent_bookings', 'currency'));
+        }
     }
 
     public function stats()

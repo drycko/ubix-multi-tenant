@@ -32,6 +32,9 @@ class User extends Authenticatable
         'password',
         'phone',
         'address',
+        'property_id',
+        'position',
+        'role',
         'profile_photo_path',
         'is_active',
     ];
@@ -62,6 +65,14 @@ class User extends Authenticatable
     public function roomChanges()
     {
         return $this->hasMany(RoomChange::class, 'changed_by');
+    }
+
+    /**
+     * Get the property this user belongs to.
+     */
+    public function property()
+    {
+        return $this->belongsTo(\App\Models\Tenant\Property::class);
     }
 
     /**

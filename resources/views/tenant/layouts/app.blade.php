@@ -130,7 +130,7 @@
                 /> --}}
                 <p>
                   {{ Auth::user()->name }} - {{ Auth::user()->role }}
-                  <small>{{ strtoupper(current_property()->name) }}</small>
+                  <small>{{ strtoupper(current_property()->name ?? 'Global') }}</small>
                 </p>
               </li>
               <!--end::User Image-->
@@ -456,14 +456,40 @@
               </a>
             </li>
             <li class="nav-header">SYSTEM</li>
+            {{-- Properties --}}
             @can('manage properties')
+            <li class="nav-item {{ Request::is('properties*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('properties*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-building"></i>
+                <p>Properties
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('properties') ? 'active' : '' }}" href="{{ route('tenant.properties.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Properties</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('properties/create') ? 'active' : '' }}" href="{{ route('tenant.properties.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Add Property</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            @endcan
+            {{-- Tenant settings only for super admins --}}
+            @if (is_super_user())
             <li class="nav-item">
-              <a class="nav-link {{ Request::is('property/settings*') ? 'active' : '' }}" href="{{ route('tenant.settings') }}">
+              <a class="nav-link {{ Request::is('settings*') ? 'active' : '' }}" href="{{ route('tenant.settings') }}">
                 <i class="nav-icon bi bi-gear"></i>
                 <p>Settings</p>
               </a>
             </li>
-            @endcan
+            @endif
           </ul>
           <!--end::Sidebar Menu-->
         </nav>

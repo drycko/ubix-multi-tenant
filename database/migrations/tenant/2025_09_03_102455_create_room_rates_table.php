@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('room_rates', function (Blueprint $table) {
             $table->id();
             $table->foreignId('room_type_id')->constrained();
-            $table->unsignedBigInteger('property_id')->nullable(); // No foreign key constraint
+            $table->unsignedBigInteger('property_id')->nullable(); // Null or 0 for global room rates
             $table->string('name');
             $table->enum('rate_type', ['standard', 'off_season', 'package'])->default('standard');
             $table->date('effective_from');

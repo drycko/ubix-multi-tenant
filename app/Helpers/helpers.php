@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Tenant\Property;
+use Illuminate\Support\Facades\Auth;
 
 // Get the current tenant using Stancl Tenancy
 if (!function_exists('current_tenant')) {
@@ -13,6 +14,26 @@ if (!function_exists('current_tenant')) {
 
         // If tenancy is not initialized (e.g., in central domain)
         return null;
+    }
+}
+
+if (!function_exists('is_super_user')) {
+    function is_super_user()
+    {
+        // I want to do this check in a way that if the user is not logged in, it returns false
+        if (!Auth::check()) {
+            return false;
+        }
+        
+        $user = Auth::user();
+        
+        // Check if user has super-user role with tenant guard
+        $hasSuperUserRole = $user->hasRole('super-user', 'tenant');
+        
+        // Alternative check: super-users typically have property_id as null
+        $hasNullPropertyId = is_null($user->property_id);
+        
+        return $hasSuperUserRole || $hasNullPropertyId;
     }
 }
 
@@ -30,23 +51,43 @@ if (!function_exists('current_tenant_id')) {
 if (!function_exists('current_property')) {
     function current_property()
     {
-        // Get property from request attributes (set by middleware)
-        if (request()->attributes->has('currentProperty')) {
-            return request()->attributes->get('currentProperty');
+        // Get property from request attributes (set by PropertySelector middleware)
+        if (request()->attributes->has('current_property')) {
+            return request()->attributes->get('current_property');
         }
 
-        // Get property from authenticated user
+        // For super-users, check session for selected property
+        if (is_super_user()) {
+            $selectedPropertyId = session('selected_property_id');
+            if ($selectedPropertyId) {
+                return Property::find($selectedPropertyId);
+            }
+            // No property selected - return null to indicate "all properties" mode
+            return null;
+        }
+
+        // For property-specific users, use their assigned property
         if (auth()->check() && auth()->user()->property_id) {
             return Property::find(auth()->user()->property_id);
         }
 
-        // Get property from session (for property selection)
-        if (session()->has('current_property_id')) {
-            return Property::find(session('current_property_id'));
-        }
-
-        // Fallback: get first property (for super admin or development)
+        // Fallback: get first property (for development)
         return Property::first();
+    }
+}
+
+if (!function_exists('is_property_selected')) {
+    function is_property_selected()
+    {
+        return current_property() !== null;
+    }
+}
+
+if (!function_exists('selected_property_id')) {
+    function selected_property_id()
+    {
+        $property = current_property();
+        return $property ? $property->id : null;
     }
 }
 
@@ -148,19 +189,126 @@ if (!function_exists('increment_unique_number')) {
 I want to first read the countries from my json file and
 return them as an array
 */
-if (!function_exists('getCountries')) {
+if (!function_exists('get_countries')) {
     /**
      * Get the list of countries from the JSON file.
      *
      * @return array
      */
-    function getCountries(): array
+    function get_countries(): array
     {
-        $json = file_get_contents(__DIR__ . '/../../resources/countries.json');
+        $json = file_get_contents('../public/vendor/countries.json');
         return json_decode($json, true);
     }
 }
 
+// get currencies from countries.json
+if (!function_exists('get_currencies')) {
+    /**
+     * Get the list of unique currencies from the countries JSON file.
+     *
+     * @return array
+     */
+    function get_currencies(): array
+    {
+        $countries = get_countries();
+        $currencies = [];
+        foreach ($countries as $country) {
+            if (isset($country['currency']['code']) && !in_array($country['currency']['code'], $currencies)) {
+                $currencies[] = $country['currency']['code'];
+            }
+        }
+        sort($currencies);
+        return $currencies;
+    }
+}
+
+// allowed curencies
+if (!function_exists('allowed_currencies')) {
+    function allowed_currencies(): array
+    {
+        return ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CNY', 'INR', 'BRL', 'ZAR'];
+    }
+}
+
+// get supported currencies (intersection of all currencies and allowed currencies)
+if (!function_exists('get_supported_currencies')) {
+    function get_supported_currencies(): array
+    {
+        $allCurrencies = get_currencies();
+        $allowed = allowed_currencies();
+        $supported = array_intersect($allCurrencies, $allowed);
+        
+        // Return as associative array with code => name for easy use in forms
+        $countries = get_countries();
+        $result = [];
+        
+        foreach ($supported as $currencyCode) {
+            // Find the currency details from any country that uses this currency
+            foreach ($countries as $country) {
+                if (isset($country['currency']['code']) && $country['currency']['code'] === $currencyCode) {
+                    $result[$currencyCode] = $country['currency']['name'];
+                    break;
+                }
+            }
+        }
+        
+        return $result;
+    }
+}
+
+// get currency name by code
+if (!function_exists('get_currency_name')) {
+    function get_currency_name($currencyCode): string
+    {
+        $countries = get_countries();
+        foreach ($countries as $country) {
+            if (isset($country['currency']['code']) && $country['currency']['code'] === $currencyCode) {
+                return $country['currency']['name'];
+            }
+        }
+        return $currencyCode; // Fallback to code if name not found
+    }
+}
+
+// get currency symbol by code
+if (!function_exists('get_currency_symbol')) {
+    function get_currency_symbol($currencyCode): string
+    {
+        $countries = get_countries();
+        foreach ($countries as $country) {
+            if (isset($country['currency']['code']) && $country['currency']['code'] === $currencyCode) {
+                return $country['currency']['symbol'];
+            }
+        }
+        return '$'; // Fallback to dollar sign
+    }
+}
+
+// get supported timezones
+if (!function_exists('get_supported_timezones')) {
+    function get_supported_timezones(): array
+    {
+        $timezones = [];
+        foreach (timezone_identifiers_list() as $timezone) {
+            // Create readable format: timezone => "Timezone (UTC+/-X)"
+            $dt = new DateTime('now', new DateTimeZone($timezone));
+            $offset = $dt->format('P');
+            $timezones[$timezone] = str_replace('_', ' ', $timezone) . " (UTC{$offset})";
+        }
+        return $timezones;
+    }
+}
+
+// get supported locales (based on available countries for now we only support en)
+if (!function_exists('get_supported_locales')) {
+    function get_supported_locales(): array
+    {
+        return ['en' => 'English'];
+    }
+}
+
+// format price with currency 
 if (!function_exists('format_price')) {
     /**
      * Format a price with the given currency.
@@ -173,11 +321,14 @@ if (!function_exists('format_price')) {
     function format_price($price, $currency = null, $showCurrency = true): string
     {
         if ($currency === null) {
-            $currency = config('app.currency', 'USD');
+            $currency = property_currency();
         }
+        
+        // Get currency symbol
+        $symbol = get_currency_symbol($currency);
         
         $formattedPrice = number_format((float) $price, 2, '.', ',');
         
-        return $showCurrency ? "{$currency} {$formattedPrice}" : $formattedPrice;
+        return $showCurrency ? "{$symbol} {$formattedPrice}" : $formattedPrice;
     }
 }
