@@ -60,6 +60,16 @@ return [
             'report' => false,
         ],
 
+        'gcs' => [
+            'driver' => 'gcs',
+            'project_id' => env('GCS_PROJECT_ID'),
+            'key_file' => base_path(env('GCS_KEY_FILE')), // full path to the service account json file
+            'bucket' => env('GCS_BUCKET'),
+            'path_prefix' => env('GCS_PATH_PREFIX', ''), // optional: /folder-name
+            'storage_api_uri' => env('GCS_STORAGE_API_URI', ''), // optional: custom endpoint
+            // 'visibility' => 'public', // or 'private'
+        ],
+
     ],
 
     /*

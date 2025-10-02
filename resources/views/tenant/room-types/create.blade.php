@@ -29,6 +29,8 @@
 <div class="app-content">
   <!--begin::Container-->
   <div class="container-fluid">
+    <!-- Property Selector -->
+    @include('tenant.components.property-selector')
     {{-- messages from session --}}
     @if(session('success'))
     <div class="alert alert-success">
@@ -60,14 +62,14 @@
           @csrf
           <div class="row">
             <div class="col-md-6 mb-3">
-              <label for="name" class="form-label">Name <span class="text-muted">(Required)</span></label>
+              <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
               <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name') }}" required>
               @error('name')
               <div class="invalid-feedback">{{ $message }}</div>
               @enderror
             </div>
             <div class="col-md-6 mb-3">
-              <label for="code" class="form-label">Short Code <span class="text-muted">(Required)</span></label>
+              <label for="code" class="form-label">Short Code <span class="text-danger">*</span></label>
               <input type="text" class="form-control @error('code') is-invalid @enderror" id="code" name="code" value="{{ old('code') }}" required>
               @error('code')
               <div class="invalid-feedback">{{ $message }}</div>
@@ -76,14 +78,14 @@
           </div>
           <div class="row">
             <div class="col-md-6 mb-3">
-              <label for="base_capacity" class="form-label">Base Capacity <span class="text-muted">(Required)</span></label>
+              <label for="base_capacity" class="form-label">Base Capacity <span class="text-danger">*</span></label>
               <input type="number" class="form-control @error('base_capacity') is-invalid @enderror" id="base_capacity" name="base_capacity" value="{{ old('base_capacity') }}" min="1" required>
               @error('base_capacity')
               <div class="invalid-feedback">{{ $message }}</div>
               @enderror
             </div>
             <div class="col-md-6 mb-3">
-              <label for="max_capacity" class="form-label">Max Capacity <span class="text-muted">(Required)</span></label>
+              <label for="max_capacity" class="form-label">Max Capacity <span class="text-danger">*</span></label>
               <input type="number" class="form-control @error('max_capacity') is-invalid @enderror" id="max_capacity" name="max_capacity" value="{{ old('max_capacity') }}" min="1" required>
               @error('max_capacity')
               <div class="invalid-feedback">{{ $message }}</div>
@@ -100,14 +102,12 @@
               @enderror
             </div>
             <div class="col-md-6 mb-3">
-              <label for="amenities" class="form-label">Amenities <span class="text-muted">(Optional)</span> <small>(One amenity per line)</small></label>
-              @foreach($allAmenities as $amenity)
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="amenity_{{ $amenity->id }}" name="amenities[]" value="{{ $amenity->slug }}" >
-                <label class="form-check-label" for="amenity_{{ $amenity->id }}">{{ $amenity->name }}</label>
-              </div>
-              @endforeach
-              {{-- <textarea class="form-control @error('amenities') is-invalid @enderror" id="amenities" name="amenities" rows="3">{{ old('amenities') }}</textarea> --}}
+              <label for="amenities" class="form-label">Amenities <small>(multi select)</small></label>
+              <select class="form-control select2-multi @error('amenities') is-invalid @enderror" id="amenities" name="amenities[]" multiple>
+                @foreach($allAmenities as $amenity)
+                <option value="{{ $amenity->slug }}" {{ (collect(old('amenities'))->contains($amenity->slug)) ? 'selected':'' }}>{{ $amenity->name }}</option>
+                @endforeach
+              </select>
               @error('amenities')
               <div class="invalid-feedback">{{ $message }}</div>
               @enderror

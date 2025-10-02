@@ -7,12 +7,13 @@ use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\BookingController;
 use App\Http\Controllers\Tenant\RoomController;
 use App\Http\Controllers\Tenant\RoomRateController;
+use App\Http\Controllers\Tenant\RoomAmenityController;
 use App\Http\Controllers\Tenant\GuestController;
 use App\Http\Controllers\Tenant\GuestClubController;
 use App\Http\Controllers\Tenant\SettingController;
 use App\Http\Controllers\Tenant\PropertyController;
 use App\Http\Controllers\Tenant\RoomTypeController;
-use App\Http\Controllers\Tenant\RoomPackageController;
+use App\Http\Controllers\Tenant\PackageController;
 use App\Http\Controllers\Tenant\BookingInvoiceController;
 // tenancy controllers
 use App\Http\Controllers\Tenant\TenantUserActivityController;
@@ -37,6 +38,29 @@ Route::middleware([
     InitializeTenancyByDomain::class,
     PreventAccessFromCentralDomains::class,
 ])->group(function () {
+    // Tenant storage route - serve tenant files
+    Route::get('/storage/{path}', function ($path) {
+        $tenantId = tenant('id');
+        $filePath = storage_path("app/public/{$path}");
+        
+        // Debug: Log the paths for troubleshooting
+        // \Log::info('Tenant Storage Route Debug', [
+        //     'tenant_id' => $tenantId,
+        //     'requested_path' => $path,
+        //     'full_file_path' => $filePath,
+        //     'file_exists' => file_exists($filePath)
+        // ]);
+        
+        if (!file_exists($filePath)) {
+            abort(404, "File not found: {$filePath}");
+        }
+        
+        $mimeType = mime_content_type($filePath);
+        return response()->file($filePath, [
+            'Content-Type' => $mimeType,
+        ]);
+    })->where('path', '.*')->name('tenant.storage');
+
     // Tenant authentication routes
     require __DIR__.'/tenant-auth.php';
 
@@ -97,7 +121,15 @@ Route::middleware([
             Route::get('/booking-invoices', [BookingInvoiceController::class, 'index'])->name('tenant.booking-invoices.index');
             Route::get('/booking-invoices/{bookingInvoice}', [BookingInvoiceController::class, 'show'])->name('tenant.booking-invoices.show');
 
+            Route::get('rooms/{room}/bookings', [RoomController::class, 'bookings'])->name('tenant.rooms.bookings');
+            Route::get('rooms/{room}/invoices', [RoomController::class, 'invoices'])->name('tenant.rooms.invoices');
+            Route::get('rooms/{room}/payments', [RoomController::class, 'payments'])->name('tenant.rooms.payments');
             // Rooms - property-specific
+            // Import routes must come BEFORE resource routes to avoid conflicts
+            Route::get('rooms/import', [RoomController::class, 'importRooms'])->name('tenant.rooms.import');
+            Route::post('rooms/import', [RoomController::class, 'import'])->name('tenant.rooms.import.store');
+            Route::get('rooms/template', [RoomController::class, 'template'])->name('tenant.rooms.template');
+            
             Route::resource('rooms', RoomController::class)->names([
                 'index' => 'tenant.rooms.index',
                 'create' => 'tenant.rooms.create',
@@ -109,10 +141,7 @@ Route::middleware([
             ]);
             Route::post('rooms/{room}/toggle-status', [RoomController::class, 'toggleStatus'])->name('tenant.rooms.toggle-status');
             Route::get('rooms/{room}/availability', [RoomController::class, 'availability'])->name('tenant.rooms.availability');
-            Route::get('rooms/{room}/bookings', [RoomController::class, 'bookings'])->name('tenant.rooms.bookings');
-            Route::get('rooms/{room}/invoices', [RoomController::class, 'invoices'])->name('tenant.rooms.invoices');
-            Route::get('rooms/{room}/payments', [RoomController::class, 'payments'])->name('tenant.rooms.payments');
-            Route::post('/rooms/{room}/clone', [RoomController::class, 'clone'])->name('tenant.rooms.clone-room');
+            Route::post('/rooms/{room}/clone', [RoomController::class, 'clone'])->name('tenant.rooms.clone');
 
             // Room Types - property-specific
             Route::resource('room-types', RoomTypeController::class)->names([
@@ -129,6 +158,14 @@ Route::middleware([
             Route::post('/room-types/{roomType}/clone', [RoomTypeController::class, 'clone'])->name('tenant.room-types.clone');
 
             // Rates - property-specific
+            // Import routes must come BEFORE resource routes to avoid conflicts
+            Route::get('room-rates/import', [RoomRateController::class, 'importRates'])->name('tenant.room-rates.import');
+            Route::post('room-rates/import', [RoomRateController::class, 'import'])->name('tenant.room-rates.import.post');
+            
+            Route::post('room-rates/{roomRate}/toggle-status', [RoomRateController::class, 'toggleStatus'])->name('tenant.room-rates.toggle-status');
+            Route::get('room-rates/{roomRate}/rooms', [RoomRateController::class, 'rooms'])->name('tenant.room-rates.rooms');
+            Route::post('/room-rates/{roomRate}/clone', [RoomRateController::class, 'clone'])->name('tenant.room-rates.clone');
+            
             Route::resource('room-rates', RoomRateController::class)->names([
                 'index' => 'tenant.room-rates.index',
                 'create' => 'tenant.room-rates.create',
@@ -138,12 +175,18 @@ Route::middleware([
                 'update' => 'tenant.room-rates.update',
                 'destroy' => 'tenant.room-rates.destroy',
             ]);
-            
-            Route::get('room-rates/import', [RoomRateController::class, 'importRates'])->name('tenant.room-rates.import');
-            Route::post('room-rates/import', [RoomRateController::class, 'import'])->name('tenant.room-rates.import.post');
-            Route::post('room-rates/{rate}/toggle-status', [RoomRateController::class, 'toggleStatus'])->name('tenant.room-rates.toggle-status');
-            Route::get('room-rates/{rate}/rooms', [RoomRateController::class, 'rooms'])->name('tenant.room-rates.rooms');
-            Route::post('/room-rates/{rate}/clone', [RoomRateController::class, 'clone'])->name('tenant.room-rates.clone');
+
+            // Room Amenities - property-specific
+            Route::resource('room-amenities', RoomAmenityController::class)->names([
+                'index' => 'tenant.room-amenities.index',
+                'create' => 'tenant.room-amenities.create',
+                'store' => 'tenant.room-amenities.store',
+                'show' => 'tenant.room-amenities.show',
+                'edit' => 'tenant.room-amenities.edit',
+                'update' => 'tenant.room-amenities.update',
+                'destroy' => 'tenant.room-amenities.destroy',
+            ]);
+            Route::post('/room-amenities/{roomAmenity}/clone', [RoomAmenityController::class, 'clone'])->name('tenant.room-amenities.clone');
 
             // Guests - property-specific
             Route::resource('guests', GuestController::class)->names([
@@ -174,7 +217,9 @@ Route::middleware([
             Route::post('/guest-clubs/{guestClub}/clone', [GuestClubController::class, 'clone'])->name('tenant.guest-clubs.clone');
 
             // room packages - property-specific
-            Route::resource('room-packages', RoomPackageController::class)->names([
+            Route::get('room-packages/import', [PackageController::class, 'importPackage'])->name('tenant.room-packages.import');
+            Route::post('room-packages/import', [PackageController::class, 'import'])->name('tenant.room-packages.import.store');
+            Route::resource('room-packages', PackageController::class)->names([
                 'index' => 'tenant.room-packages.index',
                 'create' => 'tenant.room-packages.create',
                 'store' => 'tenant.room-packages.store',
@@ -183,9 +228,8 @@ Route::middleware([
                 'update' => 'tenant.room-packages.update',
                 'destroy' => 'tenant.room-packages.destroy',
             ]);
-            Route::post('room-packages/{roomPackage}/toggle-status', [RoomPackageController::class, 'toggleStatus'])->name('tenant.room-packages.toggle-status');
-            Route::get('room-packages/{roomPackage}/rooms', [RoomPackageController::class, 'rooms'])->name('tenant.room-packages.rooms');
-            Route::post('/room-packages/{roomPackage}/clone', [RoomPackageController::class, 'clone'])->name('tenant.room-packages.clone');
+            Route::post('room-packages/{roomPackage}/toggle-status', [PackageController::class, 'toggleStatus'])->name('tenant.room-packages.toggle-status');
+            Route::post('/room-packages/{roomPackage}/clone', [PackageController::class, 'clone'])->name('tenant.room-packages.clone');
         });
 
         // Properties management - super-user only routes (no property.access middleware)

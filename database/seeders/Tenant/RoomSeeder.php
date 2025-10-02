@@ -17,7 +17,8 @@ class RoomSeeder extends Seeder
       $this->command->error('No properties found. Please create a property first.');
       return;
     }
-    
+    // seed room amenities if none exist
+    $this->call(RoomAmenitySeeder::class);
     // seed room types if none exist
     $this->call(RoomTypeSeeder::class);
     

@@ -28,6 +28,15 @@ class TenantPropertySeeder extends Seeder
 				'currency' => 'ZAR',
 				'locale' => 'en',
 				'is_active' => true,
+				'settings' => json_encode([
+					'website' => $tenant->domains->where('is_primary', true)->first()->domain,
+					'check_in_time' => '14:00',
+					'check_out_time' => '11:00',
+					'allow_guests_to_book_online' => true,
+					'show_room_prices_to_guests' => true,
+					'send_booking_confirmation_email_to_guests' => true,
+					'send_booking_notification_email_to_property_manager' => true,
+				]),
 				'max_rooms' => 1] // Based on subscription tier
 			);
 

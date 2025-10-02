@@ -37,9 +37,21 @@ class RolesAndPermissionsSeeder extends Seeder
             'checkin bookings', 'checkout bookings', 'cancel bookings',
             
             // Rooms
-            'view rooms', 'create rooms', 'edit rooms', 'delete rooms', 'manage room types',
+            'view rooms', 'create rooms', 'edit rooms', 'delete rooms',
             'view room availability', 'manage room maintenance',
-            
+
+            // Room Types
+            'view room types', 'create room types', 'edit room types', 'delete room types',
+
+            // Rates
+            'view room rates', 'create room rates', 'edit room rates', 'delete room rates',
+
+            // packages
+            'view packages', 'create packages', 'edit packages', 'delete packages',
+
+            // room amenities
+            'view room amenities', 'create room amenities', 'edit room amenities', 'delete room amenities',
+
             // Guests (and all related to guest tables)
             'view guests', 'create guests', 'edit guests', 'delete guests', 'view guest history',
             'manage guest profiles',

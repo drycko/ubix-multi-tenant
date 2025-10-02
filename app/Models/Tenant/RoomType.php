@@ -30,7 +30,7 @@ class RoomType extends Model
         'is_active' => 'boolean',
         'base_capacity' => 'integer',
         'max_capacity' => 'integer',
-        'amenities' => 'array'
+        // Remove amenities cast to prevent JSON/array conflicts with controller
     ];
 
     // Relationships
@@ -52,5 +52,26 @@ class RoomType extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Get amenities as array
+     */
+    public function getAmenitiesArrayAttribute()
+    {
+        return $this->amenities ? json_decode($this->amenities, true) : [];
+    }
+
+    /**
+     * Get formatted amenities with details
+     */
+    public function getAmenitiesWithDetailsAttribute()
+    {
+        $slugs = $this->getAmenitiesArrayAttribute();
+        if (empty($slugs)) return collect();
+        
+        return RoomAmenity::whereIn('slug', $slugs)
+                          ->where('property_id', $this->property_id)
+                          ->get();
     }
 }

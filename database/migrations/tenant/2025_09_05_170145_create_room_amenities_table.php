@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('property_id')->nullable(); // No foreign key constraint
             $table->string('name');
-            $table->string('slug')->unique();
+            $table->string('slug')->unique(); // only unique per property ideally
             $table->string('icon')->nullable(); // Optional icon field
             $table->text('description')->nullable(); // Optional description field
             $table->timestamps();

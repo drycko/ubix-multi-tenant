@@ -1,12 +1,12 @@
 @if(is_super_user())
   <div class="row mb-3">
     <div class="col-12">
-      <div class="card border-primary">
+      <div class="card border-success">
         <div class="card-body py-2">
           <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
-              <i class="bi bi-globe text-primary me-2"></i>
-              <strong class="text-primary">Super User Mode:</strong>
+              <i class="bi bi-globe text-success me-2"></i>
+              <strong class="text-success">Super User Mode:</strong>
               <span class="ms-2">
                 @if(is_property_selected())
                   Operating in <strong>{{ current_property()->name ?? 'Unknown Property' }}</strong>
@@ -26,7 +26,7 @@
               @endif
               
               <div class="dropdown">
-                <button class="btn btn-primary btn-sm dropdown-toggle" type="button" 
+                <button class="btn btn-success btn-sm dropdown-toggle" type="button" 
                         data-bs-toggle="dropdown" aria-expanded="false">
                   <i class="bi bi-building"></i> Switch Property
                 </button>

@@ -6,35 +6,56 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\Room;
 use App\Models\Tenant\RoomType;
 use App\Models\Tenant\Property;
+use App\Traits\LogsTenantUserActivity;
+use App\Services\HtmlSanitizerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class RoomController extends Controller
 {
+    use LogsTenantUserActivity;
+
+    protected $htmlSanitizer;
+
+    public function __construct(HtmlSanitizerService $htmlSanitizer)
+    {
+        $this->htmlSanitizer = $htmlSanitizer;
+    }
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $rooms = Room::with(['type.rates' => function($query) {
-            // the rate effective_from is in the past and is the closest to today
-            // and the rate is active and the effective_until is in the future or null
-            $query->where('is_active', true)
-                ->where(function($q) {
-                    $q->where('effective_from', '<=', now())
-                      ->where(function($q2) {
-                          $q2->where('effective_until', '>=', now())
-                             ->orWhereNull('effective_until');
-                      });
-                });
-        }])
-        ->where('property_id', current_property()->id)
-        ->paginate(15);
+        $propertyId = selected_property_id();
+        
+        // build the query with filters
+        $query = Room::where('property_id', $propertyId);
+
+        // Search filter
+        if ($search = request('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('number', 'like', "%{$search}%")
+                  ->orWhere('short_code', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+        // Room type filter
+        if ($roomTypeId = request('room_type')) {
+            $query->where('room_type_id', $roomTypeId);
+        }
+        // Sorting
+        $query->orderBy('display_order');
+
+        $rooms = $query->paginate(15);
+
+        $roomTypes = RoomType::where('property_id', $propertyId)->get();
 
         $currency = current_property()->currency ?? 'USD';
 
-        return view('tenant.rooms.index', compact('rooms', 'currency'));
+        return view('tenant.rooms.index', compact('rooms', 'currency', 'propertyId', 'roomTypes'));
     }
 
     // get room rates for a specific room type
@@ -63,15 +84,23 @@ class RoomController extends Controller
      */
     public function create()
     {
+        $propertyId = selected_property_id();
+        
         // get room types for the current property
-        $roomTypes = RoomType::where('property_id', current_property()->id)->get();
+        $roomTypes = RoomType::where('property_id', $propertyId)->get();
+        
         // send the next available display order
-        $maxOrder = Room::where('property_id', current_property()->id)->max('display_order');
+        $maxOrder = Room::where('property_id', $propertyId)->max('display_order') ?? 0;
         $nextOrder = $maxOrder + 1;
-        // send the next available room number
-        $maxNumber = Room::where('property_id', current_property()->id)->max('number');
-        $nextNumber = $maxNumber + 1;
-        return view('tenant.rooms.create', compact('roomTypes', 'nextOrder', 'nextNumber'));
+
+        // send the next available room number(why is this giving a room number that is already taken? we need to check existing numbers and find the next available one)
+        $existingNumbers = Room::where('property_id', $propertyId)->pluck('number')->toArray();
+        $nextNumber = 1;
+        while (in_array($nextNumber, $existingNumbers)) {
+            $nextNumber++;
+        }
+
+        return view('tenant.rooms.create', compact('roomTypes', 'nextOrder', 'nextNumber', 'propertyId'));
     }
 
     /**
@@ -80,76 +109,96 @@ class RoomController extends Controller
     public function store(Request $request)
     {
         try {
-            // The is_enabled field must be true or false. (not null) but the checkbox will send null when unchecked
-            $request->merge(['is_enabled' => $request->has('is_enabled')]);
-            $request->merge(['is_featured' => $request->has('is_featured')]);
-            // validate the request
+            $propertyId = selected_property_id();
+            
+            // Handle checkbox fields
+            $request->merge([
+                'is_enabled' => $request->has('is_enabled'),
+                'is_featured' => $request->has('is_featured')
+            ]);
+
+            // Validate the request
             $validated = $request->validate([
                 'room_type_id' => 'required|exists:room_types,id',
-                'number' => 'required|string|max:255|unique:rooms,number,NULL,id,property_id,' . current_property()->id,
+                'number' => 'required|string|max:255|unique:rooms,number,NULL,id,property_id,' . $propertyId,
                 'name' => 'required|string|max:255',
                 'short_code' => 'required|string|max:50',
                 'floor' => 'nullable|integer',
-                'legacy_room_code' => 'nullable|integer|unique:rooms,legacy_room_code,NULL,id,property_id,' . current_property()->id,
+                'legacy_room_code' => 'nullable|integer|unique:rooms,legacy_room_code,NULL,id,property_id,' . $propertyId,
                 'is_enabled' => 'required|boolean',
                 'is_featured' => 'required|boolean',
                 'display_order' => 'nullable|integer',
                 'notes' => 'nullable|string',
                 'web_description' => 'nullable|string',
                 'description' => 'nullable|string',
-                'web_image' => 'nullable|image|max:2048', // max 2MB
+                'web_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // max 2MB
             ]);
 
-            // add property_id to the request
-            $request->merge(['property_id' => current_property()->id]);
+            // Sanitize HTML content
+            if (isset($validated['description'])) {
+                $validated['description'] = $this->htmlSanitizer->sanitize($validated['description']);
+            }
+            if (isset($validated['web_description'])) {
+                $validated['web_description'] = $this->htmlSanitizer->sanitize($validated['web_description']);
+            }
 
             // Handle image upload
             if ($request->hasFile('web_image')) {
-                // Store new image
-                $imagePath = $request->file('web_image')->store('room_images', 'public');
-                $validated['web_image'] = 'storage/' . $imagePath;
-
-            } else {
-                // this is a NEW room, so no existing image
-                $validated['web_image'] = null;
+                $file = $request->file('web_image');
+                
+                if (config('app.env') === 'production') {
+                    // Production: Store in GCS
+                    $tenant_id = tenant('id');
+                    $gcsPath = 'tenant' . $tenant_id . '/room_images/' . uniqid() . '_' . $file->getClientOriginalName();
+                    
+                    $file->storeAs('/', $gcsPath, 'gcs');
+                    $validated['web_image'] = $gcsPath;
+                } else {
+                    // Local development: Store in local storage with tenant isolation
+                    $imagePath = $file->store('room_images', 'public');
+                    $validated['web_image'] = $imagePath;
+                }
             }
 
             // Handle display order logic for new room
-            if ($request->has('display_order') && $request->input('display_order') != $validated['display_order']) {
-                $newOrder = $request->input('display_order');
-                $oldOrder = $validated['display_order'];
-
-                if ($newOrder < $oldOrder) {
-                    // Moving up - increment orders between new and old position
-                    Room::where('property_id', current_property()->id)
-                        ->where('display_order', '>=', $newOrder)
-                        ->where('display_order', '<', $oldOrder)
-                        ->increment('display_order');
-                } else {
-                    // Moving down - decrement orders between old and new position
-                    Room::where('property_id', current_property()->id)
-                        ->where('display_order', '>', $oldOrder)
-                        ->where('display_order', '<=', $newOrder)
-                        ->decrement('display_order');
-                }
-            } else {
-                // If no display order change, just pick the next available order
-                $maxOrder = Room::where('property_id', current_property()->id)->max('display_order');
-                
+            if (!isset($validated['display_order']) || !$validated['display_order']) {
+                $maxOrder = Room::where('property_id', $propertyId)->max('display_order') ?? 0;
                 $validated['display_order'] = $maxOrder + 1;
+            } else {
+                // If specific order requested, adjust other rooms
+                $newOrder = $validated['display_order'];
+                Room::where('property_id', $propertyId)
+                    ->where('display_order', '>=', $newOrder)
+                    ->increment('display_order');
             }
 
-            // create the room with validated data
+            // Create the room
             $room = Room::create(array_merge($validated, [
-                'property_id' => current_property()->id,
+                'property_id' => $propertyId,
             ]));
 
-            return redirect()->route('tenant.admin.rooms.index')->with('success', 'Room created successfully.');
+            // Log activity
+            $this->logTenantActivity(
+                'create_room',
+                'Created a new room: ' . $room->name. ' (ID: ' . $room->id . ') for property ID: ' . $propertyId,
+                $room,
+                [
+                    'table' => 'rooms',
+                    'id' => $room->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $room->toArray()
+                ]
+            );
+
+            return redirect()->route('tenant.rooms.index', ['property_id' => $propertyId])
+                ->with('success', 'Room created successfully.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            throw $e; // Rethrow validation exceptions to be handled by Laravel
+            throw $e;
         } catch (\Exception $e) {
-            return redirect()->back()->withInput()->withErrors(['error' => 'An error occurred while updating the room: ' . $e->getMessage()]);
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'An error occurred while creating the room: ' . $e->getMessage()]);
         }
     }
 
@@ -158,7 +207,38 @@ class RoomController extends Controller
      */
     public function show(Room $room)
     {
-        //
+        // Check if the room belongs to the current property
+        if ($room->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $currency = current_property()->currency ?? 'USD';
+        
+        // Load relationships
+        $room->load(['type', 'property', 'bookings' => function($query) {
+            $query->latest()->limit(5);
+        }]);
+
+        // Get room rates
+        $roomRates = $room->type ? $room->type->rates()->where('is_active', true)->get() : collect();
+
+        // Generate image URL for display
+        $imageUrl = null;
+        if ($room->web_image) {
+            // if image has https
+            if (Str::startsWith($room->web_image, 'https://')) {
+                $imageUrl = $room->web_image;
+            } elseif (config('app.env') === 'production') {
+                $gcsConfig = config('filesystems.disks.gcs');
+                $bucket = $gcsConfig['bucket'] ?? null;
+                $path = ltrim($room->web_image, '/');
+                $imageUrl = $bucket ? "https://storage.googleapis.com/{$bucket}/{$path}" : null;
+            } else {
+                $imageUrl = asset('storage/' . $room->web_image);
+            }
+        }
+
+        return view('tenant.rooms.show', compact('room', 'currency', 'roomRates', 'imageUrl'));
     }
 
     /**
@@ -166,22 +246,37 @@ class RoomController extends Controller
      */
     public function edit(Room $room)
     {
-        // check if the room belongs to the current property
-        if ($room->property_id !== current_property()->id) {
+        // Check if the room belongs to the current property
+        if ($room->property_id !== selected_property_id()) {
             abort(403, 'Unauthorized action.');
         }
 
+        $propertyId = selected_property_id();
         $currency = current_property()->currency ?? 'USD';
 
-        $roomTypes = RoomType::where('property_id', current_property()->id)->get();
+        $roomTypes = RoomType::where('property_id', $propertyId)->get();
         $room->load('type');
-        // get active rates for the room type, and the ones that are not expired
+        
+        // Get active rates for the room type
         $roomRates = $room->type ? $room->type->rates()->where('is_active', true)->get() : collect();
 
-        // send the images
-        $room->load('images');
+        // Generate image URL for display
+        $imageUrl = null;
+        if ($room->web_image) {
+            // if image has https
+            if (Str::startsWith($room->web_image, 'https://')) {
+                $imageUrl = $room->web_image;
+            } elseif (config('app.env') === 'production') {
+                $gcsConfig = config('filesystems.disks.gcs');
+                $bucket = $gcsConfig['bucket'] ?? null;
+                $path = ltrim($room->web_image, '/');
+                $imageUrl = $bucket ? "https://storage.googleapis.com/{$bucket}/{$path}" : null;
+            } else {
+                $imageUrl = asset('storage/' . $room->web_image);
+            }
+        }
 
-        return view('tenant.rooms.edit', compact('room', 'roomTypes', 'roomRates', 'currency'));
+        return view('tenant.rooms.edit', compact('room', 'roomTypes', 'roomRates', 'currency', 'imageUrl', 'propertyId'));
     }
 
     /**
@@ -191,9 +286,11 @@ class RoomController extends Controller
     {
         try {
             // Check if the room belongs to the current property
-            if ($room->property_id !== current_property()->id) {
+            if ($room->property_id !== selected_property_id()) {
                 abort(403, 'Unauthorized action.');
             }
+
+            $propertyId = selected_property_id();
 
             // Handle checkbox fields
             $request->merge([
@@ -204,11 +301,11 @@ class RoomController extends Controller
             // Validate the request
             $validated = $request->validate([
                 'room_type_id' => 'required|exists:room_types,id',
-                'number' => 'required|string|max:255|unique:rooms,number,' . $room->id . ',id,property_id,' . current_property()->id,
+                'number' => 'required|string|max:255|unique:rooms,number,' . $room->id . ',id,property_id,' . $propertyId,
                 'name' => 'required|string|max:255',
                 'short_code' => 'required|string|max:50',
                 'floor' => 'nullable|integer',
-                'legacy_room_code' => 'nullable|integer|unique:rooms,legacy_room_code,' . $room->id . ',id,property_id,' . current_property()->id,
+                'legacy_room_code' => 'nullable|integer|unique:rooms,legacy_room_code,' . $room->id . ',id,property_id,' . $propertyId,
                 'is_enabled' => 'required|boolean',
                 'is_featured' => 'required|boolean',
                 'display_order' => 'nullable|integer',
@@ -218,72 +315,92 @@ class RoomController extends Controller
                 'web_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // max 2MB
             ]);
 
+            // Sanitize HTML content
+            if (isset($validated['description'])) {
+                $validated['description'] = $this->htmlSanitizer->sanitize($validated['description']);
+            }
+            if (isset($validated['web_description'])) {
+                $validated['web_description'] = $this->htmlSanitizer->sanitize($validated['web_description']);
+            }
+
             // Handle image upload
             if ($request->has('remove_image')) {
                 // Delete the current image
                 if ($room->web_image) {
-                    $imagePath = str_replace('storage/', '', $room->web_image);
-                    Storage::disk('public')->delete($imagePath);
+                    if (config('app.env') === 'production') {
+                        Storage::disk('gcs')->delete($room->web_image);
+                    } else {
+                        Storage::disk('public')->delete($room->web_image);
+                    }
                 }
                 $validated['web_image'] = null;
             } 
             elseif ($request->hasFile('web_image')) {
                 // Delete old image if exists
                 if ($room->web_image) {
-                    $oldImagePath = str_replace('storage/', '', $room->web_image);
-                    Storage::disk('public')->delete($oldImagePath);
+                    if (config('app.env') === 'production') {
+                        Storage::disk('gcs')->delete($room->web_image);
+                    } else {
+                        Storage::disk('public')->delete($room->web_image);
+                    }
                 }
                 
                 // Store new image
-                $imagePath = $request->file('web_image')->store('room_images', 'public');
-                $validated['web_image'] = 'storage/' . $imagePath;
+                $file = $request->file('web_image');
+                
+                if (config('app.env') === 'production') {
+                    $tenant_id = tenant('id');
+                    $gcsPath = 'tenant' . $tenant_id . '/room_images/' . uniqid() . '_' . $file->getClientOriginalName();
+                    
+                    $file->storeAs('/', $gcsPath, 'gcs');
+                    $validated['web_image'] = $gcsPath;
+                } else {
+                    $imagePath = $file->store('room_images', 'public');
+                    $validated['web_image'] = $imagePath;
+                }
             } 
             else {
                 // Keep existing image
                 $validated['web_image'] = $room->web_image;
             }
 
-            // if ($request->hasFile('web_image')) {
-            //     // Delete old image if exists
-            //     if ($room->web_image && Storage::disk('public')->exists(str_replace('storage/', '', $room->web_image))) {
-            //         Storage::disk('public')->delete(str_replace('storage/', '', $room->web_image));
-            //     }
-                
-            //     // Store new image
-            //     $imagePath = $request->file('web_image')->store('room_images', 'public');
-            //     $validated['web_image'] = 'storage/' . $imagePath;
-            // } else {
-            //     // Keep the existing image if no new image uploaded
-            //     $validated['web_image'] = $room->web_image;
-            // }
-
             // Handle display order logic
-            if ($request->has('display_order') && $request->input('display_order') != $room->display_order) {
-                $newOrder = $request->input('display_order');
+            if (isset($validated['display_order']) && $validated['display_order'] != $room->display_order) {
+                $newOrder = $validated['display_order'];
                 $oldOrder = $room->display_order;
                 
                 if ($newOrder < $oldOrder) {
                     // Moving up - increment orders between new and old position
-                    Room::where('property_id', current_property()->id)
+                    Room::where('property_id', $propertyId)
                         ->where('display_order', '>=', $newOrder)
                         ->where('display_order', '<', $oldOrder)
                         ->increment('display_order');
                 } else {
                     // Moving down - decrement orders between old and new position
-                    Room::where('property_id', current_property()->id)
+                    Room::where('property_id', $propertyId)
                         ->where('display_order', '>', $oldOrder)
                         ->where('display_order', '<=', $newOrder)
                         ->decrement('display_order');
                 }
-            } else {
-                // If no display order change, keep the existing one
-                $validated['display_order'] = $room->display_order;
             }
 
             // Update the room with validated data
             $room->update($validated);
 
-            return redirect()->route('tenant.admin.rooms.index')
+            // Log activity
+            $this->logTenantActivity(
+                'room_updated',
+                "Updated room: {$room->name} (#{$room->number})",
+                $room,
+                [
+                    'table' => 'rooms',
+                    'id' => $room->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $room->getChanges()
+                ]
+            );
+
+            return redirect()->route('tenant.rooms.index', ['property_id' => $propertyId])
                 ->with('success', 'Room updated successfully.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -296,45 +413,344 @@ class RoomController extends Controller
     }
 
     /**
-     * get available rooms without bookings in range sent via query params.
-     */
-    // public function availableRooms(Request $request)
-    // {
-    //     $validated = $request->validate([
-    //         'arrival_date' => 'required|date|after_or_equal:today',
-    //         'departure_date' => 'required|date|after:arrival_date',
-    //     ]);
-
-    //     $availableRooms = Room::where('property_id', current_property()->id)
-    //         ->whereDoesntHave('bookings', function ($query) use ($validated) {
-    //             $query->where('status', 'confirmed')
-    //                 ->where(function ($q) use ($validated) {
-    //                     $q->where('arrival_date', '<', $validated['departure_date'])
-    //                       ->where('departure_date', '>', $validated['arrival_date']);
-    //                 });
-    //         })
-    //         ->get();
-
-    //     return response()->json([
-    //         'rooms' => $availableRooms,
-    //         'currency' => current_property()->currency ?? 'USD'
-    //     ]);
-    // }
-
-    /**
      * Remove the specified resource from storage.
      */
     public function destroy(Room $room)
     {
-        // Check if the room belongs to the current property
-        if ($room->property_id !== current_property()->id) {
-            abort(403, 'Unauthorized action.');
+        try {
+            // Check if the room belongs to the current property
+            if ($room->property_id !== selected_property_id()) {
+                abort(403, 'Unauthorized action.');
+            }
+
+            $propertyId = selected_property_id();
+            $roomName = $room->name;
+            $roomNumber = $room->number;
+
+            // Delete associated image
+            if ($room->web_image) {
+                if (config('app.env') === 'production') {
+                    Storage::disk('gcs')->delete($room->web_image);
+                } else {
+                    Storage::disk('public')->delete($room->web_image);
+                }
+            }
+
+            // Log activity before deletion
+            $this->logTenantActivity(
+                'room_deleted', "Deleted room: {$roomName} (#{$roomNumber})", $room,
+                [
+                    'table' => 'rooms',
+                    'id' => $room->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $room->getChanges()
+                ]
+            );
+
+            // Delete the room
+            $room->delete();
+
+            return redirect()->route('tenant.rooms.index', ['property_id' => $propertyId])
+                ->with('success', 'Room deleted successfully.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['error' => 'An error occurred while deleting the room: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Toggle room status (enabled/disabled)
+     */
+    public function toggleStatus(Room $room)
+    {
+        try {
+            // Check if the room belongs to the current property
+            if ($room->property_id !== selected_property_id()) {
+                abort(403, 'Unauthorized action.');
+            }
+
+            $room->is_enabled = !$room->is_enabled;
+            $room->save();
+
+            $status = $room->is_enabled ? 'enabled' : 'disabled';
+            
+            // Log activity
+            $this->logTenantActivity(
+                'room_status_changed',
+                "Room {$room->name} (#{$room->number}) {$status}",
+                $room, 
+                [
+                    'table' => 'rooms',
+                    'id' => $room->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $room->getChanges()
+                ]
+            );
+
+            return redirect()->back()
+                ->with('success', "Room {$status} successfully.");
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['error' => 'An error occurred while updating room status: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Clone a room
+     */
+    public function clone(Room $room)
+    {
+        try {
+            // Check if the room belongs to the current property
+            if ($room->property_id !== selected_property_id()) {
+                abort(403, 'Unauthorized action.');
+            }
+
+            $propertyId = selected_property_id();
+
+            // Get next available number and order
+            $maxNumber = Room::where('property_id', $propertyId)->max('number') ?? 0;
+            $maxOrder = Room::where('property_id', $propertyId)->max('display_order') ?? 0;
+
+            // Create clone
+            $clonedRoom = $room->replicate();
+            $clonedRoom->number = $maxNumber + 1;
+            $clonedRoom->name = $room->name . ' (Copy)';
+            $clonedRoom->display_order = $maxOrder + 1;
+            $clonedRoom->web_image = null; // Don't copy image
+            $clonedRoom->save();
+
+            // Log activity
+            $this->logTenantActivity(
+                'room_cloned',
+                "Cloned room: {$room->name} (#{$room->number}) to {$clonedRoom->name} (#{$clonedRoom->number})",
+                $clonedRoom,
+                [
+                    'table' => 'rooms',
+                    'id' => $clonedRoom->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $clonedRoom->toArray()
+                ]
+            );
+
+            return redirect()->route('tenant.rooms.edit', $clonedRoom)
+                ->with('success', 'Room cloned successfully. Please update the details as needed.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withErrors(['error' => 'An error occurred while cloning the room: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Show the import form
+     */
+    public function importRooms()
+    {
+        return view('tenant.rooms.import');
+    }
+
+    /**
+     * Process the CSV import
+     */
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'csv_file' => 'required|file|mimes:csv,txt|max:5120', // 5MB max
+                'skip_header' => 'boolean',
+                'update_existing' => 'boolean',
+            ]);
+
+            $propertyId = current_property()->id;
+            $skipHeader = $request->boolean('skip_header');
+            $updateExisting = $request->boolean('update_existing');
+
+            $file = $request->file('csv_file');
+            $path = $file->getRealPath();
+            $csv = array_map('str_getcsv', file($path));
+
+            $headers = [];
+            $imported = 0;
+            $updated = 0;
+            $errors = [];
+
+            foreach ($csv as $index => $row) {
+                // Skip empty rows
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+
+                // Use first row as headers
+                if ($index === 0) {
+                    if ($skipHeader) {
+                        $headers = array_map('trim', $row);
+                        continue;
+                    } else {
+                        $headers = ['number', 'name', 'short_code', 'room_type_code', 'floor', 'legacy_room_code', 'description', 'web_description', 'notes', 'is_enabled', 'is_featured', 'display_order'];
+                    }
+                }
+
+                try {
+                    // Create associative array from row
+                    $rowData = array_combine($headers, array_pad($row, count($headers), ''));
+                    
+                    // Validate required fields
+                    if (empty($rowData['number']) || empty($rowData['name']) || empty($rowData['short_code']) || empty($rowData['room_type_code'])) {
+                        $errors[] = "Row " . ($index + 1) . ": Missing required fields (number, name, short_code, room_type_code)";
+                        continue;
+                    }
+
+                    // Find room type by legacy code
+                    $roomType = RoomType::where('property_id', $propertyId)
+                        ->where('legacy_code', $rowData['room_type_code'])
+                        ->first();
+
+                    if (!$roomType) {
+                        $errors[] = "Row " . ($index + 1) . ": Room type with code '{$rowData['room_type_code']}' not found";
+                        continue;
+                    }
+
+                    // Prepare room data
+                    $roomData = [
+                        'property_id' => $propertyId,
+                        'room_type_id' => $roomType->id,
+                        'number' => trim($rowData['number']),
+                        'name' => trim($rowData['name']),
+                        'short_code' => trim($rowData['short_code']),
+                        'floor' => !empty($rowData['floor']) ? (int)$rowData['floor'] : null,
+                        'legacy_room_code' => !empty($rowData['legacy_room_code']) ? (int)$rowData['legacy_room_code'] : null,
+                        'description' => !empty($rowData['description']) ? $this->htmlSanitizer->sanitize($rowData['description']) : null,
+                        'web_description' => !empty($rowData['web_description']) ? $this->htmlSanitizer->sanitize($rowData['web_description']) : null,
+                        'notes' => !empty($rowData['notes']) ? trim($rowData['notes']) : null,
+                        'is_enabled' => $this->parseBooleanValue($rowData['is_enabled'] ?? 'true'),
+                        'is_featured' => $this->parseBooleanValue($rowData['is_featured'] ?? 'false'),
+                        'display_order' => !empty($rowData['display_order']) ? (int)$rowData['display_order'] : null,
+                    ];
+
+                    // Check if room exists
+                    $existingRoom = Room::where('property_id', $propertyId)
+                        ->where('number', $roomData['number'])
+                        ->first();
+
+                    if ($existingRoom) {
+                        if ($updateExisting) {
+                            $existingRoom->update($roomData);
+                            $updated++;
+                            
+                            // Log activity
+                            $this->logActivity('room_imported_updated', "Updated room via import: {$roomData['name']} (#{$roomData['number']})", $existingRoom);
+                        } else {
+                            $errors[] = "Row " . ($index + 1) . ": Room number '{$roomData['number']}' already exists";
+                            continue;
+                        }
+                    } else {
+                        // Set display order if not provided
+                        if (!$roomData['display_order']) {
+                            $maxOrder = Room::where('property_id', $propertyId)->max('display_order') ?? 0;
+                            $roomData['display_order'] = $maxOrder + 1;
+                        }
+
+                        $room = Room::create($roomData);
+                        $imported++;
+                        
+                        // Log activity
+                        $this->logActivity('room_imported_created', "Created room via import: {$roomData['name']} (#{$roomData['number']})", $room);
+                    }
+
+                } catch (\Exception $e) {
+                    $errors[] = "Row " . ($index + 1) . ": " . $e->getMessage();
+                }
+            }
+
+            // Prepare success message
+            $messages = [];
+            if ($imported > 0) {
+                $messages[] = "{$imported} rooms imported successfully";
+            }
+            if ($updated > 0) {
+                $messages[] = "{$updated} rooms updated successfully";
+            }
+
+            $successMessage = implode(', ', $messages);
+
+            if (!empty($errors)) {
+                $errorMessage = "Import completed with errors:\n" . implode("\n", $errors);
+                return redirect()->back()
+                    ->with('success', $successMessage)
+                    ->with('error', $errorMessage);
+            }
+
+            return redirect()->route('tenant.rooms.index', ['property_id' => $propertyId])
+                ->with('success', $successMessage ?: 'Import completed, but no rooms were processed.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Import failed: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Download CSV template
+     */
+    public function template()
+    {
+        $headers = [
+            'number',
+            'name',
+            'short_code',
+            'room_type_code',
+            'floor',
+            'legacy_room_code',
+            'description',
+            'web_description',
+            'notes',
+            'is_enabled',
+            'is_featured',
+            'display_order'
+        ];
+
+        $sampleData = [
+            ['101', 'Queen Standard Room', 'Q STD', 'ST', '1', '2', 'Standard queen room with en-suite bathroom', 'Comfortable queen room perfect for couples', 'Recently renovated', 'true', 'false', '1'],
+            ['102', '2 X Single Standard', '2xSgl STD', 'ST', '1', '3', 'Twin room with two single beds', 'Twin room ideal for friends or business travelers', '', 'true', 'false', '2'],
+            ['201', 'Garden Suite Twin', '2x3/4 GDN', 'GR', '2', '20', 'Spacious garden suite with twin beds', 'Beautiful suite overlooking the garden', 'Garden view', 'true', 'true', '3'],
+        ];
+
+        $filename = 'rooms_import_template.csv';
+
+        $handle = fopen('php://output', 'w');
+        
+        header('Content-Type: application/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        // Add headers
+        fputcsv($handle, $headers);
+
+        // Add sample data
+        foreach ($sampleData as $row) {
+            fputcsv($handle, $row);
         }
 
-        // Delete the room
-        $room->delete();
+        fclose($handle);
+        exit;
+    }
 
-        return redirect()->route('tenant.admin.rooms.index')
-            ->with('success', 'Room deleted successfully.');
+    /**
+     * Parse boolean values from various formats
+     */
+    private function parseBooleanValue($value)
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        $value = strtolower(trim($value));
+        
+        return in_array($value, ['1', 'true', 'yes', 'on', 'enabled']);
     }
 }

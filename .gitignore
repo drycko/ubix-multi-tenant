@@ -24,3 +24,4 @@ Homestead.yaml
 Thumbs.db
 deploy.sh
 npm-debug.log
+update_countries.py

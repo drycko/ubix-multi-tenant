@@ -94,6 +94,10 @@ class PropertyController extends Controller
             if ($request->filled('check_out_time')) {
                 $settings['check_out_time'] = $request->input('check_out_time');
             }
+            $settings['allow_guests_to_book_online'] = true;
+            $settings['show_room_prices_to_guests'] = true;
+            $settings['send_booking_confirmation_email_to_guests'] = true;
+            $settings['send_booking_notification_email_to_property_manager'] = true;
             if (!empty($settings)) {
                 $validated['settings'] = json_encode($settings);
             }
@@ -173,6 +177,9 @@ class PropertyController extends Controller
 
         $property->rooms_count = Room::where('property_id', $property->id)->count();
         $property->users_count = User::where('property_id', $property->id)->count();
+        $property->website = $property->settings ? json_decode($property->settings, true)['website'] ?? null : null;
+        $property->check_in_time = $property->settings ? json_decode($property->settings, true)['check_in_time'] ?? null : null;
+        $property->check_out_time = $property->settings ? json_decode($property->settings, true)['check_out_time'] ?? null : null;
 
         return view('tenant.properties.edit', compact('property', 'currencies', 'timezones'));
     }

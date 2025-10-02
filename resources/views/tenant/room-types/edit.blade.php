@@ -28,6 +28,8 @@
 <div class="app-content">
 	<!--begin::Container-->
 	<div class="container-fluid">
+		<!-- Property Selector -->
+    @include('tenant.components.property-selector')
 		{{-- messages from session --}}
 		@if(session('success'))
 				<div class="alert alert-success">
@@ -59,19 +61,17 @@
 				<form action="{{ route('tenant.room-types.update', $roomType) }}" method="POST">
 					@csrf
 					@method('PUT')
-					<input type="hidden" name="id" value="{{ $roomType->id }}">
-					<input type="hidden" name="company_id" value="{{ $roomType->company_id }}">
 
 					<div class="row">
 							<div class="col-md-6 mb-3">
-									<label for="name" class="form-label">Name <span class="text-muted">(Required)</span></label>
+									<label for="name" class="form-label">Name <span class="text-danger">*</span></label>
 									<input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name', $roomType->name) }}" required>
 									@error('name')
 											<div class="invalid-feedback">{{ $message }}</div>
 									@enderror
 							</div>
 							<div class="col-md-6 mb-3">
-									<label for="code" class="form-label">Short Code <span class="text-muted">(Required)</span></label>
+									<label for="code" class="form-label">Short Code <span class="text-danger">*</span></label>
 									<input type="text" class="form-control @error('code') is-invalid @enderror" id="code" name="code" value="{{ old('code', $roomType->code) }}" required>
 									@error('code')
 											<div class="invalid-feedback">{{ $message }}</div>
@@ -80,14 +80,14 @@
 					</div>
 					<div class="row">
 							<div class="col-md-6 mb-3">
-									<label for="base_capacity" class="form-label">Base Capacity <span class="text-muted">(Required)</span></label>
+									<label for="base_capacity" class="form-label">Base Capacity <span class="text-danger">*</span></label>
 									<input type="number" class="form-control @error('base_capacity') is-invalid @enderror" id="base_capacity" name="base_capacity" value="{{ old('base_capacity', $roomType->base_capacity) }}" min="1" required>
 									@error('base_capacity')
 											<div class="invalid-feedback">{{ $message }}</div>
 									@enderror
 							</div>
 							<div class="col-md-6 mb-3">
-									<label for="max_capacity" class="form-label">Max Capacity <span class="text-muted">(Required)</span></label>
+									<label for="max_capacity" class="form-label">Max Capacity <span class="text-danger">*</span></label>
 									<input type="number" class="form-control @error('max_capacity') is-invalid @enderror" id="max_capacity" name="max_capacity" value="{{ old('max_capacity', $roomType->max_capacity) }}" min="1" required>
 									@error('max_capacity')
 											<div class="invalid-feedback">{{ $message }}</div>
@@ -97,15 +97,12 @@
 
 					<div class="row">
 						<div class="col-md-6 mb-3">
-							<label for="amenities" class="form-label">Amenities <span class="text-muted">(Optional)</span> <small>(One amenity per line)</small></label>
-							{{-- I need clickable checkboxes for each amenity from the room_amenities table here, pre-checking those that are already selected for this room type. The selected amenities should be stored as a JSON array of slugs in the amenities field of the room_types table. --}}
-							@foreach($allAmenities as $amenity)
-							<div class="form-check ">
-								{{-- json_decode(): Argument #1 ($json) must be of type string, array given --}}
-								<input class="form-check-input" type="checkbox" id="amenity_{{ $amenity->id }}" name="amenities[]" value="{{ $amenity->slug }}" {{ in_array($amenity->slug, json_decode($roomType->amenities, true)) ? 'checked' : '' }}>
-								<label class="form-check-label" for="amenity_{{ $amenity->id }}">{{ $amenity->name }}</label>
-							</div>
-							@endforeach
+							<label for="amenities" class="form-label">Amenities <small>(Multi select)</small></label>
+							<select class="form-control select2-multi @error('amenities') is-invalid @enderror" id="amenities" name="amenities[]" multiple>
+                @foreach($allAmenities as $amenity)
+                <option value="{{ $amenity->slug }}" {{ (collect(old('amenities', $roomType->selected_amenities))->contains($amenity->slug)) ? 'selected':'' }}>{{ $amenity->name }}</option>
+                @endforeach
+              </select>
 							@error('amenities')
 								<div class="invalid-feedback">{{ $message }}</div>
 							@enderror
@@ -116,16 +113,17 @@
 							@error('description')
 								<div class="invalid-feedback">{{ $message }}</div>
 							@enderror
-							<div class="col-md-3 mb-3 mt-3">
-								<label for="is_active" class="form-label">Is Active <span class="text-muted">(Required)</span></label>
-								<select class="form-select @error('is_active') is-invalid @enderror" id="is_active" name="is_active" required>
-									<option value="1" {{ old('is_active', $roomType->is_active) == '1' ? 'selected' : '' }}>Yes</option>
-									<option value="0" {{ old('is_active', $roomType->is_active) == '0' ? 'selected' : '' }}>No</option>
-								</select>
-								@error('is_active')
-									<div class="invalid-feedback">{{ $message }}</div>
-								@enderror
-							</div>
+						</div>
+						
+						<div class="col-md-3 mb-3 mt-3">
+							<label for="is_active" class="form-label">Is Active <span class="text-danger">*</span></label>
+							<select class="form-select @error('is_active') is-invalid @enderror" id="is_active" name="is_active" required>
+								<option value="1" {{ old('is_active', $roomType->is_active) == '1' ? 'selected' : '' }}>Yes</option>
+								<option value="0" {{ old('is_active', $roomType->is_active) == '0' ? 'selected' : '' }}>No</option>
+							</select>
+							@error('is_active')
+								<div class="invalid-feedback">{{ $message }}</div>
+							@enderror
 						</div>
 					</div>
 					<div class="row">

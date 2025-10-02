@@ -378,7 +378,7 @@
                 </div>
                 
                 <div class="col-md-3 mb-3">
-                  <div class="card bg-light">
+                  <div class="card ">
                     <div class="card-body text-center">
                       <h5 class="card-title text-primary">{{ $property->rooms_count }}</h5>
                       <small class="text-muted">Rooms</small>
@@ -387,7 +387,7 @@
                 </div>
                 
                 <div class="col-md-3 mb-3">
-                  <div class="card bg-light">
+                  <div class="card ">
                     <div class="card-body text-center">
                       <h5 class="card-title text-warning">{{ $property->users_count }}</h5>
                       <small class="text-muted">Users</small>
@@ -396,7 +396,7 @@
                 </div>
                 
                 <div class="col-md-3 mb-3">
-                  <div class="card bg-light">
+                  <div class="card ">
                     <div class="card-body text-center">
                       <h5 class="card-title text-success">{{ $property->bookings_count ?? 0 }}</h5>
                       <small class="text-muted">Bookings</small>
@@ -405,7 +405,7 @@
                 </div>
                 
                 <div class="col-md-3 mb-3">
-                  <div class="card bg-light">
+                  <div class="card ">
                     <div class="card-body text-center">
                       <h5 class="card-title text-info">{{ $property->guests_count ?? 0 }}</h5>
                       <small class="text-muted">Guests</small>

@@ -10,23 +10,61 @@ use Illuminate\Http\Request;
 use App\Services\HtmlSanitizerService;
 use Illuminate\Support\Facades\Storage;
 use Google\Cloud\Storage\StorageClient;
+use App\Traits\LogsTenantUserActivity;
+use Illuminate\Support\Facades\DB;
 
 class PackageController extends Controller
 {
+    use LogsTenantUserActivity;
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // test GCS connection
-        // $this->testGCSConnection();
-        // $this->testDirectGoogleSDK();
-        // $this->testUniformGCS();
+        $propertyId = $request->get('property_id') ?: selected_property_id();
+        
+        if (!$propertyId) {
+            return redirect()->back()->with('error', 'Please select a property to view packages.');
+        }
 
-        // Fetch all packages for the current property
-        $packages = Package::where('property_id', property_id())->paginate(15);
+        $tenantId = tenant('id');
+        \Log::info('Tenant ID: ' . $tenantId);
+
+        // build query
+        $query = Package::where('property_id', $propertyId)->with(['rooms']);
+
+        // Apply filters
+        if ($request->filled('checkin_days')) {
+            $days = explode(',', $request->input('checkin_days'));
+            $query->where(function($q) use ($days) {
+                foreach ($days as $day) {
+                    $q->orWhere('pkg_checkin_days', 'LIKE', '%' . trim($day) . '%');
+                }
+            });
+        }
+        if ($request->filled('status')) {
+            $query->where('pkg_status', $request->input('status'));
+        }
+        if ($request->filled('search')) {
+            $searchTerm = $request->input('search');
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('pkg_name', 'LIKE', '%' . $searchTerm . '%')
+                  ->orWhere('pkg_sub_title', 'LIKE', '%' . $searchTerm . '%')
+                  ->orWhere('pkg_description', 'LIKE', '%' . $searchTerm . '%');
+            });
+        }
+
+        // Paginate results
+        $packages = $query->orderBy('created_at', 'desc')->paginate(15);
+
         $currency = property_currency();
-        return view('tenant.room-packages.index', compact('packages', 'currency'));
+        
+        // $this->logActivity('viewed_packages_list', [
+        //     'property_id' => $propertyId,
+        //     'total_packages' => $packages->total()
+        // ]);
+        
+        return view('tenant.room-packages.index', compact('packages', 'currency', 'tenantId', 'propertyId'));
     }
 
     /**
@@ -37,169 +75,102 @@ class PackageController extends Controller
         return view('tenant.room-packages.import');
     }
 
-    
-    // run this once
-    public function makeExistingFilesPublic()
-    {
-        $storageClient = new StorageClient([
-            'projectId' => config('filesystems.disks.gcs.project_id'),
-            'keyFilePath' => config('filesystems.disks.gcs.key_file'),
-        ]);
-        
-        $bucket = $storageClient->bucket(config('filesystems.disks.gcs.bucket'));
-        
-        // Get all objects in package_images directory
-        $objects = $bucket->objects(['prefix' => 'package_images/']);
-        
-        foreach ($objects as $object) {
-            try {
-                // Make object public
-                $object->update([], ['predefinedAcl' => 'publicRead']);
-                echo "Made public: " . $object->name() . "\n";
-            } catch (\Exception $e) {
-                echo "Failed: " . $object->name() . " - " . $e->getMessage() . "\n";
-            }
-        }
-        
-        echo "All existing package_images files are now public!\n";
-    }
-
-    public function reuploadFilesAsPublic()
-    {
-        $storageClient = new StorageClient([
-            'projectId' => config('filesystems.disks.gcs.project_id'),
-            'keyFilePath' => config('filesystems.disks.gcs.key_file'),
-        ]);
-        
-        $bucket = $storageClient->bucket(config('filesystems.disks.gcs.bucket'));
-        
-        // Get all objects in package_images directory
-        $objects = $bucket->objects(['prefix' => 'package_images/']);
-        
-        foreach ($objects as $object) {
-            try {
-                // Download the file
-                $content = $object->downloadAsString();
-                
-                // Re-upload with public access
-                $bucket->upload($content, [
-                    'name' => $object->name(),
-                    'predefinedAcl' => 'publicRead'
-                ]);
-                
-                echo "Re-uploaded as public: " . $object->name() . "\n";
-                
-            } catch (\Exception $e) {
-                echo "Failed: " . $object->name() . " - " . $e->getMessage() . "\n";
-            }
-        }
-    }
-
-    /**
-     * Test GCS with UniformGCSAdapter, this works so we will use this adapter for GCS
-    */
-    public function testUniformGCS()
-    {
-        
-        // disable testing
-        // return;
-        try {
-            // Bulk Update Existing Files
-            $this->reuploadFilesAsPublic();
-
-            echo "✓ Testing with corrected UniformGCSAdapter\n";
-            
-            $path = 'package_images/test-corrected-'.time().'.txt';
-            
-            // Test file creation
-            $putResult = Storage::disk('gcs')->put($path, 'Hello Corrected GCS!');
-            echo "✓ Put result: " . ($putResult ? 'Success' : 'Failed') . "\n";
-            
-            // Test file existence
-            $exists = Storage::disk('gcs')->exists($path);
-            echo "✓ File exists: " . ($exists ? 'Yes' : 'No') . "\n";
-            
-            if ($exists) {
-                // Test reading content
-                $content = Storage::disk('gcs')->get($path);
-                echo "✓ File content: " . $content . "\n";
-            }
-            
-        } catch (\Exception $e) {
-            echo "✗ Error: " . $e->getMessage() . "\n";
-            echo "✗ Stack trace: " . $e->getTraceAsString() . "\n";
-        }
-    }
-
     /**
      * Handle the import of packages from a CSV file.
      */
     public function import(Request $request)
     {
-        
         try {
-            
-            // $request->validate([
-            //     'csv_file' => 'required|mimes:csv,txt',
-            // ]);
             $request->validate([
                 'csv_file' => 'required|file|mimes:csv,txt|max:2048',
             ]);
 
-            // Handle the CSV import logic here
-            // Example CSV content:
-            // "pkg_id","pkg_name","pkg_sub_title","pkg_description","pkg_number_of_nights","pkg_checkin_days","pkg_status","pkg_enterby","deleted","pkg_image"
-            // "1","2 Night Quick Escape","A Two Night Tonic & Taste of Brookdale.","2","1","active","admin","0","image1.jpg"
-            // "2","3 Night Family Getaway","A Three Night Family Adventure.","3","2","active","admin","0","image2.jpg"
-            // Parse the CSV and create Package records accordingly
+            $propertyId = selected_property_id();
+            if (!$propertyId) {
+                return redirect()->back()->with('error', 'Please select a property before importing packages.');
+            }
+
             $file = $request->file('csv_file');
             $data = array_map('str_getcsv', file($file->getRealPath()));
+            $imported = 0;
 
             foreach ($data as $row) {
                 // Skip the header row
                 if ($row[0] === 'pkg_id') {
                     continue;
                 }
-                // change the pkg_status to active/inactive based on the CSV value, when the CSV value is 'available' set it to 'active', if 'unavailable' set it to 'inactive'
-                if ($row[6] === 'available') {
-                    $row[6] = 'active';
-                } elseif ($row[6] === 'unavailable') {
-                    $row[6] = 'inactive';
+                
+                // Validate row has enough columns
+                if (count($row) < 7) {
+                    continue;
                 }
-                // Undefined Undefined array key 6 
+                
+                // Status mapping
+                $status = 'active';
+                if (isset($row[6])) {
+                    if ($row[6] === 'available') {
+                        $status = 'active';
+                    } elseif ($row[6] === 'unavailable') {
+                        $status = 'inactive';
+                    } else {
+                        $status = $row[6];
+                    }
+                }
 
                 // Create the package
                 Package::create([
-                    'property_id' => property_id(),
-                    'pkg_id' => $row[0],
-                    'pkg_name' => $row[1],
-                    'pkg_sub_title' => $row[2],
-                    'pkg_description' => $row[3],
-                    'pkg_number_of_nights' => $row[4],
-                    'pkg_checkin_days' => $row[5],
-                    'pkg_status' => $row[6],
+                    'property_id' => $propertyId,
+                    'pkg_id' => $row[0] ?? null,
+                    'pkg_name' => $row[1] ?? 'Imported Package',
+                    'pkg_sub_title' => $row[2] ?? '',
+                    'pkg_description' => $row[3] ?? '',
+                    'pkg_number_of_nights' => $row[4] ?? 1,
+                    'pkg_checkin_days' => $row[5] ?? json_encode(['Monday']),
+                    'pkg_status' => $status,
                     'pkg_enterby' => auth()->user()->id,
                     'pkg_image' => $row[9] ?? null,
                 ]);
+                
+                $imported++;
             }
 
-            return redirect()->route('tenant.admin.room-packages.index')->with('success', 'Packages imported successfully.');
-        } catch (\Exception $th) {
-            return redirect()->back()->with('error', 'Failed to import packages: ' . $th->getMessage());
+            $this->logTenantActivity(
+                'imported_packages',
+                'Imported packages from CSV file',
+                null, // No specific subject for this activity
+                [
+                    'table' => 'properties',
+                    'id' => $propertyId,
+                    'user_id' => auth()->id(),
+                    'changes' => []
+                ]
+            );
+
+            return redirect()->route('tenant.room-packages.index', ['property_id' => $propertyId])
+                ->with('success', "Successfully imported {$imported} packages.");
+                
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to import packages: ' . $e->getMessage());
         }
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
-        $rooms = Room::where('property_id', property_id())->get();
+        $propertyId = $request->get('property_id') ?: selected_property_id();
+        
+        if (!$propertyId) {
+            return redirect()->back()->with('error', 'Please select a property before creating packages.');
+        }
+
+        $rooms = Room::where('property_id', $propertyId)->get();
         $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         $currency = property_currency();
-        $maxNumOfNights = 30; // Define a maximum number of nights
-        // Show the form for creating a new package
-        return view('tenant.room-packages.create', compact('rooms', 'daysOfWeek', 'maxNumOfNights', 'currency'));
+        $maxNumOfNights = 30;
+        
+        return view('tenant.room-packages.create', compact('rooms', 'daysOfWeek', 'maxNumOfNights', 'currency', 'propertyId'));
     }
 
     /**
@@ -207,15 +178,21 @@ class PackageController extends Controller
      */
     public function store(Request $request, HtmlSanitizerService $htmlSanitizer)
     {
+        $propertyId = $request->get('property_id') ?: selected_property_id();
+        
+        if (!$propertyId) {
+            return redirect()->back()->with('error', 'Please select a property to create packages.');
+        }
+
         // Validate the request
         $validated = $request->validate([
             'pkg_name' => 'required|string|max:255',
-            'pkg_sub_title' => 'required|string|max:255', // Changed from nullable to required to match your form
+            'pkg_sub_title' => 'required|string|max:500',
             'pkg_description' => 'nullable|string',
-            'pkg_number_of_nights' => 'required|integer|min:1',
-            'pkg_checkin_days' => 'required|array', // Changed from nullable to required to match your form
+            'pkg_number_of_nights' => 'required|integer|min:1|max:30',
+            'pkg_checkin_days' => 'required|array|min:1',
             'pkg_checkin_days.*' => 'string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
-            'pkg_rooms' => 'required|array', // Changed from nullable to required to match your form
+            'pkg_rooms' => 'required|array|min:1',
             'pkg_rooms.*' => 'integer|exists:rooms,id',
             'pkg_status' => 'required|in:active,inactive',
             'pkg_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
@@ -223,68 +200,121 @@ class PackageController extends Controller
             'pkg_inclusions' => 'nullable|array',
             'pkg_exclusions' => 'nullable|array',
             'pkg_min_guests' => 'nullable|integer|min:1',
-            'pkg_max_guests' => 'nullable|integer|min:1',
+            'pkg_max_guests' => 'nullable|integer|min:1|gte:pkg_min_guests',
             'pkg_valid_from' => 'nullable|date',
             'pkg_valid_to' => 'nullable|date|after_or_equal:pkg_valid_from',
         ]);
 
+        try {
+            DB::beginTransaction();
 
-        // Initialize image path variable
-        $imagePath = null;
+            // Initialize image path variable
+            $imagePath = null;
 
-        // Handle image upload to Google Cloud Storage using the gcs disk with UniformGCSAdapter
-        if ($request->hasFile('pkg_image')) {
-            $file = $request->file('pkg_image');
-            $gcsPath = 'package_images/' . uniqid() . '_' . $file->getClientOriginalName();
-            $stream = fopen($file->getRealPath(), 'r');
-            Storage::disk('gcs')->put($gcsPath, $stream);
-            fclose($stream);
-            $imagePath = $gcsPath; // Save the GCS path in the database
-        }
+            $tenant_id = tenant('id');
 
-        // SANITIZE THE HTML INPUT BEFORE STORING
-        $sanitizedDescription = $htmlSanitizer->sanitize($validated['pkg_description'] ?? '');
-
-        // Create the package
-        $package = Package::create([
-            'property_id' => property_id(),
-            'pkg_name' => $validated['pkg_name'],
-            'pkg_sub_title' => $validated['pkg_sub_title'],
-            'pkg_description' => $sanitizedDescription,
-            'pkg_number_of_nights' => $validated['pkg_number_of_nights'],
-            'pkg_checkin_days' => json_encode($validated['pkg_checkin_days']),
-            'pkg_status' => $validated['pkg_status'],
-            'pkg_enterby' => auth()->user()->id,
-            'pkg_image' => $imagePath, // Use the $imagePath variable here
-            'pkg_base_price' => $validated['pkg_base_price'],
-            'pkg_inclusions' => isset($validated['pkg_inclusions']) ? json_encode($validated['pkg_inclusions']) : null,
-            'pkg_exclusions' => isset($validated['pkg_exclusions']) ? json_encode($validated['pkg_exclusions']) : null,
-            'pkg_min_guests' => $validated['pkg_min_guests'] ?? null,
-            'pkg_max_guests' => $validated['pkg_max_guests'] ?? null,
-            'pkg_valid_from' => $validated['pkg_valid_from'] ?? null,
-            'pkg_valid_to' => $validated['pkg_valid_to'] ?? null,
-        ]);
-
-        // Associate rooms with the package using sync to avoid duplicates
-        if (isset($validated['pkg_rooms'])) {
-            // $package->rooms()->sync($validated['pkg_rooms']);
-            foreach ($validated['pkg_rooms'] as $roomId) {
-                RoomPackage::firstOrCreate([
-                    'room_id' => $roomId,
-                    'package_id' => $package->id,
-                ]);
+            // Handle image upload to Google Cloud Storage if in production
+            if ($request->hasFile('pkg_image') && config('app.env') === 'production') {
+                $file = $request->file('pkg_image');
+                $gcsPath = 'tenant' . $tenant_id . '/package_images/' . uniqid() . '_' . $file->getClientOriginalName();
+                $stream = fopen($file->getRealPath(), 'r');
+                Storage::disk('gcs')->put($gcsPath, $stream);
+                fclose($stream);
+                $imagePath = $gcsPath;
             }
-        }
+            elseif ($request->hasFile('pkg_image')) {
+                // If not in production, handle local storage (optional)
+                $file = $request->file('pkg_image');
+                // tenant already stores the files in tenant specific folder like (storage\tenant1\app\public\package_images) we need to adjust the path on show and index methods or blades accordingly
+                $imagePath = $file->store('package_images', 'public');
+            }
 
-        return redirect()->route('tenant.admin.room-packages.index')->with('success', 'Package created successfully.');
+            // Sanitize HTML input
+            $sanitizedDescription = $htmlSanitizer->sanitize($validated['pkg_description'] ?? '');
+
+            // Create the package
+            $package = Package::create([
+                'property_id' => $propertyId,
+                'pkg_name' => $validated['pkg_name'],
+                'pkg_sub_title' => $validated['pkg_sub_title'],
+                'pkg_description' => $sanitizedDescription,
+                'pkg_number_of_nights' => $validated['pkg_number_of_nights'],
+                'pkg_checkin_days' => json_encode($validated['pkg_checkin_days']),
+                'pkg_status' => $validated['pkg_status'],
+                'pkg_enterby' => auth()->user()->id,
+                'pkg_image' => $imagePath,
+                'pkg_base_price' => $validated['pkg_base_price'],
+                'pkg_inclusions' => isset($validated['pkg_inclusions']) ? json_encode(array_filter($validated['pkg_inclusions'])) : null,
+                'pkg_exclusions' => isset($validated['pkg_exclusions']) ? json_encode(array_filter($validated['pkg_exclusions'])) : null,
+                'pkg_min_guests' => $validated['pkg_min_guests'] ?? null,
+                'pkg_max_guests' => $validated['pkg_max_guests'] ?? null,
+                'pkg_valid_from' => $validated['pkg_valid_from'] ?? null,
+                'pkg_valid_to' => $validated['pkg_valid_to'] ?? null,
+            ]);
+
+            // Associate rooms with the package
+            if (isset($validated['pkg_rooms'])) {
+                foreach ($validated['pkg_rooms'] as $roomId) {
+                    RoomPackage::firstOrCreate([
+                        'room_id' => $roomId,
+                        'package_id' => $package->id,
+                    ]);
+                }
+            }
+
+            $this->logTenantActivity(
+                'created_package',
+                'Created package: ' . $package->pkg_name . ' (ID: ' . $package->id . ') for property: ' . $propertyId,
+                $package, // Pass the package object as subject
+                [
+                    'table' => 'packages',
+                    'id' => $package->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $package->toArray()
+                ]
+            );
+
+            DB::commit();
+
+            return redirect()->route('tenant.room-packages.index', ['property_id' => $propertyId])
+                ->with('success', 'Package created successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withInput()
+                ->with('error', 'Failed to create package: ' . $e->getMessage());
+        }
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Package $package)
+    public function show(Package $roomPackage)
     {
-        //
+        // Check property access
+        if ($roomPackage->property_id && $roomPackage->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized access to package.');
+        }
+
+        $tenant_id = tenant('id');
+        \Log::info('Tenant ID: ' . $tenant_id);
+
+        $roomPackage->load(['rooms']);
+        $currency = property_currency();
+        
+        $this->logTenantActivity(
+                'viewed_package',
+                'Viewed package: ' . $roomPackage->pkg_name . ' (ID: ' . $roomPackage->id . ') for property: ' . $roomPackage->property_id,
+                $roomPackage, // Pass the package object as subject
+                [
+                    'table' => 'packages',
+                    'id' => $roomPackage->id,
+                    'user_id' => auth()->id(),
+                    'changes' => []
+                ]
+            );
+
+        return view('tenant.room-packages.show', compact('roomPackage', 'currency', 'tenant_id'));
     }
 
     /**
@@ -296,73 +326,88 @@ class PackageController extends Controller
             abort(404, 'Package not found.');
         }
 
-        // debug in the LOG package array
-        // \Log::debug('Package array:', $roomPackage->toArray()); // I am getting empty array here
-
-        if (property_id() === null) {
+        if (selected_property_id() === null) {
             abort(403, 'Unauthorized action. No property context available.');
         }
 
-
         // Allow access to packages from current property OR packages with no property
-        if ($roomPackage->property_id && $roomPackage->property_id !== property_id()) {
+        if ($roomPackage->property_id && $roomPackage->property_id !== selected_property_id()) {
             abort(403, 'Unauthorized action. This package belongs to a different property.');
         }
 
-        // Show the form for editing a package
-        $rooms = Room::where('property_id', property_id())->get(); // FIX: Use property_id() here too
+        // Load relationships
+        $roomPackage->load(['rooms']);
+        
+        // Get available rooms for this property
+        $rooms = Room::where('property_id', selected_property_id())->get();
         $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         $currency = property_currency();
         $maxNumOfNights = 30;
 
-        $pkg_valid_to = null;
-        $pkg_valid_from = null;
+        // Format dates for input fields
+        $pkg_valid_from = $roomPackage->pkg_valid_from ? $roomPackage->pkg_valid_from->format('Y-m-d') : null;
+        $pkg_valid_to = $roomPackage->pkg_valid_to ? $roomPackage->pkg_valid_to->format('Y-m-d') : null;
 
-        // format date to Y-m-d for the date input fields
-        if ($roomPackage->pkg_valid_from) {
-            $pkg_valid_from = date('Y-m-d', strtotime($roomPackage->pkg_valid_from));
-        }
-        if ($roomPackage->pkg_valid_to) {
-            $pkg_valid_to = date('Y-m-d', strtotime($roomPackage->pkg_valid_to));
-        }
-
-        // get full GCS image URL using uniform adapter because gcs is throwing error: This driver does not support retrieving URLs.
-        $gcsImageUrl = null;
-        if ($roomPackage->pkg_image) {
-            // Get GCS config
-            $gcsConfig = config('filesystems.disks.gcs');
-            $bucket = $gcsConfig['bucket'] ?? null;
-            $projectId = $gcsConfig['project_id'] ?? null;
-            $path = ltrim($roomPackage->pkg_image, '/');
-            // Default public base URL for GCS
-            if ($bucket) {
-                $gcsImageUrl = "https://storage.googleapis.com/{$bucket}/{$path}";
+        // if in production
+        if (config('app.env') === 'production') {
+            // Get full GCS image URL if image exists
+            $gcsImageUrl = null;
+            if ($roomPackage->pkg_image) {
+                $gcsConfig = config('filesystems.disks.gcs');
+                $bucket = $gcsConfig['bucket'] ?? null;
+                $path = ltrim($roomPackage->pkg_image, '/');
+                if ($bucket) {
+                    $gcsImageUrl = "https://storage.googleapis.com/{$bucket}/{$path}";
+                }
             }
+        } else {
+            // For local storage in multi-tenant setup
+            $gcsImageUrl = $roomPackage->pkg_image ? asset('storage/' . $roomPackage->pkg_image) : null;
         }
 
         // Get the selected rooms from the pivot table
         $selectedRooms = RoomPackage::where('package_id', $roomPackage->id)->pluck('room_id')->toArray();
 
-        // check-in days as arrays
-        $selectedCheckinDays = json_decode($roomPackage->pkg_checkin_days, true) ?? [];
+        // Check-in days as arrays
+        $selectedCheckinDays = is_string($roomPackage->pkg_checkin_days) 
+            ? json_decode($roomPackage->pkg_checkin_days, true) ?? []
+            : (is_array($roomPackage->pkg_checkin_days) ? $roomPackage->pkg_checkin_days : []);
 
-    return view('tenant.room-packages.edit', compact('roomPackage', 'rooms', 'daysOfWeek', 'selectedRooms', 'selectedCheckinDays', 'maxNumOfNights', 'currency', 'pkg_valid_from', 'pkg_valid_to', 'gcsImageUrl'));
+        // Parse inclusions and exclusions
+        $inclusions = is_string($roomPackage->pkg_inclusions) 
+            ? json_decode($roomPackage->pkg_inclusions, true) ?? []
+            : (is_array($roomPackage->pkg_inclusions) ? $roomPackage->pkg_inclusions : []);
+            
+        $exclusions = is_string($roomPackage->pkg_exclusions) 
+            ? json_decode($roomPackage->pkg_exclusions, true) ?? []
+            : (is_array($roomPackage->pkg_exclusions) ? $roomPackage->pkg_exclusions : []);
+
+        return view('tenant.room-packages.edit', compact(
+            'roomPackage', 'rooms', 'daysOfWeek', 'selectedRooms', 'selectedCheckinDays', 
+            'maxNumOfNights', 'currency', 'pkg_valid_from', 'pkg_valid_to', 'gcsImageUrl',
+            'inclusions', 'exclusions'
+        ));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Package $roomPackage)
+    public function update(Request $request, Package $roomPackage, HtmlSanitizerService $htmlSanitizer)
     {
+        // Check property access
+        if ($roomPackage->property_id && $roomPackage->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized access to package.');
+        }
+
         // Validate the request
         $validated = $request->validate([
             'pkg_name' => 'required|string|max:255',
-            'pkg_sub_title' => 'required|string|max:255', // Changed from nullable to required to match your form
+            'pkg_sub_title' => 'required|string|max:500',
             'pkg_description' => 'nullable|string',
-            'pkg_number_of_nights' => 'required|integer|min:1',
-            'pkg_checkin_days' => 'required|array', // Changed from nullable to required to match your form
+            'pkg_number_of_nights' => 'required|integer|min:1|max:30',
+            'pkg_checkin_days' => 'required|array|min:1',
             'pkg_checkin_days.*' => 'string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
-            'pkg_rooms' => 'required|array', // Changed from nullable to required to match your form
+            'pkg_rooms' => 'required|array|min:1',
             'pkg_rooms.*' => 'integer|exists:rooms,id',
             'pkg_status' => 'required|in:active,inactive',
             'pkg_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
@@ -370,55 +415,126 @@ class PackageController extends Controller
             'pkg_inclusions' => 'nullable|array',
             'pkg_exclusions' => 'nullable|array',
             'pkg_min_guests' => 'nullable|integer|min:1',
-            'pkg_max_guests' => 'nullable|integer|min:1',
+            'pkg_max_guests' => 'nullable|integer|min:1|gte:pkg_min_guests',
             'pkg_valid_from' => 'nullable|date',
             'pkg_valid_to' => 'nullable|date|after_or_equal:pkg_valid_from',
         ]);
 
-        // Initialize image path variable
-        $imagePath = $roomPackage->pkg_image; // Keep existing image path by default
+        try {
+            DB::beginTransaction();
 
-        // Handle image upload to Google Cloud Storage using the gcs disk with UniformGCSAdapter
-        if ($request->hasFile('pkg_image')) {
-            $file = $request->file('pkg_image');
-            $gcsPath = 'package_images/' . uniqid() . '_' . $file->getClientOriginalName();
-            $stream = fopen($file->getRealPath(), 'r');
-            Storage::disk('gcs')->put($gcsPath, $stream);
-            fclose($stream);
-            $imagePath = $gcsPath; // Save the GCS path in the database
-        }
+            // Initialize image path variable (keep existing by default)
+            $imagePath = $roomPackage->pkg_image;
 
-        // Update the package
-        $roomPackage->update([
-            'pkg_name' => $validated['pkg_name'],
-            'pkg_sub_title' => $validated['pkg_sub_title'],
-            'pkg_description' => $validated['pkg_description'],
-            'pkg_number_of_nights' => $validated['pkg_number_of_nights'],
-            'pkg_checkin_days' => json_encode($validated['pkg_checkin_days']),
-            'pkg_status' => $validated['pkg_status'],
-            'pkg_image' => $imagePath, // Use the $imagePath variable here
-            'pkg_base_price' => $validated['pkg_base_price'],
-            'pkg_inclusions' => isset($validated['pkg_inclusions']) ? json_encode($validated['pkg_inclusions']) : null,
-            'pkg_exclusions' => isset($validated['pkg_exclusions']) ? json_encode($validated['pkg_exclusions']) : null,
-            'pkg_min_guests' => $validated['pkg_min_guests'] ?? null,
-            'pkg_max_guests' => $validated['pkg_max_guests'] ?? null,
-            'pkg_valid_from' => $validated['pkg_valid_from'] ?? null,
-            'pkg_valid_to' => $validated['pkg_valid_to'] ?? null,
-        ]);
-
-        // Associate rooms with the package using sync to avoid duplicates
-        if (isset($validated['pkg_rooms'])) {
-            // if we have older package rooms, we ignore them and just add new ones if they don't exist
-            foreach ($validated['pkg_rooms'] as $roomId) {
-
-                RoomPackage::firstOrCreate([
-                    'room_id' => $roomId,
-                    'package_id' => $roomPackage->id,
-                ]);
+            // Handle image upload to Google Cloud Storage if in production
+            if ($request->hasFile('pkg_image') && config('app.env') === 'production') {
+                $file = $request->file('pkg_image');
+                $gcsPath = 'package_images/' . uniqid() . '_' . $file->getClientOriginalName();
+                $stream = fopen($file->getRealPath(), 'r');
+                Storage::disk('gcs')->put($gcsPath, $stream);
+                fclose($stream);
+                $imagePath = $gcsPath;
             }
+            elseif ($request->hasFile('pkg_image')) {
+                // If not in production, handle local storage (optional)
+                $file = $request->file('pkg_image');
+                $imagePath = $file->store('package_images', 'public');
+            }
+
+            // Sanitize HTML input
+            $sanitizedDescription = $htmlSanitizer->sanitize($validated['pkg_description'] ?? '');
+
+            // Update the package
+            $roomPackage->update([
+                'pkg_name' => $validated['pkg_name'],
+                'pkg_sub_title' => $validated['pkg_sub_title'],
+                'pkg_description' => $sanitizedDescription,
+                'pkg_number_of_nights' => $validated['pkg_number_of_nights'],
+                'pkg_checkin_days' => json_encode($validated['pkg_checkin_days']),
+                'pkg_status' => $validated['pkg_status'],
+                'pkg_image' => $imagePath,
+                'pkg_base_price' => $validated['pkg_base_price'],
+                'pkg_inclusions' => isset($validated['pkg_inclusions']) ? json_encode(array_filter($validated['pkg_inclusions'])) : null,
+                'pkg_exclusions' => isset($validated['pkg_exclusions']) ? json_encode(array_filter($validated['pkg_exclusions'])) : null,
+                'pkg_min_guests' => $validated['pkg_min_guests'] ?? null,
+                'pkg_max_guests' => $validated['pkg_max_guests'] ?? null,
+                'pkg_valid_from' => $validated['pkg_valid_from'] ?? null,
+                'pkg_valid_to' => $validated['pkg_valid_to'] ?? null,
+            ]);
+
+            // Sync rooms with the package
+            if (isset($validated['pkg_rooms'])) {
+                // Force delete existing associations and add new ones
+                RoomPackage::where('package_id', $roomPackage->id)->forceDelete();
+                RoomPackage::flushEventListeners();
+                // \Log::info('Flushed RoomPackage event listeners to prevent unwanted side effects during update.');
+                
+                foreach ($validated['pkg_rooms'] as $roomId) {
+                    RoomPackage::create([
+                        'room_id' => $roomId,
+                        'package_id' => $roomPackage->id,
+                    ]);
+                }
+            }
+
+            $this->logTenantActivity(
+                'updated_package',
+                'Updated package: ' . $roomPackage->pkg_name . ' (ID: ' . $roomPackage->id . ') for property: ' . $roomPackage->property_id,
+                $roomPackage, // Pass the package object as subject
+                [
+                    'table' => 'packages',
+                    'id' => $roomPackage->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $roomPackage->toArray()
+                ]
+            );
+
+            DB::commit();
+
+            return redirect()->route('tenant.room-packages.index', ['property_id' => $roomPackage->property_id])
+                ->with('success', 'Package updated successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withInput()
+                ->with('error', 'Failed to update package: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Toggle the status of the specified resource.
+     */
+    public function toggleStatus(Package $roomPackage)
+    {
+        // Check property access
+        if ($roomPackage->property_id && $roomPackage->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized access to package.');
         }
 
-        return redirect()->route('tenant.admin.room-packages.index')->with('success', 'Package updated successfully.');
+        try {
+            $oldStatus = $roomPackage->pkg_status;
+            $newStatus = $oldStatus === 'active' ? 'inactive' : 'active';
+            
+            $roomPackage->update(['pkg_status' => $newStatus]);
+
+            $this->logTenantActivity(
+                'updated_package',
+                'Updated package: ' . $roomPackage->pkg_name . ' (ID: ' . $roomPackage->id . ') for property: ' . $roomPackage->property_id,
+                $roomPackage, // Pass the package object as subject
+                [
+                    'table' => 'packages',
+                    'id' => $roomPackage->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $roomPackage->toArray()
+                ]
+            );
+
+            return redirect()->route('tenant.room-packages.index', ['property_id' => $roomPackage->property_id])
+                ->with('success', "Package status changed to {$newStatus}.");
+
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to toggle package status.');
+        }
     }
 
     /**
@@ -426,11 +542,49 @@ class PackageController extends Controller
      */
     public function clone(Request $request, Package $roomPackage)
     {
-        $clonedPackage = $roomPackage->replicate();
-        $clonedPackage->pkg_name = $clonedPackage->pkg_name . ' (Copy)';
-        $clonedPackage->save();
+        // Check property access
+        if ($roomPackage->property_id && $roomPackage->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized access to package.');
+        }
 
-        return redirect()->route('tenant.admin.room-packages.index')->with('success', 'Package cloned successfully.');
+        try {
+            DB::beginTransaction();
+
+            $clonedPackage = $roomPackage->replicate();
+            $clonedPackage->pkg_name = $clonedPackage->pkg_name . ' (Copy)';
+            $clonedPackage->pkg_status = 'inactive'; // Set cloned package as inactive by default
+            $clonedPackage->save();
+
+            // Clone room associations
+            $roomAssociations = RoomPackage::where('package_id', $roomPackage->id)->get();
+            foreach ($roomAssociations as $association) {
+                RoomPackage::create([
+                    'room_id' => $association->room_id,
+                    'package_id' => $clonedPackage->id,
+                ]);
+            }
+
+            $this->logTenantActivity(
+                'cloned_package',
+                'Cloned package: ' . $clonedPackage->pkg_name . ' (ID: ' . $clonedPackage->id . ') for property: ' . $clonedPackage->property_id,
+                $clonedPackage, // Pass the package object as subject
+                [
+                    'table' => 'packages',
+                    'id' => $clonedPackage->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $clonedPackage->toArray()
+                ]
+            );
+
+            DB::commit();
+
+            return redirect()->route('tenant.room-packages.edit', $clonedPackage)
+                ->with('success', 'Package cloned successfully. You can now edit the copy.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Failed to clone package.');
+        }
     }
 
     /**
@@ -438,8 +592,36 @@ class PackageController extends Controller
      */
     public function destroy(Package $roomPackage)
     {
-        // Soft delete the package
-        $roomPackage->delete();
-        return redirect()->route('tenant.admin.room-packages.index')->with('success', 'Package deleted successfully.');
+        // Check property access
+        if ($roomPackage->property_id && $roomPackage->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized access to package.');
+        }
+
+        try {
+            $propertyId = $roomPackage->property_id;
+            $packageName = $roomPackage->pkg_name;
+            $packageId = $roomPackage->id;
+
+            // Soft delete the package (this will also handle relationships due to model design)
+            $roomPackage->delete();
+
+            $this->logTenantActivity(
+                'deleted_package',
+                'Deleted package: ' . $packageName . ' (ID: ' . $packageId . ') for property: ' . $propertyId,
+                $roomPackage, // Pass the package object as subject
+                [
+                    'table' => 'packages',
+                    'id' => $roomPackage->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $roomPackage->toArray()
+                ]
+            );
+
+            return redirect()->route('tenant.room-packages.index', ['property_id' => $propertyId])
+                ->with('success', 'Package deleted successfully.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to delete package.');
+        }
     }
 }
