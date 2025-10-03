@@ -6,40 +6,70 @@ use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Collection;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Booking;
+use App\Models\Tenant\BookingGuest;
 use App\Models\Tenant\Room;
 use App\Models\Tenant\Guest;
 use App\Models\Tenant\BookingInvoice;
 use App\Models\Tenant\Package;
 use App\Models\Tenant\RoomType;
+use App\Traits\LogsTenantUserActivity;
 use Exception;
 use PDF;
 
 class BookingController extends Controller
 {
+    use LogsTenantUserActivity;
     /**
      * Display a listing of the bookings. This is better optimized for large datasets.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // since have old imported this month bookings with created_at day let us update that to an older date
-        // $bookings = Booking::where('created_at', '>=', now()->format('Y-m-d'))->where('source', 'legacy')
-        //     ->where('property_id', current_property()->id)
-        //     ->get();
-        //     // I want to set it directly in phpmy database to now()
-        //     // UPDATE bookings SET created_at = now() WHERE id = ?
-        // foreach ($bookings as $booking) {
-        //     $createdAt = $booking->arrival_date->subDays(rand(3, 10))->format('Y-m-d H:i:s');
-        //     $booking->created_at = $createdAt;
-        //     $booking->updated_at = now()->format('Y-m-d H:i:s');
-        //     $booking->save();
-        // }
+        // Get the property context
+        $propertyId = $request->get('property_id');
+        if (!$propertyId && !is_super_user()) {
+            $propertyId = auth()->user()->property_id;
+        }
+        
+        // Build the query with filters
+        $query = Booking::with(['room', 'guests', 'package']);
 
-        $bookings = Booking::with(['room', 'bookingGuests.guest'])
-            ->where('property_id', current_property()->id)
-            ->latest('arrival_date')
-            ->paginate(20);
+        // Apply property filter
+        if ($propertyId) {
+            $query->where('property_id', $propertyId);
+        }
 
-        $packages = Package::where('property_id', current_property()->id)
+        // Apply additional filters from request
+        if ($request->has('search')) {
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'like', "%{$request->get('search')}%")
+                  ->orWhere('number', 'like', "%{$request->get('search')}%");
+            });
+        }
+
+        if ($request->has('status') && in_array($request->get('status'), ['pending', 'booked', 'confirmed', 'checked_in', 'checked_out', 'cancelled'])) {
+            $query->where('status', $request->get('status'));
+        }
+
+        if ($request->has('arrival_date_from')) {
+            $query->whereDate('arrival_date', '>=', $request->get('arrival_date_from'));
+        }
+
+        if ($request->has('arrival_date_to')) {
+            $query->whereDate('arrival_date', '<=', $request->get('arrival_date_to'));
+        }
+
+        if ($request->has('departure_date_from')) {
+            $query->whereDate('departure_date', '>=', $request->get('departure_date_from'));
+        }
+
+        if ($request->has('departure_date_to')) {
+            $query->whereDate('departure_date', '<=', $request->get('departure_date_to'));
+        }
+
+        // Paginate results
+        $bookings = $query->orderBy('arrival_date', 'desc')->paginate(15)->appends($request->except('page'));
+
+        $packages = Package::where('property_id', selected_property_id())
             ->get();
 
         $currency = current_property()->currency;
@@ -52,15 +82,27 @@ class BookingController extends Controller
      */
     public function create()
     {
+        $propertyId = selected_property_id();
         // make sure we only load available rooms from today onwards (we can use the getAvailableRooms method from Room model if needed)
-        $rooms = Room::getAvailableRooms();
+        $availableRooms = Room::getAvailableRooms();
+
+        // rooms need to have their type and current rates loaded
+        $rooms = $availableRooms->load(['type' => function ($query) use ($propertyId) {
+            $query->with(['rates' => function ($rateQuery) {
+                $rateQuery->active()->validForDate(now())->orderBy('amount', 'asc');
+            }]);
+        }]);
+        // we need to filter out rooms that do not have any active rates for today
+        $rooms = $rooms->filter(function ($room) {
+            return $room->type->rates->isNotEmpty();
+        });
 
         $currency = current_property()->currency;
 
-        $guests = Guest::where('property_id', current_property()->id)
+        $guests = Guest::where('property_id', $propertyId)
             ->get();
 
-        $packages = Package::where('property_id', current_property()->id)
+        $packages = Package::where('property_id', $propertyId)
             ->get();
         $package = null;
         // if we have package_id in the params
@@ -72,7 +114,11 @@ class BookingController extends Controller
         $arrivalDate = now()->format('Y-m-d');
         $bookingSources = ['website', 'walk_in', 'phone', 'agent', 'legacy', 'inhouse'];
 
-        return view('tenant.bookings.create', compact('rooms', 'guests', 'currency', 'arrivalDate', 'bookingSources', 'packages', 'package'));
+        if (request()->has('package_id')) {
+            return $this->createWithPackage($package);
+        }
+
+        return view('tenant.bookings.create', compact('rooms', 'guests', 'currency', 'arrivalDate', 'bookingSources', 'packages', 'package', 'propertyId'));
     }
 
     /**
@@ -80,7 +126,7 @@ class BookingController extends Controller
      */
     public function createWithPackage(Package $package)
     {
-
+        $propertyId = $package->property_id ?? selected_property_id();
         // Eager load packages relationship
         $rooms = Room::getAvailableRooms();
         $rooms->load('packages');
@@ -92,9 +138,9 @@ class BookingController extends Controller
 
         $currency = current_property()->currency;
 
-        $allowedPackages = Package::where('property_id', current_property()->id)
+        $allowedPackages = Package::where('property_id', $propertyId)
             ->get();
-        $guests = Guest::where('property_id', current_property()->id)
+        $guests = Guest::where('property_id', $propertyId)
             ->get();
         // only allow bookings for future dates, not past dates
         // we can also add a date picker to select the arrival date and filter available rooms based on that
@@ -102,7 +148,7 @@ class BookingController extends Controller
         $bookingSources = ['website', 'walk_in', 'phone', 'agent', 'legacy', 'inhouse'];
         // $pkg_checkin_days
 
-        return view('tenant.bookings.package-create', compact('rooms', 'guests', 'currency', 'arrivalDate', 'package', 'bookingSources', 'allowedPackages'));
+        return view('tenant.bookings.package-create', compact('rooms', 'guests', 'currency', 'arrivalDate', 'package', 'bookingSources', 'allowedPackages' ,'propertyId'));
     }
 
     /**
@@ -111,7 +157,7 @@ class BookingController extends Controller
     public function downloadRoomInfo(Booking $booking)
     {
         // Authorization check - ensure booking belongs to current property
-        if ($booking->property_id !== current_property()->id) {
+        if ($booking->property_id !== selected_property_id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -131,7 +177,7 @@ class BookingController extends Controller
     public function sendRoomInfo(Booking $booking)
     {
         // Authorization check - ensure booking belongs to current property
-        if ($booking->property_id !== current_property()->id) {
+        if ($booking->property_id !== selected_property_id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -173,7 +219,7 @@ class BookingController extends Controller
             $isShared = $request->input('is_shared', false);
 
             // we will check if the room and guest belong to the current property
-            $room = Room::where('property_id', current_property()->id)
+            $room = Room::where('property_id', selected_property_id())
                 ->where('id', $validated['room_id'])
                 ->first();
 
@@ -181,7 +227,7 @@ class BookingController extends Controller
                 throw new Exception("Selected room not found.");
             }
             // we assume primary guest exists as we validated above
-            $guest = Guest::where('property_id', current_property()->id)
+            $guest = Guest::where('property_id', selected_property_id())
                 ->where('id', $validated['guest_id'])
                 ->first();
 
@@ -192,7 +238,7 @@ class BookingController extends Controller
             // if there is a secondary guest, we validate and fetch them too
             $secondaryGuest = null;
             if ($isShared && $request->has('guest2_id') && !empty($request->input('guest2_id'))) {
-                $secondaryGuest = Guest::where('property_id', current_property()->id)
+                $secondaryGuest = Guest::where('property_id', selected_property_id())
                     ->where('id', $request->input('guest2_id'))
                     ->first();
 
@@ -225,7 +271,7 @@ class BookingController extends Controller
             $booking = Booking::create([
                 'package_id' => $package_id,
                 'is_shared' => $isShared,
-                'property_id' => current_property()->id,
+                'property_id' => selected_property_id(),
                 'room_id' => $room->id,
                 'bcode' => $bcode,
                 'arrival_date' => $arrivalDate,
@@ -246,7 +292,7 @@ class BookingController extends Controller
                 'adults' => $validated['adults'],
                 'children' => $validated['children'] ?? 0,
                 'special_requests' => $validated['special_requests'] ?? null,
-                'property_id' => current_property()->id,
+                'property_id' => selected_property_id(),
             ]);
 
             if ($isShared && $secondaryGuest) {
@@ -258,7 +304,7 @@ class BookingController extends Controller
                     'adults' => 1,
                     'children' => 0,
                     'special_requests' => $request->input('g2_special_requests') ?? null,
-                    'property_id' => current_property()->id,
+                    'property_id' => selected_property_id(),
                 ]);
             }
 
@@ -266,13 +312,27 @@ class BookingController extends Controller
             $invoice_status = $booking_status == 'pending' ? 'paid' : 'pending';
 
             $booking_invoice = $booking->invoices()->create([
-                'property_id' => current_property()->id,
+                'property_id' => selected_property_id(),
                 'invoice_number' => $invoice_number,
                 'amount' => $totalAmount,
                 'status' => $invoice_status,
             ]);
             // if we reach here, we can commit the transaction and redirect to show new booking page
             // \DB::commit();
+            
+            // $this->logActivity('created', 'Booking', $booking->id, "Created booking {$booking->bcode} for room {$room->number}");
+            $this->logTenantActivity(
+                'create_booking',
+                'Created a new booking: ' . $booking->bcode . ' for room ' . $room->number . ' (ID: ' . $room->id . ')',
+                $booking,
+                [
+                    'table' => 'bookings',
+                    'id' => $booking->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $booking->toArray()
+                ]
+            );
+            
             return redirect()->route('tenant.bookings.show', $booking->id)->with('success', 'Booking created successfully!');
 
             // return redirect()->route('tenant.bookings.index')->with('success', 'Booking created successfully!');
@@ -300,7 +360,7 @@ class BookingController extends Controller
         $newBookingCode = $datePart . $roomPart . $randomPart;
         // we need to ensure the booking code is unique for the property
         // if not, we regenerate
-        $existing = Booking::where('property_id', current_property()->id)
+        $existing = Booking::where('property_id', selected_property_id())
             ->where('bcode', $newBookingCode)
             ->first();
 
@@ -317,7 +377,7 @@ class BookingController extends Controller
     public function show(Booking $booking)
     {
         // Authorization check - ensure booking belongs to current property
-        if ($booking->property_id !== current_property()->id) {
+        if ($booking->property_id !== selected_property_id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -330,8 +390,17 @@ class BookingController extends Controller
         $primaryGuest->special_requests = $primaryBkGuest->special_requests;
 
         $secondaryBkGuest = $booking->bookingGuests()->where('is_primary', false)->first();
+        if ($booking->is_shared && !$secondaryBkGuest) {
+            // this is an inconsistency, log it
+            \Log::warning("Booking {$booking->bcode} is marked as shared but has no secondary guest.");
+        }
         $secondaryGuest = $secondaryBkGuest ? $secondaryBkGuest->guest : null;
-        $secondaryGuest->special_requests = $secondaryBkGuest ? $secondaryBkGuest->special_requests : null;
+        // \Log::warning("Booking {$secondaryGuest}.");
+        // $secondaryGuest->special_requests = $secondaryGuest ? $secondaryBkGuest->special_requests : '';
+        // Attempt to assign property "special_requests" on null
+        if ($secondaryGuest) {
+            $secondaryGuest->special_requests = $secondaryBkGuest->special_requests;
+        }
 
         return view('tenant.bookings.show', compact('booking', 'currency', 'primaryGuest', 'secondaryGuest'));
     }
@@ -341,25 +410,36 @@ class BookingController extends Controller
      */
     public function edit(Booking $booking)
     {
-        if ($booking->property_id !== current_property()->id) {
+        if ($booking->property_id !== selected_property_id()) {
             abort(403, 'Unauthorized action.');
         }
 
-        $rooms = Room::where('property_id', current_property()->id)
+        $rooms = Room::where('property_id', selected_property_id())
             ->where('is_enabled', true)
             ->with('type')
             ->get();
 
-        $guests = Guest::where('property_id', current_property()->id)
+        $guests = Guest::where('property_id', selected_property_id())
             ->get();
 
-        $primaryBkGuest = $booking->bookingGuests()->where('is_primary', true)->first(); // this is from booking_guests table now we want the guest details from guests table
-        $primaryGuest = $primaryBkGuest ? $primaryBkGuest->guest : null;
-        $primaryGuest->special_requests = $primaryBkGuest->special_requests;
+        $primaryBkGuest = BookingGuest::where('booking_id', $booking->id)->where('is_primary', true)->first(); // this is from booking_guests table now we want the guest details from guests table
+        if ($primaryBkGuest) {
+            $primaryGuest = $primaryBkGuest ? $primaryBkGuest->guest : null;
+            $primaryGuest->special_requests = $primaryBkGuest->special_requests;
+            $g1_special_requests = $primaryBkGuest->special_requests;
+        }
+        else {
+            \Log::warning("Booking {$booking->bcode} with ID {$booking->id} has no primary guest.");
+            $primaryGuest = null;
+            $g1_special_requests = '';
+        }
 
-        $secondaryBkGuest = $booking->bookingGuests()->where('is_primary', false)->first();
+        $secondaryBkGuest = BookingGuest::where('booking_id', $booking->id)->where('is_primary', false)->first();
         $secondaryGuest = $secondaryBkGuest ? $secondaryBkGuest->guest : null;
-        $secondaryGuest->special_requests = $secondaryBkGuest ? $secondaryBkGuest->special_requests : null;
+        // $secondaryGuest->special_requests = $secondaryBkGuest->special_requests ?? '';
+        if ($secondaryGuest) {
+            $secondaryGuest->special_requests = $secondaryBkGuest->special_requests;
+        }
 
         $bookingStatuses = ['pending', 'booked', 'confirmed', 'checked_in', 'checked_out', 'cancelled'];
 
@@ -374,16 +454,19 @@ class BookingController extends Controller
         // addd these to $booking
         // $booking->arrival_date = $arrivalDate;
         // $booking->departure_date = $departureDate;
-        $booking->min_arrival_date = $minArrivalDate;
+        $minArrivalDate = $minArrivalDate;
         $booking->selected_room = $selectedRoom;
-        $booking->booking_count_adults = $bookingCountAdults;
-        $booking->booking_count_children = 0;
+        $booking->count_adults = $bookingCountAdults;
+        $booking->count_children = 0;
         $booking->primary_guest_id = $primaryGuest ? $primaryGuest->id : 0;
+        $booking->g1_special_requests = $g1_special_requests;
+        $booking->secondary_guest_id = $secondaryGuest ? $secondaryGuest->id : 0;
+        $booking->g2_special_requests = $secondaryGuest ? $secondaryGuest->special_requests : '';
         $booking->is_shared = $secondaryGuest ? true : false;
 
         $booking->load('guests');
 
-        return view('tenant.bookings.edit', compact('booking', 'rooms', 'guests', 'primaryGuest', 'secondaryGuest', 'currency', 'bookingSources', 'bookingStatuses'));
+        return view('tenant.bookings.edit', compact('booking', 'rooms', 'guests', 'primaryGuest', 'secondaryGuest', 'currency', 'bookingSources', 'bookingStatuses', 'arrivalDate', 'departureDate', 'minArrivalDate'));
     }
 
     /**
@@ -392,7 +475,7 @@ class BookingController extends Controller
     public function update(Request $request, Booking $booking)
     {
         try {
-            if ($booking->property_id !== current_property()->id) {
+            if ($booking->property_id !== selected_property_id()) {
                 abort(403, 'Unauthorized action.');
             }
 
@@ -414,13 +497,13 @@ class BookingController extends Controller
             $isShared = $request->input('is_shared', false);
 
             // Validate room and guests belong to property
-            $room = Room::where('property_id', current_property()->id)
+            $room = Room::where('property_id', selected_property_id())
                 ->where('id', $validated['room_id'])
                 ->first();
             if (!$room) {
                 throw new Exception("Selected room not found.");
             }
-            $guest = Guest::where('property_id', current_property()->id)
+            $guest = Guest::where('property_id', selected_property_id())
                 ->where('id', $validated['guest_id'])
                 ->first();
             if (!$guest) {
@@ -428,7 +511,7 @@ class BookingController extends Controller
             }
             $secondaryGuest = null;
             if ($isShared && $request->has('guest2_id') && !empty($request->input('guest2_id'))) {
-                $secondaryGuest = Guest::where('property_id', current_property()->id)
+                $secondaryGuest = Guest::where('property_id', selected_property_id())
                     ->where('id', $request->input('guest2_id'))
                     ->first();
                 if (!$secondaryGuest) {
@@ -466,31 +549,31 @@ class BookingController extends Controller
                 'package_id' => $request->input('package_id', $booking->package_id),
             ]);
 
-            // Update booking guests
-            // Remove all existing bookingGuests and re-add (simple approach)
-            $booking->bookingGuests()->delete();
+            // Update booking guests if changed
 
-            // Add primary guest
-            $booking->bookingGuests()->create([
+            // create or update primary guest
+            $booking->bookingGuests()->updateOrCreate([
                 'guest_id' => $guest->id,
                 'is_primary' => true,
+            ], [
                 'is_adult' => true,
                 'adults' => $validated['adults'],
                 'children' => $validated['children'] ?? 0,
                 'special_requests' => $validated['special_requests'] ?? null,
-                'property_id' => current_property()->id,
+                'property_id' => selected_property_id(),
             ]);
 
             // Add secondary guest if shared
             if ($isShared && $secondaryGuest) {
-                $booking->bookingGuests()->create([
+                $booking->bookingGuests()->updateOrCreate([
                     'guest_id' => $secondaryGuest->id,
                     'is_primary' => false,
+                ], [
                     'is_adult' => true,
                     'adults' => 1,
                     'children' => 0,
                     'special_requests' => $validated['g2_special_requests'] ?? null,
-                    'property_id' => current_property()->id,
+                    'property_id' => selected_property_id(),
                 ]);
             }
 
@@ -502,6 +585,19 @@ class BookingController extends Controller
                     'status' => $validated['status'] == 'pending' ? 'paid' : 'pending',
                 ]);
             }
+
+            // $this->logActivity('updated', 'Booking', $booking->id, "Updated booking {$booking->bcode}");
+            $this->logTenantActivity(
+                'update_booking',
+                'Updated booking: ' . $booking->bcode . ' for room ' . $room->number . ' (ID: ' . $room->id . ')',
+                $booking,
+                [
+                    'table' => 'bookings',
+                    'id' => $booking->id,
+                    'user_id' => auth()->id(),
+                    'changes' => $booking->toArray()
+                ]
+            );
 
             return redirect()->route('tenant.bookings.show', $booking->id)
                 ->with('success', 'Booking updated successfully!');
@@ -516,11 +612,25 @@ class BookingController extends Controller
      */
     public function destroy(Booking $booking)
     {
-        if ($booking->property_id !== current_property()->id) {
+        if ($booking->property_id !== selected_property_id()) {
             abort(403, 'Unauthorized action.');
         }
 
+        $bookingCode = $booking->bcode;
         $booking->delete();
+
+        // $this->logActivity('deleted', 'Booking', $booking->id, "Deleted booking {$bookingCode}");
+        $this->logTenantActivity(
+            'delete_booking',
+            'Deleted booking: ' . $booking->bcode . ' for room ' . $room->number . ' (ID: ' . $room->id . ')',
+            $booking,
+            [
+                'table' => 'bookings',
+                'id' => $booking->id,
+                'user_id' => auth()->id(),
+                'changes' => $booking->toArray()
+            ]
+        );
 
         return redirect()->route('tenant.bookings.index')
             ->with('success', 'Booking deleted successfully!');
@@ -587,7 +697,7 @@ class BookingController extends Controller
                 }
 
                 // Check if booking with same BCODE already exists for this property
-                $existingBooking = Booking::where('property_id', current_property()->id)
+                $existingBooking = Booking::where('property_id', selected_property_id())
                     ->where('bcode', $data['BCODE'])
                     ->first();
                 // we will not store duplicate bookings, but we will attach the guest to the existing booking if it's a secondary guest (BCODE.2, BCODE.3, etc.)
@@ -606,21 +716,21 @@ class BookingController extends Controller
 
                 // Try to find guest by email first (if available)
                 if (!empty($email)) {
-                    $guest = Guest::where('property_id', current_property()->id)
+                    $guest = Guest::where('property_id', selected_property_id())
                                 ->where('email', $email)
                                 ->first();
                 }
 
                 // If not found by email, try by phone (if available)
                 if (!isset($guest) && !empty($phone)) {
-                    $guest = Guest::where('property_id', current_property()->id)
+                    $guest = Guest::where('property_id', selected_property_id())
                                 ->where('phone', $phone)
                                 ->first();
                 }
 
                 // If still not found, try by name
                 if (!isset($guest)) {
-                    $guest = Guest::where('property_id', current_property()->id)
+                    $guest = Guest::where('property_id', selected_property_id())
                                 ->where('first_name', $firstName)
                                 ->where('last_name', $lastName)
                                 ->first();
@@ -629,7 +739,7 @@ class BookingController extends Controller
                 // If guest doesn't exist, create them
                 if (!isset($guest)) {
                     $guest = Guest::create([
-                        'property_id' => current_property()->id,
+                        'property_id' => selected_property_id(),
                         'title' => $data['GSTTITLE'] ?? 'Mr/Ms',
                         'first_name' => $firstName,
                         'last_name' => $lastName,
@@ -652,7 +762,7 @@ class BookingController extends Controller
                 }
 
                 // Find room by room number
-                $room = Room::where('property_id', current_property()->id)
+                $room = Room::where('property_id', selected_property_id())
                             ->where('number', $data['ROOMNO'])
                             ->first();
 
@@ -685,7 +795,7 @@ class BookingController extends Controller
                     // get the part before the dot
                     $originalBcode = explode('.', $data['BCODE'])[0];
                     // find the original booking
-                    $existingBooking = Booking::where('property_id', current_property()->id)
+                    $existingBooking = Booking::where('property_id', selected_property_id())
                         ->where('bcode', $originalBcode)
                         ->first();
                     if ($existingBooking) {
@@ -699,7 +809,7 @@ class BookingController extends Controller
                             'is_sharing' => $isShared,
                             'special_requests' => $metaData['SPREQUEST'] ?? '',
                             'arrival_time' => $arrivalTime,
-                            'property_id' => current_property()->id, // Make sure this is included!
+                            'property_id' => selected_property_id(), // Make sure this is included!
                             'created_at' => $createdAt,
                             'updated_at' => now()->format('Y-m-d H:i:s'),
                         ]);
@@ -715,7 +825,7 @@ class BookingController extends Controller
                 // Create or update booking
                 $booking = Booking::updateOrCreate(
                     [
-                        'property_id' => current_property()->id,
+                        'property_id' => selected_property_id(),
                         'bcode' => $data['BCODE'],
                     ],
                     [
@@ -748,7 +858,7 @@ class BookingController extends Controller
                     'is_sharing' => $isShared,
                     'special_requests' => $metaData['SPREQUEST'] ?? '',
                     'arrival_time' => $arrivalTime,
-                    'property_id' => current_property()->id, // Make sure this is included!
+                    'property_id' => selected_property_id(), // Make sure this is included!
                     'created_at' => $createdAt,
                     'updated_at' => now()->format('Y-m-d H:i:s'),
                 ]);
@@ -770,7 +880,7 @@ class BookingController extends Controller
                     
                     if (!$existingInvoice) {
                         // if invoice doesn't exist we can check if the invoice number exists in other bookings for the same property
-                        $existingInvoiceInOtherBooking = Booking::where('property_id', current_property()->id)
+                        $existingInvoiceInOtherBooking = Booking::where('property_id', selected_property_id())
                             ->whereHas('invoices', function($query) use ($data) {
                                 $query->where('invoice_number', $data['INVOICE_NO']);
                             })
@@ -780,7 +890,7 @@ class BookingController extends Controller
                             $data['INVOICE_NO'] = $this->generateUniqueInvoiceNumber($data['INVOICE_NO']);
                         }
                         $booking->invoices()->create([
-                            'property_id' => current_property()->id,
+                            'property_id' => selected_property_id(),
                             'invoice_number' => $data['INVOICE_NO'],
                             'amount' => $total_amount,
                             'status' => $invoice_status,
@@ -801,6 +911,22 @@ class BookingController extends Controller
 
         fclose($file);
 
+        // Log the import activity
+        $this->logTenantActivity(
+            'import_bookings',
+            "Imported $imported bookings, $skipped skipped from CSV.",
+            null,
+            [
+                'table' => 'bookings',
+                'id' => null,
+                'user_id' => auth()->id(),
+                'changes' => ['imported' => $imported, 'skipped' => $skipped]
+            ]
+        );
+
+        // Clear the cache
+        // \Cache::forget('property_' . selected_property_id() . '_rooms');
+
         return redirect()->route('tenant.bookings.index')
             ->with('success', "Bookings imported successfully! $imported imported, $skipped skipped.");
     }
@@ -809,7 +935,7 @@ class BookingController extends Controller
     {
         if ($invoiceNumber) {
             $existingInvoice = BookingInvoice::where('invoice_number', $invoiceNumber)
-                ->where('property_id', current_property()->id)
+                ->where('property_id', selected_property_id())
                 ->first();
             if ($existingInvoice) {
                 // Increment and try again
@@ -820,7 +946,7 @@ class BookingController extends Controller
             return $invoiceNumber;
         } else {
             // Generate new invoice number
-            $lastInvoice = BookingInvoice::where('property_id', current_property()->id)
+            $lastInvoice = BookingInvoice::where('property_id', selected_property_id())
                 ->orderBy('created_at', 'desc')
                 ->first();
             if ($lastInvoice) {
@@ -878,5 +1004,243 @@ class BookingController extends Controller
         ];
         
         return $statusMap[$status] ?? 'pending';
+    }
+
+    /**
+     * Clone an existing booking
+     */
+    public function clone(Booking $booking)
+    {
+        if ($booking->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Clone the booking
+        $newBooking = $booking->replicate();
+        $newBooking->bcode = $this->generateBookingCode($booking->arrival_date->format('Y-m-d'), $booking->room->number);
+        $newBooking->status = 'pending';
+        $newBooking->created_at = now();
+        $newBooking->updated_at = now();
+        $newBooking->save();
+
+        // Clone booking guests
+        foreach ($booking->bookingGuests as $bookingGuest) {
+            $newBookingGuest = $bookingGuest->replicate();
+            $newBookingGuest->booking_id = $newBooking->id;
+            $newBookingGuest->created_at = now();
+            $newBookingGuest->updated_at = now();
+            $newBookingGuest->save();
+        }
+
+        // $this->logActivity('cloned', 'Booking', $newBooking->id, "Cloned booking from {$booking->bcode} to {$newBooking->bcode}");
+        $this->logTenantActivity(
+            'clone_booking',
+            'Cloned a booking: ' . $newBooking->bcode . ' for room ' . $newBooking->room->number . ' (ID: ' . $newBooking->room->id . ')',
+            $newBooking,
+            [
+                'table' => 'bookings',
+                'id' => $newBooking->id,
+                'user_id' => auth()->id(),
+                'changes' => $newBooking->toArray()
+            ]
+        );
+
+        return redirect()->route('tenant.bookings.edit', $newBooking)
+            ->with('success', 'Booking cloned successfully! You can now modify the details.');
+    }
+
+    /**
+     * Toggle booking status between active and inactive
+     */
+    public function toggleStatus(Booking $booking)
+    {
+        if ($booking->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $newStatus = $booking->status === 'cancelled' ? 'pending' : 'cancelled';
+        $booking->update(['status' => $newStatus]);
+
+        // $this->logActivity('status_changed', 'Booking', $booking->id, "Status changed to {$newStatus}");
+        $this->logTenantActivity(
+            'change_booking_status',
+            'Changed booking status to ' . $newStatus . ' for booking: ' . $booking->bcode . ' for room ' . $booking->room->number . ' (ID: ' . $booking->room->id . ')',
+            $booking,
+            [
+                'table' => 'bookings',
+                'id' => $booking->id,
+                'user_id' => auth()->id(),
+                'changes' => ['status' => $newStatus]
+            ]
+        );
+
+        return back()->with('success', 'Booking status updated successfully!');
+    }
+
+    /**
+     * Export bookings to CSV
+     */
+    public function export(Request $request)
+    {
+        $query = Booking::with(['room.type', 'bookingGuests.guest', 'package'])
+            ->where('property_id', selected_property_id());
+
+        // Apply filters if provided
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->where('arrival_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->where('departure_date', '<=', $request->date_to);
+        }
+
+        $bookings = $query->latest('arrival_date')->get();
+
+        $filename = 'bookings_export_' . date('Y-m-d_H-i-s') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($bookings) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8
+            fwrite($file, "\xEF\xBB\xBF");
+            
+            // CSV headers
+            fputcsv($file, [
+                'Booking Code',
+                'Room Number',
+                'Room Type',
+                'Primary Guest',
+                'Secondary Guest',
+                'Package',
+                'Arrival Date',
+                'Departure Date',
+                'Nights',
+                'Daily Rate',
+                'Total Amount',
+                'Status',
+                'Source',
+                'Created Date'
+            ]);
+
+            foreach ($bookings as $booking) {
+                $primaryGuest = $booking->bookingGuests->where('is_primary', true)->first();
+                $secondaryGuest = $booking->bookingGuests->where('is_primary', false)->first();
+                
+                fputcsv($file, [
+                    "\t" . $booking->bcode, // Preserve leading zeros
+                    $booking->room->number,
+                    $booking->room->type->name,
+                    $primaryGuest ? $primaryGuest->guest->first_name . ' ' . $primaryGuest->guest->last_name : '',
+                    $secondaryGuest ? $secondaryGuest->guest->first_name . ' ' . $secondaryGuest->guest->last_name : '',
+                    $booking->package ? $booking->package->pkg_name : '',
+                    $booking->arrival_date->format('Y-m-d'),
+                    $booking->departure_date->format('Y-m-d'),
+                    $booking->nights,
+                    $booking->daily_rate,
+                    $booking->total_amount,
+                    $booking->status,
+                    $booking->source,
+                    $booking->created_at->format('Y-m-d H:i:s')
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        // $this->logActivity('exported', 'Booking', null, "Exported {$bookings->count()} bookings");
+        $this->logTenantActivity(
+            'export_bookings',
+            'Exported ' . $bookings->count() . ' bookings',
+            null,
+            [
+                'table' => 'bookings',
+                'id' => null,
+                'user_id' => auth()->id(),
+                'changes' => ['exported_count' => $bookings->count()]
+            ]
+        );
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Download CSV template for importing bookings
+     */
+    public function template()
+    {
+        $filename = 'bookings_import_template.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8
+            fwrite($file, "\xEF\xBB\xBF");
+            
+            // CSV headers with sample data
+            fputcsv($file, [
+                'BCODE',
+                'GSTNAME', 
+                'GSTEMAIL',
+                'GSTTELNO',
+                'GSTTITLE',
+                'NATIONALITY',
+                'GSTIDNO',
+                'ROOMNO',
+                'ARDATE',
+                'DPDATE',
+                'DAILYTARIFF',
+                'STATUS',
+                'PACKAGE',
+                'ISSHARES',
+                'TIMEARRIVE',
+                'GSTGROUP',
+                'INVOICE_NO',
+                'MEDICAL',
+                'GOWN',
+                'META_DATA'
+            ]);
+
+            // Sample row
+            fputcsv($file, [
+                '20241002001001',
+                'John Doe',
+                'john@example.com',
+                '+27123456789',
+                'Mr',
+                'South African',
+                '1234567890123',
+                '1',
+                '2024-10-15',
+                '2024-10-17',
+                '150.00',
+                'Confirmed',
+                '',
+                'N',
+                '15:00',
+                '',
+                'INV001',
+                '',
+                'M',
+                '{}'
+            ]);
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

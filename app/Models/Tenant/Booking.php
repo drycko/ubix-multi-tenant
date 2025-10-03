@@ -75,7 +75,7 @@ class Booking extends Model
 
     public function bookingGuests(): HasMany
     {
-        return $this->hasMany(BookingGuest::class);
+        return $this->hasMany(BookingGuest::class, 'booking_id', 'id');
     }
 
     public function package(): BelongsTo

@@ -93,9 +93,19 @@ Route::middleware([
         Route::get('settings', [SettingController::class, 'index'])->name('tenant.settings');
         Route::put('settings', [SettingController::class, 'update'])->name('tenant.settings.update');
 
+        Route::get('/bookings/import', [BookingController::class, 'importBookings'])->name('tenant.bookings.import');
+        Route::post('/bookings/import', [BookingController::class, 'import'])->name('tenant.bookings.import.post');
+        Route::get('/bookings/export', [BookingController::class, 'export'])->name('tenant.bookings.export');
+        Route::get('/bookings/template', [BookingController::class, 'template'])->name('tenant.bookings.template');
         // Property-specific routes with additional access control
         Route::middleware(['property.access'])->group(function () {
             // Bookings - property-specific
+            
+            Route::get('bookings/{booking}/invoice', [BookingController::class, 'invoice'])->name('tenant.bookings.invoice');
+            Route::get('/bookings/{booking}/download', [BookingController::class, 'downloadRoomInfo'])->name('tenant.bookings.download-room-info');
+            Route::get('/bookings/{booking}/send', [BookingController::class, 'sendRoomInfo'])->name('tenant.bookings.send-room-info');
+            Route::get('calendar', [BookingController::class, 'calendar'])->name('tenant.bookings.calendar');
+
             Route::resource('bookings', BookingController::class)->names([
                 'index' => 'tenant.bookings.index',
                 'create' => 'tenant.bookings.create',
@@ -107,15 +117,11 @@ Route::middleware([
             ]);
 
             Route::post('/bookings/package', [BookingController::class, 'storeWithPackage'])->name('tenant.bookings.store.package');
-            Route::get('/bookings/import', [BookingController::class, 'importBookings'])->name('tenant.bookings.import');
-            Route::post('/bookings/import', [BookingController::class, 'import'])->name('tenant.bookings.import.post');
+            Route::post('/bookings/{booking}/clone', [BookingController::class, 'clone'])->name('tenant.bookings.clone');
+            Route::post('/bookings/{booking}/toggle-status', [BookingController::class, 'toggleStatus'])->name('tenant.bookings.toggle-status');
 
             Route::post('bookings/{booking}/check-in', [BookingController::class, 'checkIn'])->name('tenant.bookings.check-in');
             Route::post('bookings/{booking}/check-out', [BookingController::class, 'checkOut'])->name('tenant.bookings.check-out');
-            Route::get('bookings/{booking}/invoice', [BookingController::class, 'invoice'])->name('tenant.bookings.invoice');
-            Route::get('/bookings/{booking}/download', [BookingController::class, 'downloadRoomInfo'])->name('tenant.bookings.download-room-info');
-            Route::get('/bookings/{booking}/send', [BookingController::class, 'sendRoomInfo'])->name('tenant.bookings.send-room-info');
-            Route::get('calendar', [BookingController::class, 'calendar'])->name('tenant.bookings.calendar');
 
             // booking invoices - property-specific
             Route::get('/booking-invoices', [BookingInvoiceController::class, 'index'])->name('tenant.booking-invoices.index');
@@ -129,6 +135,10 @@ Route::middleware([
             Route::get('rooms/import', [RoomController::class, 'importRooms'])->name('tenant.rooms.import');
             Route::post('rooms/import', [RoomController::class, 'import'])->name('tenant.rooms.import.store');
             Route::get('rooms/template', [RoomController::class, 'template'])->name('tenant.rooms.template');
+
+            Route::get('rooms/{room}/availability', [RoomController::class, 'availability'])->name('tenant.rooms.availability');
+            // We need to get the rooms available with AJAX based on the selected dates
+            Route::get('rooms/available', [RoomController::class, 'available'])->name('tenant.rooms.available');
             
             Route::resource('rooms', RoomController::class)->names([
                 'index' => 'tenant.rooms.index',
@@ -140,7 +150,6 @@ Route::middleware([
                 'destroy' => 'tenant.rooms.destroy',
             ]);
             Route::post('rooms/{room}/toggle-status', [RoomController::class, 'toggleStatus'])->name('tenant.rooms.toggle-status');
-            Route::get('rooms/{room}/availability', [RoomController::class, 'availability'])->name('tenant.rooms.availability');
             Route::post('/rooms/{room}/clone', [RoomController::class, 'clone'])->name('tenant.rooms.clone');
 
             // Room Types - property-specific

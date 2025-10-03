@@ -16,424 +16,548 @@ $dayMap = [
 $allowedWeekdays = array_map(fn($d) => $dayMap[$d] ?? strtoupper(substr($d,0,3)), $allowedDays);
 @endphp
 
+{{-- calendar css (for booking form) --}}
+<link rel="stylesheet" href="{{ asset('assets/css/calendar.css') }}">
+
 <script>
   // allowedWeekdays: e.g. ["MON","WED","FRI"]
   const allowedWeekdays = @json($allowedWeekdays);
   const packageNights = @json($packageNights);
 </script>
+@php
+// Pass allowed check-in days and nights from the package to JS
+// $package->pkg_checkin_days is a json array stored as string in DB, e.g. '["Wednesday","Sunday"]'
+$allowedDays = json_decode($package->pkg_checkin_days, true) ?? ['Monday','Wednesday','Friday']; // Example fallback
+$packageNights = $package->pkg_number_of_nights ?? 1;
+// Map to 3-letter uppercase codes for JS calendar logic
+$dayMap = [
+'Sunday' => 'SUN',
+'Monday' => 'MON',
+'Tuesday' => 'TUE',
+'Wednesday' => 'WED',
+'Thursday' => 'THU',
+'Friday' => 'FRI',
+'Saturday' => 'SAT',
+];
+$allowedWeekdays = array_map(fn($d) => $dayMap[$d] ?? strtoupper(substr($d,0,3)), $allowedDays);
+@endphp
+
 @extends('tenant.layouts.app')
 
-@section('title', 'Create Booking With Package')
+@section('title', 'Create Package Booking')
+
+{{-- calendar css (for booking form) --}}
+<link rel="stylesheet" href="{{ asset('assets/css/calendar.css') }}">
+
+<script>
+  // allowedWeekdays: e.g. ["MON","WED","FRI"]
+  const allowedWeekdays = @json($allowedWeekdays);
+  const packageNights = @json($packageNights);
+</script>
 
 @section('content')
 <!--begin::App Content Header-->
 <div class="app-content-header">
-  <!--begin::Container-->
   <div class="container-fluid">
-    <!--begin::Row-->
     <div class="row">
       <div class="col-sm-6">
-        <h3 class="mb-0">Create Booking for {{ $package->pkg_name }}</h3>
+        <h3 class="mb-0">
+          <i class="fas fa-gift"></i>
+          <small class="text-muted">Package Booking</small>
+        </h3>
       </div>
       <div class="col-sm-6">
         <ol class="breadcrumb float-sm-end">
+          <li class="breadcrumb-item"><a href="{{ route('tenant.dashboard') }}">Home</a></li>
           <li class="breadcrumb-item"><a href="{{ route('tenant.bookings.index') }}">Bookings</a></li>
-          <li class="breadcrumb-item active" aria-current="page">Create Booking</li>
+          <li class="breadcrumb-item active" aria-current="page">Package Booking</li>
         </ol>
       </div>
     </div>
-    <!--end::Row-->
   </div>
-  <!--end::Container-->
 </div>
 <!--end::App Content Header-->
-{{-- <div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Create Booking for {{ $package->pkg_name }}</h1>
-  <div>
-    <a href="{{ route('tenant.bookings.index') }}" class="btn btn-secondary">
-      <i class="fa fa-arrow-left me-2"></i> Back to Bookings
-    </a>
-  </div>
-</div> --}}
 
 <!--begin::App Content-->
 <div class="app-content">
-  <!--begin::Container-->
   <div class="container-fluid">
     
-    {{-- messages from redirect --}}
+    {{-- Success/Error Messages --}}
     @if(session('success'))
-    <div class="alert alert-success">
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
       {{ session('success') }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     @endif
     @if(session('error'))
-    <div class="alert alert-danger">
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
       {{ session('error') }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     @endif
     
+    {{-- Validation Errors --}}
     @if($errors->any())
-    <div class="alert alert-danger">
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <h6 class="alert-heading">Please fix the following errors:</h6>
       <ul class="mb-0">
         @foreach($errors->all() as $error)
         <li>{{ $error }}</li>
         @endforeach
       </ul>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     @endif
-    <div class="card card-success card-outline">
-      <div class="card-header">
-        <h5 class="card-title">Create Booking</h5>
-      </div>
-      <div class="card-body">
-        <form action="{{ route('tenant.bookings.store') }}" method="POST">
-          @csrf
-          <h5>Package: <span class="text-success">{{ $package->name }}</span> ({{ $packageNights }} nights)</h5>
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <div class="form-group mb-3">
-                <label for="package_id" class="form-label">Package <span class="text-muted">(Required)</span></label>
-                <select class="form-control @error('package_id') is-invalid @enderror" id="package_id" name="package_id" required>
-                  @foreach ($allowedPackages as $allowedPackage)
-                  <option value="{{ $allowedPackage->id }}" {{ $allowedPackage->id == old('package_id', $package->id) ? 'selected' : '' }} onclick="return window.location='{{ route('tenant.bookings.create.package', $allowedPackage) }}'">
-                    {{ $allowedPackage->pkg_name }} - {{ $allowedPackage->pkg_number_of_nights }} nights
-                  </option>
-                  @endforeach
-                </select>
-                @error('package_id')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-              </div>
-              <small class="text-muted">Allowed Check-In Days: 
-                @foreach($allowedDays as $day)
-                {{ $day }}@if(!$loop->last), @endif
-                @endforeach
-              </small>
+
+    <form action="{{ route('tenant.bookings.store') }}" method="POST" id="packageBookingForm">
+      @csrf
+
+      <div class="row">
+        <!-- Main Form -->
+        <div class="col-md-8">
+          <!-- Package Information -->
+          <div class="card card-primary card-outline mb-4">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fas fa-gift"></i> Package Information
+              </h3>
             </div>
-            <div class="col-md-6 mb-3">
-              <span class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#calendarModal">Select Check-In Date</span>
-              {{-- this calendar will only allow selecting check-in dates based on package allowed check-in days. --}}
-              <input type="text" id="reservation" class="form-control" readonly disabled>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-8">
+                  <label for="package_id" class="form-label">Selected Package <span class="text-danger">*</span></label>
+                  <select class="form-select @error('package_id') is-invalid @enderror" id="package_id" name="package_id" required>
+                    @foreach ($allowedPackages as $allowedPackage)
+                    <option value="{{ $allowedPackage->id }}" {{ $allowedPackage->id == old('package_id', $package->id) ? 'selected' : '' }}>
+                      {{ $allowedPackage->pkg_name }} - {{ $allowedPackage->pkg_number_of_nights }} nights ({{ $currency }} {{ number_format($allowedPackage->pkg_base_price, 2) }})
+                    </option>
+                    @endforeach
+                  </select>
+                  @error('package_id')
+                  <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                  <div class="form-text">
+                    <i class="fas fa-info-circle text-info me-1"></i>
+                    Allowed Check-In Days: 
+                    @foreach($allowedDays as $day)
+                    <span class="badge bg-success">{{ $day }}</span>@if(!$loop->last) @endif
+                    @endforeach
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Check-In Date Selection</label>
+                  <div class="d-grid">
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#calendarModal">
+                      <i class="fas fa-calendar-alt me-1"></i>Select Date
+                    </button>
+                  </div>
+                  <input type="text" id="reservation" class="form-control mt-2" placeholder="Selected dates will appear here" readonly>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Booking Details -->
+          <div class="card card-info card-outline mb-4">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fas fa-calendar-check"></i> Booking Details
+              </h3>
+            </div>
+            <div class="card-body">
+              <!-- Dates -->
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <label for="arrival_date" class="form-label">Arrival Date <span class="text-danger">*</span></label>
+                  <input type="date" 
+                         class="form-control @error('arrival_date') is-invalid @enderror" 
+                         id="arrival_date" 
+                         name="arrival_date" 
+                         required 
+                         min="{{ $arrivalDate }}" 
+                         value="{{ old('arrival_date', $arrivalDate) }}" 
+                         readonly>
+                  @error('arrival_date')
+                  <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                </div>
+                <div class="col-md-4">
+                  <label for="departure_date" class="form-label">Departure Date <span class="text-danger">*</span></label>
+                  <input type="date" 
+                         class="form-control @error('departure_date') is-invalid @enderror" 
+                         id="departure_date" 
+                         name="departure_date" 
+                         value="{{ old('departure_date') }}" 
+                         required 
+                         readonly>
+                  @error('departure_date')
+                  <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                </div>
+                <div class="col-md-4">
+                  <label for="is_shared" class="form-label">Room Sharing <span class="text-danger">*</span></label>
+                  <select class="form-select @error('is_shared') is-invalid @enderror" id="is_shared" name="is_shared">
+                    <option value="0" {{ old('is_shared') == 0 ? 'selected' : '' }}>Private Room</option>
+                    <option value="1" {{ old('is_shared') == 1 ? 'selected' : '' }}>Shared Room</option>
+                  </select>
+                  @error('is_shared')
+                  <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                </div>
+              </div>
+
+              <!-- Room and Pricing -->
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <label for="room_id" class="form-label">Available Room <span class="text-danger">*</span></label>
+                  <select class="form-select @error('room_id') is-invalid @enderror" id="room_id" name="room_id" required>
+                    <option value="">Select Room</option>
+                    @foreach($rooms as $room)
+                    @php
+                      $dailyRate = $room->type->rates->where('is_shared', false)->first()?->amount ?? 'N/A';
+                      $sharedRate = $room->type->rates->where('is_shared', true)->first()?->amount ?? 'N/A';
+                    @endphp
+                    <option value="{{ $room->id }}" 
+                            data-rate="{{ $dailyRate }}" 
+                            data-shared-rate="{{ $sharedRate }}"
+                            {{ old('room_id') == $room->id ? 'selected' : '' }}>
+                      Room {{ $room->number }} - {{ $room->type->name }} ({{ $currency }} {{ $dailyRate }}/night)
+                    </option>
+                    @endforeach
+                  </select>
+                  @error('room_id')
+                  <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                </div>
+                <div class="col-md-2">
+                  <label for="adults" class="form-label">Adults <span class="text-danger">*</span></label>
+                  <input type="number" 
+                         class="form-control @error('adults') is-invalid @enderror" 
+                         id="adults" 
+                         name="adults" 
+                         value="{{ old('adults', 1) }}" 
+                         min="1" 
+                         required>
+                  @error('adults')
+                  <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                </div>
+                <div class="col-md-2">
+                  <label for="children" class="form-label">Children</label>
+                  <input type="number" 
+                         class="form-control @error('children') is-invalid @enderror" 
+                         id="children" 
+                         name="children" 
+                         value="{{ old('children', 0) }}" 
+                         min="0">
+                  @error('children')
+                  <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                </div>
+                <div class="col-md-4">
+                  <label for="daily_rate" class="form-label">Daily Rate ({{ $currency }}) <span class="text-danger">*</span></label>
+                  <input type="number" 
+                         step="0.01" 
+                         class="form-control @error('daily_rate') is-invalid @enderror" 
+                         id="daily_rate" 
+                         name="daily_rate" 
+                         value="{{ old('daily_rate') }}" 
+                         required>
+                  @error('daily_rate')
+                  <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+          <!-- Package Summary -->
+          <div class="card card-success card-outline mb-3">
+            <div class="card-header">
+              <h5 class="card-title mb-0">
+                <i class="fas fa-gift"></i> Package Summary
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="text-center mb-3">
+                <h5 class="text-success">{{ $package->pkg_name }}</h5>
+                <div class="badge bg-primary fs-6">{{ $packageNights }} Nights Package</div>
+              </div>
+              <hr>
+              <div class="row text-center">
+                <div class="col-6">
+                  <div class="border-end">
+                    <div class="h4 text-success mb-0">{{ $currency }} {{ number_format($package->pkg_base_price, 2) }}</div>
+                    <small class="text-muted">Total Price</small>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="h4 text-info mb-0">{{ $currency }} {{ number_format($package->pkg_base_price / $packageNights, 2) }}</div>
+                  <small class="text-muted">Per Night</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Guest Information -->
+          <div class="card card-warning card-outline mb-3">
+            <div class="card-header">
+              <h5 class="card-title mb-0">
+                <i class="fas fa-users"></i> Guest Information
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="mb-3">
+                <small class="text-muted">Select the primary guest for this booking. If the guest is not in the list, click the New Guest button.</small>
+              </div>
               
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-md-4">
-              <div class="form-group mb-3">
-                <label for="arrival_date" class="form-label">Arrival Date <span class="text-muted">(Required)</span></label>
-                <input type="date" class="form-control @error('arrival_date') is-invalid @enderror" id="arrival_date" name="arrival_date" required min="{{ $arrivalDate }}" value="{{ old('arrival_date', $arrivalDate) }}" readonly>
-                @error('arrival_date')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-              </div>
-            </div>
-            
-            <div class="col-md-4">
-              <div class="form-group mb-3">
-                <label for="departure_date" class="form-label">Departure Date <span class="text-muted">(Required)</span></label>
-                <input type="date" class="form-control @error('departure_date') is-invalid @enderror" id="departure_date" name="departure_date" value="{{ old('departure_date') }}" required readonly>
-                @error('departure_date')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-              </div>
-            </div>
-            
-            <div class="col-md-4">
-              <div class="form-group mb-3">
-                <label for="is_shared" class="form-label">Shared Room <span class="text-muted">(Required)</span></label>
-                <select class="form-select @error('is_shared') is-invalid @enderror" id="is_shared" name="is_shared">
-                  {{-- <option value="" disabled>Select</option> --}}
-                  <option {{ old('is_shared') == 1 ? 'selected' : '' }} value="1">Yes</option>
-                  <option {{ old('is_shared') == 0 ? 'selected' : '' }} value="0">No</option>
-                </select>
-                @error('is_shared')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-              </div>
-            </div>
-          </div>
-          <hr>
-          {{-- Room Section --}}
-          <div class="row" id="room_section">
-            
-            <div class="col-md-4">
-              <div class="form-group mb-3">
-                <label for="room_id" class="form-label">Room <span class="text-muted">(Required)</span></label>
-                <select class="form-select  @error('room_id') is-invalid @enderror" id="room_id" name="room_id" required>
-                  <option value="">Select Room</option>
-                  @foreach($rooms as $room)
-                  {{ $dailyRate = $room->type->rates->where('is_shared', false)->first() ? $room->type->rates->where('is_shared', false)->first()->amount : 'N/A' }}
-                  {{ $sharedRate = $room->type->rates->where('is_shared', true)->first() ? $room->type->rates->where('is_shared', true)->first()->amount : 'N/A' }}
-                  <option {{ old('room_id') == $room->id ? 'selected' : '' }} value="{{ $room->id }}" data-rate="{{ $dailyRate }}" data-shared-rate="{{ $sharedRate }}">
-                    RM{{ $room->number }} - {{ $room->type->name }} ({{ $dailyRate }} {{ $currency }}/night)
+              <!-- Primary Guest -->
+              <div class="mb-3">
+                <label for="guest_id" class="form-label">Primary Guest <span class="text-danger">*</span></label>
+                <select class="form-select @error('guest_id') is-invalid @enderror" id="guest_id" name="guest_id" required>
+                  <option value="">Select Guest...</option>
+                  @foreach($guests as $guest)
+                  <option value="{{ $guest->id }}" {{ old('guest_id') == $guest->id ? 'selected' : '' }}>
+                    {{ $guest->first_name }} {{ $guest->last_name }}
+                    @if($guest->email) - {{ $guest->email }} @endif
                   </option>
                   @endforeach
                 </select>
-                @error('room_id')
+                @error('guest_id')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
               </div>
-            </div>
-            
-            <div class="col-md-2">
+
               <div class="mb-3">
-                <label for="adults" class="form-label">Adults <span class="text-muted">(Required)</span></label>
-                <input type="number" class="form-control @error('adults') is-invalid @enderror" id="adults" name="adults" value="{{ old('adults', 1) }}" min="1" required>
-                @error('adults')
+                <label for="special_requests" class="form-label">Special Requests</label>
+                <textarea class="form-control @error('special_requests') is-invalid @enderror" 
+                          id="special_requests" 
+                          name="special_requests" 
+                          rows="3" 
+                          placeholder="Any special requirements or requests...">{{ old('special_requests') }}</textarea>
+                @error('special_requests')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
               </div>
-            </div>
-            
-            <div class="col-md-2">
-              <div class="mb-3">
-                <label for="children" class="form-label">Children</label>
-                <input type="number" class="form-control @error('children') is-invalid @enderror" id="children" name="children" value="{{ old('children', 0) }}" min="0" disabled>
-                @error('children')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
+
+              <!-- Secondary Guest Section (Hidden by default) -->
+              <div id="secondary_guest_section" style="display: none;">
+                <hr>
+                <div class="mb-3">
+                  <label for="guest2_id" class="form-label">Secondary Guest</label>
+                  <select class="form-select @error('guest2_id') is-invalid @enderror" id="guest2_id" name="guest2_id">
+                    <option value="">Select Secondary Guest...</option>
+                    @foreach($guests as $guest)
+                    <option value="{{ $guest->id }}" {{ old('guest2_id') == $guest->id ? 'selected' : '' }}>
+                      {{ $guest->first_name }} {{ $guest->last_name }}
+                      @if($guest->email) - {{ $guest->email }} @endif
+                    </option>
+                    @endforeach
+                  </select>
+                  @error('guest2_id')
+                  <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                </div>
+
+                <div class="mb-3">
+                  <label for="g2_special_requests" class="form-label">Secondary Guest Requests</label>
+                  <textarea class="form-control @error('g2_special_requests') is-invalid @enderror" 
+                            id="g2_special_requests" 
+                            name="g2_special_requests" 
+                            rows="2" 
+                            placeholder="Special requests for secondary guest...">{{ old('g2_special_requests') }}</textarea>
+                  @error('g2_special_requests')
+                  <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
+                </div>
+              </div>
+
+              <div class="d-grid">
+                <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#addGuestModal">
+                  <i class="fas fa-user-plus"></i> Add New Guest
+                </button>
               </div>
             </div>
-            
-            <div class="col-md-4">
-              <div class="mb-3">
-                <label for="daily_rate" class="form-label">Daily Rate ({{ $currency }}) <span class="text-muted">(Required)</span></label>
-                <input type="number" step="0.01" class="form-control @error('daily_rate') is-invalid @enderror" id="daily_rate" name="daily_rate" value="{{ old('daily_rate') }}" required>
-                @error('daily_rate')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-              </div>
-            </div>
           </div>
-          <hr>
-          {{-- Guest Section --}}
-          <div class="mb-3">
-            <h5>Guest Information</h5>
-            <small class="text-muted">Select the primary guest for this booking. If the guest is not in the list, click New Guest button to add a new guest to database.</small>
-          </div>
-          <hr>
-          <div class="row" id="primary_guest_section">
-            
-            <div class="col-md-4 mb-3">
-              <div class="form-group">
-                <label for="guest_id" class="form-label">Primary Guest <span class="text-muted">(Required)</span></label>
-                <select class="form-control select2-single @error('guest_id') is-invalid @enderror" id="guest_id" name="guest_id" required>
-                  <option value="">Select Guest</option>
-                  @foreach($guests as $guest)
-                  <option {{ old('guest_id') == $guest->id ? 'selected' : '' }} value="{{ $guest->id }}">{{ $guest->first_name }} {{ $guest->last_name }} - {{ $guest->email }}</option>
-                  @endforeach
-                </select>
-              </div>
-              @error('guest_id')
-              <div class="invalid-feedback">{{ $message }}</div>
-              @enderror
-            </div>
-            <div class="col-md-8 mb-3">
-              <label for="special_requests" class="form-label">Special Requests</label>
-              <textarea class="form-control @error('special_requests') is-invalid @enderror" id="special_requests" name="special_requests" rows="3">{{ old('special_requests') }}</textarea>
-              @error('special_requests')
-              <div class="invalid-feedback">{{ $message }}</div>
-              @enderror
-            </div>
-          </div>
-          <div hidden class="row" id="secondary_guest_section">
-            
-            <div class="col-md-4 mb-3">
-              <div class="form-group">
-                <label for="guest2_id" class="form-label">Secondary Guest</label>
-                <select class="form-control select2-single @error('guest2_id') is-invalid @enderror" id="guest2_id" name="guest2_id" >
-                  <option value="">Select Guest</option>
-                  @foreach($guests as $guest)
-                  <option {{ old('guest2_id') == $guest->id ? 'selected' : '' }} value="{{ $guest->id }}">{{ $guest->first_name }} {{ $guest->last_name }} - {{ $guest->email }}</option>
-                  @endforeach
-                </select>
-              </div>
-              @error('guest_id')
-              <div class="invalid-feedback">{{ $message }}</div>
-              @enderror
-            </div>
-            <div class="col-md-8 mb-3">
-              <label for="g2_special_requests" class="form-label">Special Requests</label>
-              <textarea class="form-control @error('g2_special_requests') is-invalid @enderror" id="g2_special_requests" name="g2_special_requests" rows="3">{{ old('g2_special_requests') }}</textarea>
-              @error('g2_special_requests')
-              <div class="invalid-feedback">{{ $message }}</div>
-              @enderror
-            </div>
-          </div>
-          {{-- button to the left to add a new guest --}}
-          <div class="row">
-            <div class="col-md-8 mb-3">
-              <small>If you cannot find the guest in the dropdown, click New Guest button to add a new guest to database.</small>
-              <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addGuestModal">
-                <i class="fas fa-user-plus"></i> New Guest
-              </button>
-            </div>
-            <div class="col-md-4 mb-3 text-end">
-              {{-- booking source select --}}
-              <select name="source" id="source" class="form-select @error('source') is-invalid @enderror">
-                <option value="">Booking Source <span class="text-muted">(Required)</span></option>
-                @foreach($bookingSources as $source)
-                <option {{ old('source') == $source ? 'selected' : '' }} value="{{ $source }}">{{ ucfirst($source) }}</option>
-                @endforeach
-              </select>
-            </div>
-          </div>
-          <hr>
-          {{-- button to the left to add a new guest --}}
-          <div class="row">
-            
-            <div class="col-md-6 mb-3">
-              <button type="submit" class="btn btn-sm btn-success" id="submitBtn">
-                <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                <i class="fas fa-save me-2"></i> Create Booking
-              </button>
-            </div>
-            <div class="col-md-6 mb-3 ms-auto text-end">
-              <a href="#" class="btn btn-sm btn-warning" onclick="window.history.back();">
-                {{-- <a href="{{ route('tenant.bookings.index') }}" class="btn btn-secondary"> --}}
-                  <i class="fas fa-times me-2"></i> Cancel
+
+          <!-- Action Buttons -->
+          <div class="card">
+            <div class="card-body">
+              <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-success" id="submitBtn">
+                  <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                  <i class="fas fa-save"></i> Create Package Booking
+                </button>
+                <a href="{{ route('tenant.bookings.index') }}" class="btn btn-outline-secondary">
+                  <i class="fas fa-arrow-left"></i> Back to Bookings
                 </a>
               </div>
             </div>
-          </form>
+          </div>
         </div>
       </div>
-    </div>
-    <!--end::Container-->
+    </form>
   </div>
-  <!--end::App Content-->
-  
-  {{-- calendar modal --}}
-  <div class="modal fade" id="calendarModal" tabindex="-1" aria-labelledby="calendarModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-md">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="calendarModalLabel">Select Check-In Date</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<!--end::App Content-->
+
+{{-- Calendar Modal --}}
+<div class="modal fade" id="calendarModal" tabindex="-1" aria-labelledby="calendarModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="calendarModalLabel">
+          <i class="fas fa-calendar-alt me-2"></i>Select Check-In Date
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>Package Requirements:</strong> You can only check-in on 
+          @foreach($allowedDays as $day)
+          <span class="badge bg-success">{{ $day }}</span>@if(!$loop->last) @endif
+          @endforeach
+          for this {{ $packageNights }}-night package.
         </div>
-        <div class="modal-body">
-          <div id="calendar" class="calendar"></div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-sm btn-warning" data-bs-dismiss="modal">Close</button>
+        <div id="calendar" class="calendar"></div>
+        <div class="ubook-booking-range mt-3 text-center">
+          <p class="mb-0">Selected dates will appear here</p>
         </div>
       </div>
-    </div>
-  </div>
-  
-  <!-- Add Guest Modal (placeholder, implement as needed) -->
-  <div class="modal fade" id="addGuestModal" tabindex="-1" aria-labelledby="addGuestModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="addGuestModalLabel">Add New Guest</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p>Guest creation will redirect you to another page, click ok to continue.</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-sm btn-success" id="confirmAddGuestBtn">OK</button>
-          <button type="button" class="btn btn-sm btn-warning" data-bs-dismiss="modal">Close</button>
-        </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times"></i> Close
+        </button>
       </div>
     </div>
   </div>
+</div>
+
+{{-- Add Guest Modal --}}
+<div class="modal fade" id="addGuestModal" tabindex="-1" aria-labelledby="addGuestModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addGuestModalLabel">
+          <i class="fas fa-user-plus me-2"></i>Add New Guest
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          <strong>Note:</strong> You will be redirected to the guest creation page. After creating the guest, please return to complete this booking.
+        </div>
+        <p>Click OK to continue to the guest creation page.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-success" id="confirmAddGuestBtn">
+          <i class="fas fa-check"></i> OK, Create Guest
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ asset('assets/js/calendar.js') }}"></script>
+<script>
+// Guest creation redirect
+document.getElementById('confirmAddGuestBtn').addEventListener('click', function() {
+  window.location.href = "{{ route('tenant.guests.create') }}";
+});
+
+// Room selection handler
+document.getElementById('room_id').addEventListener('change', function() {
+  const selectedOption = this.options[this.selectedIndex];
+  const rate = selectedOption.getAttribute('data-rate');
+  if (rate && rate !== 'N/A') {
+    document.getElementById('daily_rate').value = rate;
+  }
+});
+
+// Arrival date change handler (though it's readonly for package bookings)
+document.getElementById('arrival_date').addEventListener('change', function() {
+  const arrivalDate = new Date(this.value);
+  if (!isNaN(arrivalDate.getTime())) {
+    const departureDate = new Date(arrivalDate);
+    departureDate.setDate(departureDate.getDate() + packageNights);
+    document.getElementById('departure_date').value = departureDate.toISOString().split('T')[0];
+    document.getElementById('departure_date').min = this.value;
+  }
+});
+
+// Room sharing change handler
+document.getElementById('is_shared').addEventListener('change', function() {
+  const isShared = this.value === '1';
+  const roomSelect = document.getElementById('room_id');
+  const selectedOption = roomSelect.options[roomSelect.selectedIndex];
   
-  <script>
-    // When confirmAddGuestBtn is clicked, redirect to the guest creation page
-    document.getElementById('confirmAddGuestBtn').addEventListener('click', function() {
-      window.location.href = "{{ route('tenant.guests.create') }}";
-    });
-    // Simple JavaScript to set default rate and calculate end date
-    document.getElementById('room_id').addEventListener('change', function() {
-      const selectedOption = this.options[this.selectedIndex];
-      const rate = selectedOption.getAttribute('data-rate');
-      if (rate) {
-        document.getElementById('daily_rate').value = rate;
-      }
-    });
+  if (selectedOption) {
+    const dailyRate = selectedOption.getAttribute('data-rate');
+    const sharedRate = selectedOption.getAttribute('data-shared-rate');
     
-    document.getElementById('arrival_date').addEventListener('change', function() {
-      const arrivalDate = new Date(this.value);
-      if (!isNaN(arrivalDate.getTime())) {
-        const departureDate = new Date(arrivalDate);
-        departureDate.setDate(departureDate.getDate() + 1);
-        document.getElementById('departure_date').value = departureDate.toISOString().split('T')[0];
-        document.getElementById('departure_date').min = this.value;
+    if (dailyRate && sharedRate) {
+      document.getElementById('daily_rate').value = isShared ? sharedRate : dailyRate;
+    }
+  }
+  
+  // Show/hide secondary guest section
+  const secondaryGuestSection = document.getElementById('secondary_guest_section');
+  const guest2Select = document.getElementById('guest2_id');
+  const guest2Requests = document.getElementById('g2_special_requests');
+  
+  if (isShared) {
+    secondaryGuestSection.style.display = 'block';
+    guest2Select.setAttribute('required', 'required');
+  } else {
+    secondaryGuestSection.style.display = 'none';
+    guest2Select.removeAttribute('required');
+    guest2Select.value = '';
+    guest2Requests.value = '';
+  }
+});
+
+// Form submission handler
+document.getElementById('packageBookingForm').addEventListener('submit', function() {
+  const submitBtn = document.getElementById('submitBtn');
+  const spinner = document.getElementById('spinner');
+  
+  submitBtn.disabled = true;
+  spinner.classList.remove('d-none');
+  
+  // Re-enable after 10 seconds as failsafe
+  setTimeout(function() {
+    submitBtn.disabled = false;
+    spinner.classList.add('d-none');
+  }, 10000);
+});
+
+// Package change handler
+document.getElementById('package_id').addEventListener('change', function() {
+  const selectedPackageId = this.value;
+  if (selectedPackageId !== '{{ $package->id }}') {
+    window.location.href = '{{ route("tenant.bookings.create") }}?package_id=' + selectedPackageId;
+  }
+});
+
+// Auto-close modal when date is selected
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('selected-date')) {
+    setTimeout(function() {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('calendarModal'));
+      if (modal) {
+        modal.hide();
       }
-    });
-    
-    document.getElementById('departure_date').addEventListener('change', function() {
-      // Get the selected dates
-      const arrivalDate = document.getElementById('arrival_date').value;
-      const departureDate = this.value;
-      // We need to get the rooms available with AJAX based on the selected dates
-      // fetch(`/admin/rooms/available?arrival_date=${arrivalDate}&departure_date=${departureDate}`)
-      const url = `{{ route('rooms.available') }}?arrival_date=${arrivalDate}&departure_date=${departureDate}`;
-      console.log('Fetching available rooms from URL:', url);
-      console.log('Arrival Date:', arrivalDate);
-      console.log('Departure Date:', departureDate);
-      console.log('Using API Token:', '{{ auth()->user()->company_id }}');
-      
-      fetch(url, {
-        credentials: 'include', // Include this if your API requires authentication via cookies
-        headers: {
-          'X-Company-ID': '{{ auth()->user()->company_id }}',
-          'Accept': 'application/json',
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        // Update the room selection based on available rooms
-        const roomSelect = document.getElementById('room_id');
-        console.log('Available rooms data:', data);
-        roomSelect.innerHTML = '';
-        data.rooms.forEach(room => {
-          const option = document.createElement('option');
-          option.value = room.id;
-          option.textContent = `RM${room.number} - ${room.type.name} (${room.daily_rate} ${data.currency}/night)`;
-          option.setAttribute('data-rate', room.daily_rate);
-          option.setAttribute('data-shared-rate', room.shared_rate);
-          roomSelect.appendChild(option);
-        });
-      });
-    });
-    
-    // now when is_shared is changed, we need to update the daily_rate to the shared rate if is_shared is true and also vice versa
-    document.getElementById('is_shared').addEventListener('change', function() {
-      const isShared = this.value === '1';
-      const roomSelect = document.getElementById('room_id');
-      const selectedOption = roomSelect.options[roomSelect.selectedIndex];
-      if (selectedOption) {
-        const dailyRate = selectedOption.getAttribute('data-rate');
-        if (dailyRate) {
-          // Here you have it available in the data attributes
-          const sharedRate = selectedOption.getAttribute('data-shared-rate');
-          document.getElementById('daily_rate').value = isShared ? sharedRate : dailyRate;
-          // update the daily_rate input field
-        }
-        
-      }
-      // if is shared is true, we need to also add a section with an input field for number of guests in the room and select2 for selecting the guests
-      // if is shared is false, we need to remove that section
-      const secondaryGuestSection = document.getElementById('secondary_guest_section');
-      if (isShared) {
-        secondaryGuestSection.removeAttribute('hidden');
-        document.getElementById('guest2_id').setAttribute('required', 'required');
-      } else {
-        secondaryGuestSection.setAttribute('hidden', 'hidden');
-        document.getElementById('guest2_id').removeAttribute('required');
-        document.getElementById('guest2_id').value = '';
-        document.getElementById('g2_special_requests').value = '';
-      }
-    });
-    
-    // Show loading spinner on submit
-    document.querySelector('form').addEventListener('submit', function() {
-      document.getElementById('submitBtn').disabled = true;
-      document.getElementById('spinner').classList.remove('d-none');
-    });
-  </script>
-  @endsection
+    }, 1000);
+  }
+});
+</script>
+
+@endsection

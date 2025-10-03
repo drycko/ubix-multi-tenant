@@ -66,4 +66,63 @@ class Room extends Model
     {
         return $this->belongsToMany(Package::class, 'room_packages', 'room_id', 'package_id');
     }
+
+    // scopes
+    public function scopeEnabled($query)
+    {
+        return $query->where('is_enabled', true);
+    }
+
+    public function scopeFeatured($query)
+    {
+        return $query->where('is_featured', true);
+    }
+
+    /**
+     * Get sanitized web description
+     */
+    public function getSanitizedWebDescriptionAttribute(): string
+    {
+        return strip_tags($this->web_description);
+    }
+    public function outOfOrder(): HasMany
+    {
+        return $this->hasMany(RoomOutOfOrder::class, 'room_id');
+    }
+
+    public function scopeOutOfOrder($query)
+    {
+        return $query->whereHas('outOfOrder', function ($q) {
+            $q->where('end_date', '>=', now());
+        });
+    }
+
+    public function scopeAvailableForDates($query, $arrivalDate, $departureDate)
+    {
+        // rooms shoould be ordered by ordering
+        return $query->orderBy('display_order', 'asc')->whereDoesntHave('bookings', function ($q) use ($arrivalDate, $departureDate) {
+            $q->where('status', 'confirmed')
+              ->where('arrival_date', '<', $departureDate)
+              ->where('departure_date', '>', $arrivalDate);
+        });
+        // we need to also add type->rates to each room in the controller
+    }
+
+    /**
+     * return available rooms without bookings in range.
+     */
+    public static function getAvailableRooms($arrivalDate = null, $departureDate = null)
+    {
+        // If no dates are provided, use today as the default arrival date
+        if (!$arrivalDate) {
+            $arrivalDate = now();
+        }
+
+        // If no departure date is provided, use 6 days from today as the default
+        if (!$departureDate) {
+            $departureDate = now()->addDays(6);
+        }
+        // let's use the scope to get available rooms
+        return self::availableForDates($arrivalDate, $departureDate)->where('is_enabled', true)->get();
+    }
 }

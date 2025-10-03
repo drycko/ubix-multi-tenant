@@ -81,7 +81,7 @@ $(function() {
       const isAllowed = allowedDays.includes(checkinWeekday);
       const isPast = date < today;
       const isToday = day === todayDate && month === currentMonth && year === currentYear;
-      const dayClass = isPast ? 'past-date' : !isAllowed ? 'booked-date' : 'available-date';
+      const dayClass = isPast ? 'past-date' : !isAllowed ? 'unavailable-date' : 'available-date';
       const todayClass = isToday ? 'today-date' : '';
 
       calendarGrid += `
@@ -108,10 +108,26 @@ $(function() {
     const formattedCheckout = checkoutDate.toLocaleDateString('en-ZA');
     const dateRange = `${formattedCheckin} - ${formattedCheckout}`;
 
-    // Update calendar classes
-    $('.date.selected-date').removeClass('selected-date').addClass('available-date');
+    // Clear all previous selections by restoring original classes
+    restoreOriginalDateClasses();
+
+    // Set the new selected date
     $date.removeClass('available-date').addClass('selected-date');
-    // console.log('Selected date: ', selectedDate, ' to ', checkoutDate);
+    
+    // Set the checkout date if it exists in the calendar
+    const checkoutDateElement = $(`.date[data-date='${checkoutDate.getFullYear()}-${checkoutDate.getMonth() + 1}-${checkoutDate.getDate()}']`);
+    if (checkoutDateElement.length) {
+      checkoutDateElement.removeClass('available-date unavailable-date past-date').addClass('selected-checkout-date');
+    }
+    
+    // Set the dates in between as range dates
+    $('.date').each(function() {
+      const dateStr = $(this).data('date');
+      const date = new Date(dateStr);
+      if (date > selectedDate && date < checkoutDate) {
+        $(this).removeClass('available-date unavailable-date past-date').addClass('other-in-range');
+      }
+    });
 
     // Update UI and hidden fields
     $('#reservation').val(dateRange);
@@ -119,11 +135,33 @@ $(function() {
     $('#arrival_date').val(selectedDate.toISOString().split('T')[0]); // format to yyyy-mm-dd
     $('#departure_date').val(checkoutDate.toISOString().split('T')[0]); // format to yyyy-mm-dd
 
-    // On page load, generate the calendar with allowedWeekdays and packageNights
-    // $(document).ready(function() {
-    //     generateAvailableDateRanges(allowedWeekdays, packageNights);
-    // });
   });
+
+  // ✅ Function to restore original date classes
+  function restoreOriginalDateClasses() {
+    $('.date').each(function() {
+      const $dateElement = $(this);
+      const dateStr = $dateElement.data('date');
+      const date = new Date(dateStr);
+      const today = new Date();
+      
+      // Remove all selection-related classes
+      $dateElement.removeClass('selected-date selected-checkout-date other-in-range');
+      
+      // Restore original class based on date properties
+      const checkinWeekday = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+      const isAllowed = allowedWeekdays.includes(checkinWeekday);
+      const isPast = date < today;
+      
+      if (isPast) {
+        $dateElement.removeClass('available-date unavailable-date').addClass('past-date');
+      } else if (!isAllowed) {
+        $dateElement.removeClass('available-date past-date').addClass('unavailable-date');
+      } else {
+        $dateElement.removeClass('past-date unavailable-date').addClass('available-date');
+      }
+    });
+  }
 
 
   // ✅ **helper functions for calendar generation**

@@ -28,7 +28,11 @@ class RoomController extends Controller
      */
     public function index()
     {
-        $propertyId = selected_property_id();
+        // Get the property context
+        $propertyId = $request->get('property_id');
+        if (!$propertyId && !is_super_user()) {
+            $propertyId = auth()->user()->property_id;
+        }
         
         // build the query with filters
         $query = Room::where('property_id', $propertyId);
@@ -79,6 +83,86 @@ class RoomController extends Controller
         return response()->json($rates);
     }
 
+    // get rooms available between two dates
+    public function available(Request $request)
+    {
+        
+        // $validated = $request->validate([
+        //     // 'company_id' => 'required|exists:companies,id',
+        //     'arrival_date' => 'required|date|after_or_equal:today',
+        //     'departure_date' => 'required|date|after:arrival_date',
+        // ]);
+
+        $propertyId = $request->header('X-Property-ID');
+
+        $arrivalDate = $request->get('arrival_date');
+        $departureDate = $request->get('departure_date');
+
+        if (!$arrivalDate || !$departureDate) {
+            return response()->json(['error' => 'Both arrival_date and departure_date are required'], 400);
+        }
+
+        try {
+            $availableRooms = Room::getAvailableRooms($arrivalDate, $departureDate)
+                ->where('property_id', $propertyId)->where('is_enabled', true);
+
+            // rooms need to have their type and current rates loaded
+            $roomsData = $availableRooms->load(['type' => function ($query) use ($propertyId) {
+                $query->with(['rates' => function ($rateQuery) {
+                    $rateQuery->active()->validForDate(now())->orderBy('amount', 'asc');
+                }]);
+            }]);
+
+            // we need to filter out rooms that do not have any active rates for today
+            // $roomsData = $roomsData->filter(function ($room) {
+            //     return $room->type->rates->isNotEmpty();
+            // });
+            // $availableRooms = Room::getAvailableRooms($arrivalDate, $departureDate)
+            //     ->where('property_id', $propertyId)->where('is_enabled', true);
+            // // load room type and rates
+            // $availableRooms->load(['type' => function($query) {
+            //     $query->with(['rates' => function($q) {
+            //         $q->where('is_active', true);
+            //     }]);
+            // }]);
+
+            // // format the rooms for response
+            $roomsData = $availableRooms->map(function ($room) {
+                return [
+                    'id' => $room->id,
+                    'name' => $room->name,
+                    'number' => $room->number,
+                    'short_code' => $room->short_code,
+                    'floor' => $room->floor,
+                    'type' => $room->type ? [
+                        'id' => $room->type->id,
+                        'name' => $room->type->name,
+                        'code' => $room->type->code,
+                        'base_capacity' => $room->type->base_capacity,
+                        'max_capacity' => $room->type->max_capacity,
+                        'amenities' => $room->type->amenities ? json_decode($room->type->amenities, true) : [],
+                        'rates' => $room->type->rates->map(function ($rate) {
+                            return [
+                                'id' => $rate->id,
+                                'name' => $rate->name,
+                                'daily_rate' => $rate->amount,
+                                'daily_rate_formatted' => number_format($rate->amount, 2),
+                                'is_shared' => $rate->is_shared,
+                                'effective_from' => $rate->effective_from,
+                                'effective_until' => $rate->effective_until,
+                            ];
+                        }),
+                    ] : null,
+                ];
+            });
+
+            return response()->json(['rooms' => $roomsData, 'currency' => current_property()->currency ?? 'USD']);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'An error occurred while fetching available rooms: ' . $e->getMessage()], 500);
+        }
+    }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -110,6 +194,8 @@ class RoomController extends Controller
     {
         try {
             $propertyId = selected_property_id();
+
+            // To-Do: Implement a checker to check tenant package limits
             
             // Handle checkbox fields
             $request->merge([
