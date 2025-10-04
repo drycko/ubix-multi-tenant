@@ -10,11 +10,18 @@ use App\Http\Controllers\Tenant\RoomRateController;
 use App\Http\Controllers\Tenant\RoomAmenityController;
 use App\Http\Controllers\Tenant\GuestController;
 use App\Http\Controllers\Tenant\GuestClubController;
+use App\Http\Controllers\Tenant\TaxController;
 use App\Http\Controllers\Tenant\SettingController;
 use App\Http\Controllers\Tenant\PropertyController;
 use App\Http\Controllers\Tenant\RoomTypeController;
 use App\Http\Controllers\Tenant\PackageController;
 use App\Http\Controllers\Tenant\BookingInvoiceController;
+use App\Http\Controllers\Tenant\InvoicePaymentController;
+use App\Http\Controllers\Tenant\UserController;
+use App\Http\Controllers\Tenant\ReportController;
+use App\Http\Controllers\Tenant\RoleController;
+use App\Http\Controllers\Tenant\PermissionController;
+use App\Http\Controllers\Tenant\RoleAssignmentController;
 // tenancy controllers
 use App\Http\Controllers\Tenant\TenantUserActivityController;
 use App\Http\Controllers\Tenant\TenantUserNotificationController;
@@ -93,6 +100,17 @@ Route::middleware([
         Route::get('settings', [SettingController::class, 'index'])->name('tenant.settings');
         Route::put('settings', [SettingController::class, 'update'])->name('tenant.settings.update');
 
+        // Reports - comprehensive reporting system
+        Route::prefix('reports')->name('tenant.reports.')->group(function () {
+            Route::get('/', [ReportController::class, 'index'])->name('index');
+            Route::get('/advanced', [ReportController::class, 'advanced'])->name('advanced');
+            Route::get('/bookings', [ReportController::class, 'bookings'])->name('bookings');
+            Route::get('/financial', [ReportController::class, 'financial'])->name('financial');
+            Route::get('/user-activity', [ReportController::class, 'userActivity'])->name('user-activity');
+            Route::get('/occupancy', [ReportController::class, 'occupancy'])->name('occupancy');
+            Route::get('/export/{type}', [ReportController::class, 'export'])->name('export');
+        });
+
         Route::get('/bookings/import', [BookingController::class, 'importBookings'])->name('tenant.bookings.import');
         Route::post('/bookings/import', [BookingController::class, 'import'])->name('tenant.bookings.import.post');
         Route::get('/bookings/export', [BookingController::class, 'export'])->name('tenant.bookings.export');
@@ -126,6 +144,18 @@ Route::middleware([
             // booking invoices - property-specific
             Route::get('/booking-invoices', [BookingInvoiceController::class, 'index'])->name('tenant.booking-invoices.index');
             Route::get('/booking-invoices/{bookingInvoice}', [BookingInvoiceController::class, 'show'])->name('tenant.booking-invoices.show');
+            Route::get('/booking-invoices/{bookingInvoice}/download', [BookingInvoiceController::class, 'download'])->name('tenant.booking-invoices.download');
+            Route::get('/booking-invoices/{bookingInvoice}/print', [BookingInvoiceController::class, 'print'])->name('tenant.booking-invoices.print');
+
+            // invoice payments - property-specific
+            Route::get('/booking-invoices/{bookingInvoice}/payments', [InvoicePaymentController::class, 'index'])->name('tenant.invoice-payments.index');
+            Route::get('/booking-invoices/{bookingInvoice}/payments/create', [InvoicePaymentController::class, 'create'])->name('tenant.invoice-payments.create');
+            Route::post('/booking-invoices/{bookingInvoice}/payments', [InvoicePaymentController::class, 'store'])->name('tenant.invoice-payments.store');
+            Route::get('/booking-invoices/{bookingInvoice}/payments/{invoicePayment}', [InvoicePaymentController::class, 'show'])->name('tenant.invoice-payments.show');
+            Route::get('/booking-invoices/{bookingInvoice}/payments/{invoicePayment}/edit', [InvoicePaymentController::class, 'edit'])->name('tenant.invoice-payments.edit');
+            Route::put('/booking-invoices/{bookingInvoice}/payments/{invoicePayment}', [InvoicePaymentController::class, 'update'])->name('tenant.invoice-payments.update');
+            Route::delete('/booking-invoices/{bookingInvoice}/payments/{invoicePayment}', [InvoicePaymentController::class, 'destroy'])->name('tenant.invoice-payments.destroy');
+            Route::get('/booking-invoices/{bookingInvoice}/payment-form', [InvoicePaymentController::class, 'getPaymentForm'])->name('tenant.invoice-payments.form');
 
             Route::get('rooms/{room}/bookings', [RoomController::class, 'bookings'])->name('tenant.rooms.bookings');
             Route::get('rooms/{room}/invoices', [RoomController::class, 'invoices'])->name('tenant.rooms.invoices');
@@ -197,6 +227,10 @@ Route::middleware([
             ]);
             Route::post('/room-amenities/{roomAmenity}/clone', [RoomAmenityController::class, 'clone'])->name('tenant.room-amenities.clone');
 
+            Route::get('guests/{guest}/bookings', [GuestController::class, 'bookings'])->name('tenant.guests.bookings');
+            Route::get('guests/{guest}/invoices', [GuestController::class, 'invoices'])->name('tenant.guests.invoices');
+            Route::get('guests/{guest}/payments', [GuestController::class, 'payments'])->name('tenant.guests.payments');
+
             // Guests - property-specific
             Route::resource('guests', GuestController::class)->names([
                 'index' => 'tenant.guests.index',
@@ -207,9 +241,7 @@ Route::middleware([
                 'update' => 'tenant.guests.update',
                 'destroy' => 'tenant.guests.destroy',
             ]);
-            Route::get('guests/{guest}/bookings', [GuestController::class, 'bookings'])->name('tenant.guests.bookings');
-            Route::get('guests/{guest}/invoices', [GuestController::class, 'invoices'])->name('tenant.guests.invoices');
-            Route::get('guests/{guest}/payments', [GuestController::class, 'payments'])->name('tenant.guests.payments');
+            Route::post('guests/{guest}/toggle-status', [GuestController::class, 'toggleStatus'])->name('tenant.guests.toggle-status');
 
             // guest clubs - property-specific
             Route::resource('guest-clubs', GuestClubController::class)->names([
@@ -221,9 +253,19 @@ Route::middleware([
                 'update' => 'tenant.guest-clubs.update',
                 'destroy' => 'tenant.guest-clubs.destroy',
             ]);
-            Route::post('guest-clubs/{guestClub}/toggle-status', [GuestClubController::class, 'toggleStatus'])->name('tenant.guest-clubs.toggle-status');
-            Route::get('guest-clubs/{guestClub}/guests', [GuestClubController::class, 'guests'])->name('tenant.guest-clubs.guests');
+            Route::patch('guest-clubs/{guestClub}/toggle-status', [GuestClubController::class, 'toggleStatus'])->name('tenant.guest-clubs.toggle-status');
+            Route::get('guest-clubs/{guestClub}/members', [GuestClubController::class, 'members'])->name('tenant.guest-clubs.members');
+            Route::post('guest-clubs/{guestClub}/add-member', [GuestClubController::class, 'addMember'])->name('tenant.guest-clubs.add-member');
+            Route::post('guest-clubs/{guestClub}/change-member-status', [GuestClubController::class, 'changeMemberStatus'])->name('tenant.guest-clubs.change-member-status');
+            Route::delete('guest-clubs/{guestClub}/remove-member', [GuestClubController::class, 'removeMember'])->name('tenant.guest-clubs.remove-member');
+            Route::post('guest-clubs/{guestClub}/bulk-action', [GuestClubController::class, 'bulkAction'])->name('tenant.guest-clubs.bulk-action');
+            Route::get('guest-clubs/{guestClub}/export-members', [GuestClubController::class, 'exportMembers'])->name('tenant.guest-clubs.export-members');
+
             Route::post('/guest-clubs/{guestClub}/clone', [GuestClubController::class, 'clone'])->name('tenant.guest-clubs.clone');
+
+            // Tax Management - property-specific
+            Route::resource('taxes', TaxController::class, ['as' => 'tenant']);
+            Route::patch('taxes/{tax}/toggle-status', [TaxController::class, 'toggleStatus'])->name('tenant.taxes.toggle-status');
 
             // room packages - property-specific
             Route::get('room-packages/import', [PackageController::class, 'importPackage'])->name('tenant.room-packages.import');
@@ -240,6 +282,68 @@ Route::middleware([
             Route::post('room-packages/{roomPackage}/toggle-status', [PackageController::class, 'toggleStatus'])->name('tenant.room-packages.toggle-status');
             Route::post('/room-packages/{roomPackage}/clone', [PackageController::class, 'clone'])->name('tenant.room-packages.clone');
         });
+
+
+        // users management - super-user only routes (no property.access middleware)
+        Route::get('users', [UserController::class, 'index'])->name('tenant.users.index');
+        Route::get('users/create', [UserController::class, 'create'])->name('tenant.users.create');
+        Route::post('users', [UserController::class, 'store'])->name('tenant.users.store');
+
+        Route::get('users/{user}', [UserController::class, 'show'])->name('tenant.users.show');
+        Route::get('users/{user}/edit', [UserController::class, 'edit'])->name('tenant.users.edit');
+        Route::put('users/{user}', [UserController::class, 'update'])->name('tenant.users.update');
+        Route::delete('users/{user}', [UserController::class, 'destroy'])->name('tenant.users.destroy');
+        Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('tenant.users.toggle-status');
+
+        // Profile management (available to all users)
+        Route::get('profile', [UserController::class, 'profile'])->name('tenant.users.profile');
+        Route::put('profile', [UserController::class, 'updateProfile'])->name('tenant.users.update-profile');
+
+        // Roles management - dedicated controller with proper permissions
+        Route::resource('roles', RoleController::class)->names([
+            'index' => 'tenant.roles.index',
+            'create' => 'tenant.roles.create',
+            'store' => 'tenant.roles.store',
+            'show' => 'tenant.roles.show',
+            'edit' => 'tenant.roles.edit',
+            'update' => 'tenant.roles.update',
+            'destroy' => 'tenant.roles.destroy',
+        ]);
+        Route::post('roles/{role}/sync-permissions', [RoleController::class, 'syncPermissions'])->name('tenant.roles.sync-permissions');
+
+        // Permissions management - dedicated controller with proper permissions
+        Route::resource('permissions', PermissionController::class)->names([
+            'index' => 'tenant.permissions.index',
+            'create' => 'tenant.permissions.create',
+            'store' => 'tenant.permissions.store',
+            'show' => 'tenant.permissions.show',
+            'edit' => 'tenant.permissions.edit',
+            'update' => 'tenant.permissions.update',
+            'destroy' => 'tenant.permissions.destroy',
+        ]);
+        Route::post('permissions/bulk-create', [PermissionController::class, 'bulkCreate'])->name('tenant.permissions.bulk-create');
+
+        // Role assignments - managing user roles
+        Route::get('role-assignments', [RoleAssignmentController::class, 'index'])->name('tenant.role-assignments.index');
+        Route::get('role-assignments/{user}/edit', [RoleAssignmentController::class, 'edit'])->name('tenant.role-assignments.edit');
+        Route::put('role-assignments/{user}', [RoleAssignmentController::class, 'update'])->name('tenant.role-assignments.update');
+        Route::post('role-assignments/bulk-assign', [RoleAssignmentController::class, 'bulkAssign'])->name('tenant.role-assignments.bulk-assign');
+
+        // Legacy role and permission routes (keep for backward compatibility)
+        Route::get('old-roles', [UserController::class, 'rolesIndex'])->name('tenant.old-roles.index');
+        Route::get('old-roles/create', [UserController::class, 'rolesCreate'])->name('tenant.old-roles.create');
+        Route::post('old-roles', [UserController::class, 'rolesStore'])->name('tenant.old-roles.store');
+        Route::get('old-roles/{role}/edit', [UserController::class, 'rolesEdit'])->name('tenant.old-roles.edit');
+        Route::put('old-roles/{role}', [UserController::class, 'rolesUpdate'])->name('tenant.old-roles.update');
+        Route::delete('old-roles/{role}', [UserController::class, 'rolesDestroy'])->name('tenant.old-roles.destroy');
+
+        // Legacy permissions management
+        Route::get('old-permissions', [UserController::class, 'permissionsIndex'])->name('tenant.old-permissions.index');
+        Route::get('old-permissions/create', [UserController::class, 'permissionsCreate'])->name('tenant.old-permissions.create');
+        Route::post('old-permissions', [UserController::class, 'permissionsStore'])->name('tenant.old-permissions.store');
+        Route::get('old-permissions/{permission}/edit', [UserController::class, 'permissionsEdit'])->name('tenant.old-permissions.edit');
+        Route::put('old-permissions/{permission}', [UserController::class, 'permissionsUpdate'])->name('tenant.old-permissions.update');
+        Route::delete('old-permissions/{permission}', [UserController::class, 'permissionsDestroy'])->name('tenant.old-permissions.destroy');
 
         // Properties management - super-user only routes (no property.access middleware)
         Route::get('properties', [PropertyController::class, 'index'])->name('tenant.properties.index');

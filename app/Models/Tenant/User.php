@@ -52,19 +52,19 @@ class User extends Authenticatable
     protected $guard_name = 'tenant';
 
     /**
-     * Get all bookings created by this user.
+     * Get the count of bookings created by this user through activity logs.
      */
-    public function bookings()
+    public function bookingsCount()
     {
-        return $this->hasMany(Booking::class, 'created_by');
+        return $this->activityLogs()->where('activity_type', 'create_booking')->count();
     }
 
     /**
-     * Get all room changes made by this user.
+     * Get all TenantUserActivity logs made by this user.
      */
-    public function roomChanges()
+    public function activityLogs()
     {
-        return $this->hasMany(RoomChange::class, 'changed_by');
+        return $this->hasMany(TenantUserActivity::class, 'tenant_user_id');
     }
 
     /**
@@ -88,9 +88,21 @@ class User extends Authenticatable
      */
     public function getProfilePhotoUrlAttribute()
     {
-        return $this->profile_photo_path
-            ? Storage::disk('public')->url($this->profile_photo_path)
-            : $this->defaultProfilePhotoUrl();
+        if (!$this->profile_photo_path) {
+            return $this->defaultProfilePhotoUrl();
+        }
+
+        // Handle different storage configurations
+        if (config('app.env') === 'production') {
+            // For production with GCS or other cloud storage
+            $gcsConfig = config('filesystems.disks.gcs');
+            $bucket = $gcsConfig['bucket'] ?? null;
+            $path = ltrim($this->profile_photo_path, '/');
+            return $bucket ? "https://storage.googleapis.com/{$bucket}/{$path}" : asset('storage/' . $this->profile_photo_path);
+        } else {
+            // For local development - just use asset helper
+            return asset('storage/' . $this->profile_photo_path);
+        }
     }
 
     /**

@@ -5,6 +5,8 @@ namespace App\Models\Tenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use App\Models\Tenant\Scopes\PropertyScope;
@@ -50,11 +52,29 @@ class Guest extends Model
         return $this->belongsTo(Property::class);
     }
 
-    public function bookings()
+    public function bookings(): HasMany
     {
-        return $this->belongsToMany(Booking::class, 'booking_guests', 'guest_id', 'booking_id')
-                    ->withPivot(['is_primary', 'is_adult', 'age', 'is_sharing', 'special_requests', 'payment_type', 'payment_details', 'arrival_time'])
-                    ->withTimestamps();
+        return $this->hasMany(BookingGuest::class);
+    }
+
+    public function guestClubMembers(): HasMany
+    {
+        return $this->hasMany(GuestClubMember::class);
+    }
+
+    public function guestClubs(): BelongsToMany
+    {
+        return $this->belongsToMany(GuestClub::class, 'guest_club_members');
+    }
+
+    public function invoicePayments(): HasMany
+    {
+        return $this->hasMany(InvoicePayment::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(BookingInvoice::class);
     }
 
     public function getFullNameAttribute(): string
@@ -116,5 +136,40 @@ class Guest extends Model
         else {
             throw new \Exception('Cannot create guest without email or phone');
         }
+    }
+
+    // Get total amount spent by a guest across all invoice payments
+    public function totalAmountSpent()
+    {
+        return $this->invoicePayments()
+                    ->where('status', 'completed')
+                    ->sum('amount');
+    }
+
+    // Get total confirmed bookings count
+    public function confirmedBookingsCount()
+    {
+        return $this->bookings()
+                    ->join('bookings', 'booking_guests.booking_id', '=', 'bookings.id')
+                    ->where('bookings.status', 'confirmed')
+                    ->count();
+    }
+
+    // Get total bookings count
+    public function totalBookingsCount()
+    {
+        return $this->bookings()->count();
+    }
+
+    // Check if guest qualifies for a specific club
+    public function qualifiesForClub(GuestClub $club): bool
+    {
+        $totalSpent = $this->totalAmountSpent();
+        $totalBookings = $this->confirmedBookingsCount();
+
+        $meetsSpendRequirement = !$club->min_spend || $totalSpent >= $club->min_spend;
+        $meetsBookingRequirement = !$club->min_bookings || $totalBookings >= $club->min_bookings;
+
+        return $meetsSpendRequirement && $meetsBookingRequirement;
     }
 }

@@ -334,9 +334,9 @@
             <h6 class="text-info mb-3">
               <i class="fas fa-info-circle me-1"></i>Additional Notes
             </h6>
-            <div class="mb-2">
-              <strong>Special Requests:</strong><br>
-              <div class="bg-light p-2 rounded">
+            <div class="card mb-2 p-2">
+              <strong>Special Requests:</strong><hr>
+              <div >
                 {{ $secondaryGuest->special_requests }}
               </div>
             </div>
@@ -382,6 +382,15 @@
               </div>
               <div class="mb-2">
                 <strong>Amount:</strong> {{ $currency }} {{ number_format($invoice->amount, 2) }}
+                @if($invoice->tax_amount > 0)
+                <div class="small text-muted mt-1">
+                  <div>Subtotal: {{ $currency }} {{ $invoice->formatted_subtotal }}</div>
+                  <div>{{ $invoice->tax_name }} ({{ $invoice->tax_type === 'percentage' ? $invoice->tax_rate . '%' : $currency . ' ' . number_format($invoice->tax_rate, 2) }}): {{ $currency }} {{ $invoice->formatted_tax_amount }}</div>
+                  @if($invoice->tax_inclusive)
+                  <div class="text-info"><small><i class="fas fa-info-circle me-1"></i>Tax inclusive</small></div>
+                  @endif
+                </div>
+                @endif
               </div>
               <div class="mb-2">
                 <strong>Created:</strong> {{ $invoice->created_at->format('M d, Y') }}

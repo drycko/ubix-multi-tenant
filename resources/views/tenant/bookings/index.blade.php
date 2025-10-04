@@ -96,8 +96,8 @@
         <form method="GET" action="{{ route('tenant.bookings.index') }}">
           <div class="row g-3">
             <div class="col-md-3">
-              <label for="guest_name" class="form-label">Guest Name</label>
-              <input type="text" name="guest_name" id="guest_name" class="form-control" value="{{ request('guest_name') }}" placeholder="Search by guest name">
+              <label for="search" class="form-label">Search</label>
+              <input type="text" name="search" id="search" class="form-control" value="{{ request('search') }}" placeholder="Search by booking code, package name or guest name...">
             </div>
             <div class="col-md-2">
               <label for="status" class="form-label">Status</label>

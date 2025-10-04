@@ -154,8 +154,8 @@
               <!--begin::Menu Footer-->
               <li class="user-footer">
 
-                <a hidden href="{{ route('tenant.settings') }}" class="btn btn-default btn-flat">Settings</a>
-                <a hidden href="#" class="btn btn-default btn-flat">Profile</a>
+                {{-- <a hidden href="{{ route('tenant.settings') }}" class="btn btn-default btn-flat">Settings</a> --}}
+                <a href="{{ route('tenant.users.profile') }}" class="btn btn-default btn-flat">Profile</a>
                 <a href="#" class="btn btn-default btn-flat float-end" data-bs-toggle="modal" data-bs-target="#logoutModal">Logout</a>
               </li>
               <!--end::Menu Footer-->
@@ -381,6 +381,7 @@
               </ul>
             </li>
             {{-- end guests --}}
+
             {{-- room management --}}
             <li class="nav-header">ROOM MANAGEMENT</li>
             <li class="nav-item {{ Request::is('rooms*') ? 'menu-open' : '' }}">
@@ -489,15 +490,73 @@
               </ul>
             </li>
             {{-- end room management --}}
+            {{-- financials --}}
+            <li class="nav-header">FINANCIALS</li>
+            {{-- invoices --}}
+            @can('view invoices')
+            <li class="nav-item">
+              <a class="nav-link {{ Request::is('booking-invoices*') ? 'active' : '' }}" href="{{ route('tenant.booking-invoices.index') }}">
+                <i class="nav-icon bi bi-receipt"></i>
+                <p>Invoices</p>
+              </a>
+            </li>
+            @endcan
+            {{-- Tax Management --}}
+            <li class="nav-item {{ Request::is('taxes*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('taxes*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-percent"></i>
+                <p>Tax Management
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('taxes') ? 'active' : '' }}" href="{{ route('tenant.taxes.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Taxes</p>
+                  </a>
+                </li>
+                @can('manage taxes')
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('taxes/create') ? 'active' : '' }}" href="{{ route('tenant.taxes.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Add Tax</p>
+                  </a>
+                </li>
+                @endcan
+              </ul>
+            </li>
+            {{-- end tax management --}}
+
             {{-- reports --}}
             <li class="nav-header">REPORTS</li>
-            <li class="nav-item">
+            <li class="nav-item {{ Request::is('reports*') ? 'menu-open' : '' }}">
               <a class="nav-link {{ Request::is('reports*') ? 'active' : '' }}" href="#">
                 <i class="nav-icon bi bi-bar-chart"></i>
                 <p>Reports
                   <i class="nav-arrow bi bi-chevron-right"></i>
                 </p>
               </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('reports/bookings') ? 'active' : '' }}" href="{{ route('tenant.reports.bookings') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Bookings Report</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('reports/occupancy') ? 'active' : '' }}" href="{{ route('tenant.reports.occupancy') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Occupancy Report</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('reports/financial') ? 'active' : '' }}" href="{{ route('tenant.reports.financial') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Financial Report</p>
+                  </a>
+                </li>
+              </ul>
             </li>
             <li class="nav-header">SYSTEM</li>
             {{-- Properties --}}
@@ -527,7 +586,61 @@
             @endcan
             {{-- Tenant settings only for super admins --}}
             @if (is_super_user())
-            <li class="nav-item">
+            {{-- users management --}}
+            <li class="nav-item {{ Request::is('users*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('users*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-people"></i>
+                <p>Users
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('users') ? 'active' : '' }}" href="{{ route('tenant.users.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Users</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('users/create') ? 'active' : '' }}" href="{{ route('tenant.users.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Add User</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            {{-- roles and permissions --}}
+            <li class="nav-item {{ Request::is('roles*') || Request::is('permissions*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('roles*') || Request::is('permissions*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-shield-lock"></i>
+                <p>Roles & Permissions
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('roles') ? 'active' : '' }}" href="{{ route('tenant.roles.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Roles</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('roles/create') ? 'active' : '' }}" href="{{ route('tenant.roles.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Add Role</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('permissions') ? 'active' : '' }}" href="{{ route('tenant.permissions.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Permissions</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            {{-- end users management --}}
+            {{-- settings --}}
+            <li hidden class="nav-item">
               <a class="nav-link {{ Request::is('settings*') ? 'active' : '' }}" href="{{ route('tenant.settings') }}">
                 <i class="nav-icon bi bi-gear"></i>
                 <p>Settings</p>
@@ -660,6 +773,10 @@
 
   {{-- adminlte js --}}
   <script src="{{ asset('vendor/admin-lte/dist/js/adminlte.min.js') }}"></script>
+  
+  {{-- Custom page scripts --}}
+  @stack('scripts')
+  
   <script>
     // Auto-show toasts
     document.addEventListener('DOMContentLoaded', function() {

@@ -63,6 +63,11 @@ class Property extends Model
         return $this->hasMany(Package::class);
     }
 
+    public function taxes(): HasMany
+    {
+        return $this->hasMany(Tax::class);
+    }
+
     public function country(): BelongsTo
     {
         return $this->belongsTo(Country::class, 'country', 'code');

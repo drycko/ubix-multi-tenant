@@ -290,12 +290,12 @@ $allowedWeekdays = array_map(fn($d) => $dayMap[$d] ?? strtoupper(substr($d,0,3))
               <div class="row text-center">
                 <div class="col-6">
                   <div class="border-end">
-                    <div class="h4 text-success mb-0">{{ $currency }} {{ number_format($package->pkg_base_price, 2) }}</div>
+                    <div class="h4 text-success mb-0">{{ $currency }} <span id="total-price">{{ number_format($package->pkg_base_price, 2) }}</span></div>
                     <small class="text-muted">Total Price</small>
                   </div>
                 </div>
                 <div class="col-6">
-                  <div class="h4 text-info mb-0">{{ $currency }} {{ number_format($package->pkg_base_price / $packageNights, 2) }}</div>
+                  <div class="h4 text-info mb-0">{{ $currency }} <span id="per-night">{{ number_format($package->pkg_base_price / $packageNights, 2) }}</span></div>
                   <small class="text-muted">Per Night</small>
                 </div>
               </div>
@@ -479,6 +479,14 @@ document.getElementById('room_id').addEventListener('change', function() {
   const rate = selectedOption.getAttribute('data-rate');
   if (rate && rate !== 'N/A') {
     document.getElementById('daily_rate').value = rate;
+    const isShared = document.getElementById('is_shared').value === '1';
+    const totalPriceElement = document.getElementById('total-price');
+    const perNightElement = document.getElementById('per-night');
+    const dailyRate = isShared ? selectedOption.getAttribute('data-shared-rate') : rate;
+    const totalPrice = dailyRate * packageNights;
+    totalPriceElement.textContent = parseFloat(totalPrice).toFixed(2);
+    perNightElement.textContent = parseFloat(totalPrice / packageNights).toFixed(2);
+    
   }
 });
 
@@ -498,13 +506,19 @@ document.getElementById('is_shared').addEventListener('change', function() {
   const isShared = this.value === '1';
   const roomSelect = document.getElementById('room_id');
   const selectedOption = roomSelect.options[roomSelect.selectedIndex];
-  
+  const totalPriceElement = document.getElementById('total-price');
+  const perNightElement = document.getElementById('per-night');
+
   if (selectedOption) {
     const dailyRate = selectedOption.getAttribute('data-rate');
     const sharedRate = selectedOption.getAttribute('data-shared-rate');
     
     if (dailyRate && sharedRate) {
       document.getElementById('daily_rate').value = isShared ? sharedRate : dailyRate;
+      const totalPrice = (isShared ? sharedRate : dailyRate) * packageNights;
+      totalPriceElement.textContent = parseFloat(totalPrice).toFixed(2);
+      perNightElement.textContent = parseFloat(totalPrice / packageNights).toFixed(2);
+
     }
   }
   

@@ -48,6 +48,9 @@ if (!function_exists('current_tenant_id')) {
     }
 }
 
+// super user will need to select a property to work with
+
+// Get the current property based on user role and session
 if (!function_exists('current_property')) {
     function current_property()
     {
@@ -95,6 +98,7 @@ if (!function_exists('property_name')) {
     function property_name()
     {
         $property = current_property();
+        // if property is null, return 'No Property Selected'
         return $property ? $property->name : 'No Property Selected';
     }
 }
@@ -111,7 +115,8 @@ if (!function_exists('property_currency')) {
     function property_currency()
     {
         $property = current_property();
-        return $property ? $property->currency : 'USD';
+        // if property is null, return tenant default currency or 'USD'
+        return $property ? $property->currency : (tenant() ? tenant()->currency : 'USD');
     }
 }
 

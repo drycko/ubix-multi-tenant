@@ -13,8 +13,9 @@ use App\Models\Tenant\BookingInvoice;
 use App\Models\Tenant\Package;
 use App\Models\Tenant\RoomType;
 use App\Traits\LogsTenantUserActivity;
+use App\Services\TaxCalculationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
-use PDF;
 
 class BookingController extends Controller
 {
@@ -29,6 +30,12 @@ class BookingController extends Controller
         if (!$propertyId && !is_super_user()) {
             $propertyId = auth()->user()->property_id;
         }
+        else {
+            // set context if super user is in super user mode but operating in a specific property
+            if (is_super_user() && current_property() != null) {
+                $propertyId = selected_property_id();
+            }
+        }
         
         // Build the query with filters
         $query = Booking::with(['room', 'guests', 'package']);
@@ -38,13 +45,27 @@ class BookingController extends Controller
             $query->where('property_id', $propertyId);
         }
 
-        // Apply additional filters from request
+        // Apply additional filters (booking code, package name or guest name) from request
         if ($request->has('search')) {
-            $query->where(function($q) use ($request) {
-                $q->where('name', 'like', "%{$request->get('search')}%")
-                  ->orWhere('number', 'like', "%{$request->get('search')}%");
+            $searchTerm = $request->get('search');
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('bcode', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('package', function($packageQuery) use ($searchTerm) {
+                      $packageQuery->where('name', 'like', "%{$searchTerm}%");
+                  })
+                  ->orWhereHas('guests', function($guestQuery) use ($searchTerm) {
+                      $guestQuery->whereHas('guest', function($gQuery) use ($searchTerm) {
+                          $gQuery->where('first_name', 'like', "%{$searchTerm}%")
+                                 ->orWhere('last_name', 'like', "%{$searchTerm}%")
+                                 ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$searchTerm}%"]);
+                      });
+                  });
             });
         }
+
+         // Apply other filters from request
+         // status, arrival_date_from, arrival_date_to, departure_date_from, departure_date_to
+         // we validate status to be one of the allowed values
 
         if ($request->has('status') && in_array($request->get('status'), ['pending', 'booked', 'confirmed', 'checked_in', 'checked_out', 'cancelled'])) {
             $query->where('status', $request->get('status'));
@@ -72,7 +93,7 @@ class BookingController extends Controller
         $packages = Package::where('property_id', selected_property_id())
             ->get();
 
-        $currency = current_property()->currency;
+        $currency = property_currency();
 
         return view('tenant.bookings.index', compact('bookings', 'currency', 'packages'));
     }
@@ -97,7 +118,7 @@ class BookingController extends Controller
             return $room->type->rates->isNotEmpty();
         });
 
-        $currency = current_property()->currency;
+        $currency = property_currency();
 
         $guests = Guest::where('property_id', $propertyId)
             ->get();
@@ -136,7 +157,7 @@ class BookingController extends Controller
             return $room->packages && $room->packages->contains($package);
         });
 
-        $currency = current_property()->currency;
+        $currency = property_currency();
 
         $allowedPackages = Package::where('property_id', $propertyId)
             ->get();
@@ -162,13 +183,42 @@ class BookingController extends Controller
         }
 
         // Eager load relationships needed for the PDF
-        $property = current_property();
-        $currency = $property->currency ?? 'USD';
         $booking->load(['room.type', 'package', 'bookingGuests.guest']);
-        $pdf = PDF::loadView('tenant.bookings.room-info-pdf', compact('booking', 'property', 'currency'));
+        $booking->count_adults = $booking->bookingGuests()->where('is_adult', true)->count();
+        $booking->count_children = $booking->bookingGuests()->where('is_adult', false)->count();
+        $property = current_property();
+        $currency = property_currency();
+
+        // Log the download activity
+        $this->logTenantActivity(
+            'download_room_info',
+            'Downloaded room information for booking: ' . $booking->bcode,
+            $booking,
+            [
+                'table' => 'bookings',
+                'id' => $booking->id,
+                'user_id' => auth()->id(),
+                'action' => 'download_room_info'
+            ]
+        );
+
+        // Generate PDF from Blade view
+        $pdf = Pdf::loadView('tenant.bookings.room-info-pdf', compact('booking', 'property', 'currency'));
+
+        // Configure PDF options
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->getDomPDF()->set_option("enable_php", true);
+        $pdf->getDomPDF()->set_option("enable_remote", true);
+        $pdf->getDomPDF()->set_option("enable_html5_parser", true);
+
+        // Generate a filename with timestamp to prevent caching
+        $filename = sprintf('room-info-booking-%s-%s.pdf', 
+            $booking->bcode,
+            now()->format('Y-m-d_His')
+        );
 
         // Return as download
-        return $pdf->download('room-info-booking-' . $booking->bcode . '.pdf');
+        return $pdf->download($filename);
     }
 
     /**
@@ -181,14 +231,23 @@ class BookingController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        // Eager load relationships needed for the email
-        $booking->load(['room.type', 'guests']);
-        $currency = current_property()->currency;
+        // Eager load relationships needed for the email/PDF
+        $booking->load(['room.type', 'package', 'bookingGuests.guest']);
+        $property = current_property();
+        $currency = property_currency();
 
         // Generate PDF from Blade view
-        $pdf = PDF::loadView('tenant.bookings.room-info-pdf', compact('booking', 'currency'));
+        $pdf = Pdf::loadView('tenant.bookings.room-info-pdf', compact('booking', 'property', 'currency'));
 
-        // Logic to send room information
+        // Configure PDF options
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->getDomPDF()->set_option("enable_php", true);
+        $pdf->getDomPDF()->set_option("enable_remote", true);
+        $pdf->getDomPDF()->set_option("enable_html5_parser", true);
+
+        // For now, let's return a view that shows the send form
+        // In a full implementation, this would integrate with your email system
+        return view('tenant.bookings.send-room-info', compact('booking', 'property', 'currency'));
     }
 
     /**
@@ -311,10 +370,21 @@ class BookingController extends Controller
             $invoice_number = $this->generateUniqueInvoiceNumber('0000001');
             $invoice_status = $booking_status == 'pending' ? 'paid' : 'pending';
 
+            // Calculate tax for the booking
+            $taxService = new TaxCalculationService();
+            $taxCalculation = $taxService->calculateTaxForInvoice($totalAmount);
+
             $booking_invoice = $booking->invoices()->create([
                 'property_id' => selected_property_id(),
                 'invoice_number' => $invoice_number,
-                'amount' => $totalAmount,
+                'amount' => $taxCalculation['total_amount'],
+                'subtotal_amount' => $taxCalculation['subtotal_amount'],
+                'tax_amount' => $taxCalculation['tax_amount'],
+                'tax_rate' => $taxCalculation['tax_rate'],
+                'tax_name' => $taxCalculation['tax_name'],
+                'tax_type' => $taxCalculation['tax_type'],
+                'tax_inclusive' => $taxCalculation['tax_inclusive'],
+                'tax_id' => $taxCalculation['tax_id'],
                 'status' => $invoice_status,
             ]);
             // if we reach here, we can commit the transaction and redirect to show new booking page
@@ -383,7 +453,7 @@ class BookingController extends Controller
 
         // get all guests related to this booking
         $booking->load(['room', 'guests', 'room.type']);
-        $currency = current_property()->currency;
+        $currency = property_currency();
 
         $primaryBkGuest = $booking->bookingGuests()->where('is_primary', true)->first(); // this is from booking_guests table now we want the guest details from guests table
         $primaryGuest = $primaryBkGuest ? $primaryBkGuest->guest : null;
@@ -443,7 +513,7 @@ class BookingController extends Controller
 
         $bookingStatuses = ['pending', 'booked', 'confirmed', 'checked_in', 'checked_out', 'cancelled'];
 
-        $currency = current_property()->currency;
+        $currency = property_currency();
         $bookingSources = ['website', 'walk_in', 'phone', 'agent', 'legacy', 'inhouse'];
 
         $arrivalDate = $booking->arrival_date->format('Y-m-d');
@@ -580,8 +650,19 @@ class BookingController extends Controller
             // Optionally update invoice amount/status if needed
             $invoice = $booking->invoices()->latest()->first();
             if ($invoice) {
+                // Calculate tax for the updated amount
+                $taxService = new TaxCalculationService();
+                $taxCalculation = $taxService->calculateTaxForInvoice($totalAmount);
+                
                 $invoice->update([
-                    'amount' => $totalAmount,
+                    'amount' => $taxCalculation['total_amount'],
+                    'subtotal_amount' => $taxCalculation['subtotal_amount'],
+                    'tax_amount' => $taxCalculation['tax_amount'],
+                    'tax_rate' => $taxCalculation['tax_rate'],
+                    'tax_name' => $taxCalculation['tax_name'],
+                    'tax_type' => $taxCalculation['tax_type'],
+                    'tax_inclusive' => $taxCalculation['tax_inclusive'],
+                    'tax_id' => $taxCalculation['tax_id'],
                     'status' => $validated['status'] == 'pending' ? 'paid' : 'pending',
                 ]);
             }
@@ -889,10 +970,22 @@ class BookingController extends Controller
                             // if it exists, we generate a new unique invoice number with a BookingInvoiceController method
                             $data['INVOICE_NO'] = $this->generateUniqueInvoiceNumber($data['INVOICE_NO']);
                         }
+                        
+                        // Calculate tax for the invoice
+                        $taxService = new TaxCalculationService();
+                        $taxCalculation = $taxService->calculateTaxForInvoice($total_amount);
+                        
                         $booking->invoices()->create([
                             'property_id' => selected_property_id(),
                             'invoice_number' => $data['INVOICE_NO'],
-                            'amount' => $total_amount,
+                            'amount' => $taxCalculation['total_amount'],
+                            'subtotal_amount' => $taxCalculation['subtotal_amount'],
+                            'tax_amount' => $taxCalculation['tax_amount'],
+                            'tax_rate' => $taxCalculation['tax_rate'],
+                            'tax_name' => $taxCalculation['tax_name'],
+                            'tax_type' => $taxCalculation['tax_type'],
+                            'tax_inclusive' => $taxCalculation['tax_inclusive'],
+                            'tax_id' => $taxCalculation['tax_id'],
                             'status' => $invoice_status,
                             'created_at' => $createdAt,
                             'updated_at' => now()->format('Y-m-d H:i:s'),

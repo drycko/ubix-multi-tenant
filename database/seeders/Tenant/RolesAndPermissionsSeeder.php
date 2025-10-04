@@ -67,6 +67,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'view invoices', 'create invoices', 'edit invoices', 'process payments',
             'issue refunds', 'view payment history',
 
+            // tax rates
+            // 'view tax rates', 'create tax rates', 'edit tax rates', 'delete tax rates',
+
             // admin single property
             'manage property integrations', 'manage property api keys', 'view property api usage',
             'manage property roles', 'manage property permissions', 'assign property roles',
@@ -76,7 +79,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage properties', 'view all properties', 'impersonate users', 'manage system settings',
             'view audit logs', 'manage subscription plans', 'manage subscriptions', 'view system reports',
             'delete users', 'delete properties', 'manage integrations', 'manage api keys', 'view api usage',
-            'manage roles', 'manage permissions', 'assign roles',
+            'manage roles', 'assign roles', 'view roles', 'manage permissions', 'view permissions', 'view users', 'create users', 'edit users',
 
             // activity logs
             'view activity logs', 'clear activity logs',

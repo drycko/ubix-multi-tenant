@@ -24,9 +24,19 @@ import 'summernote'; // Summernote JS
 // Import Select2 CSS
 import 'select2/dist/css/select2.css';
 
-// import my calendar js from public assets
+// import my calendar js from public assets only for booking pages
+
 import '../../public/assets/js/calendar.js';
 
+// import my roles js from public assets only for roles pages
+if (window.location.pathname.includes('/roles')) {
+    import('../../public/assets/js/roles.js');
+}
+
+// import my permissions js from public assets only for permissions pages
+if (window.location.pathname.includes('/permissions')) {
+    import('../../public/assets/js/permissions.js');
+}
 
 // Initialize everything when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -83,10 +93,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize both libraries
     initSelect2();
+    initSingleSelect2();
     // initSummernote();
     
     // Make functions available globally for re-initialization
     window.initSelect2 = initSelect2;
+    window.initSingleSelect2 = initSingleSelect2;
     // window.initSummernote = initSummernote;
     
     console.log('All JavaScript libraries initialized successfully');
@@ -96,3 +108,4 @@ document.addEventListener('DOMContentLoaded', function() {
 $(document).on('select2:open', () => {
     document.querySelector('.select2-container--open .select2-search__field').focus();
 });
+

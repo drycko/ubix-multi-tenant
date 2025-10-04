@@ -32,7 +32,7 @@
 		<!-- Property Selector -->
 		@include('tenant.components.property-selector')
 		<!-- Stats Cards -->
-		<div class="row mb-4">
+		<div class="row mb-3">
 			<div class="col-md-3 col-6">
 				<div class="small-box text-bg-success">
 					<div class="inner">
@@ -101,7 +101,7 @@
 	</div> --}}
 	
 	{{-- now we need to add quick links to create a new booking, view bookings, view rooms, and view guests --}}
-	<div class="row mb-4">
+	<div class="row mb-3">
 		<div class="col-md-3 mb-3">
 			<a href="{{ route('tenant.bookings.create') }}" class="btn btn-outline-success w-100 py-3">
 				<i class="fas fa-plus me-2"></i> New Booking

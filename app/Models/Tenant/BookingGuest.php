@@ -65,6 +65,11 @@ class BookingGuest extends Model
         return $this->belongsTo(Booking::class);
     }
 
+    // public function room(): BelongsTo
+    // {
+    //     return $this->booking->room() ?? null;
+    // }
+
     public function guest(): BelongsTo
     {
         return $this->belongsTo(Guest::class);

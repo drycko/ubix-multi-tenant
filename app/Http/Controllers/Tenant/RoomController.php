@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tenant;
 
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Room;
 use App\Models\Tenant\RoomType;
@@ -26,7 +27,7 @@ class RoomController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         // Get the property context
         $propertyId = $request->get('property_id');
