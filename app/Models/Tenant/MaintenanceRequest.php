@@ -4,6 +4,8 @@ namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\LogsTenantUserActivity;
 
@@ -17,7 +19,7 @@ class MaintenanceRequest extends Model
         'reported_by',
         'assigned_to',
         'request_number',
-        'category',
+        'category', // Changed from enum to string
         'priority',
         'status',
         'title',
@@ -49,10 +51,14 @@ class MaintenanceRequest extends Model
     // Constants
     public const CATEGORY_PLUMBING = 'plumbing';
     public const CATEGORY_ELECTRICAL = 'electrical';
+    public const CATEGORY_IT = 'IT';
     public const CATEGORY_HVAC = 'hvac';
     public const CATEGORY_FURNITURE = 'furniture';
     public const CATEGORY_APPLIANCE = 'appliance';
     public const CATEGORY_STRUCTURAL = 'structural';
+    public const CATEGORY_FLOORING = 'flooring';
+    public const CATEGORY_LANDSCAPING = 'landscaping';
+    public const CATEGORY_PEST_CONTROL = 'pest_control';
     public const CATEGORY_OTHER = 'other';
 
     public const PRIORITY_LOW = 'low';
@@ -66,6 +72,39 @@ class MaintenanceRequest extends Model
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_CANCELLED = 'cancelled';
     public const STATUS_ON_HOLD = 'on_hold';
+
+    // Supported Categories
+    const SUPPORTED_CATEGORIES = [
+        self::CATEGORY_PLUMBING,
+        self::CATEGORY_ELECTRICAL,
+        self::CATEGORY_IT,
+        self::CATEGORY_HVAC,
+        self::CATEGORY_FURNITURE,
+        self::CATEGORY_APPLIANCE,
+        self::CATEGORY_STRUCTURAL,
+        self::CATEGORY_FLOORING,
+        self::CATEGORY_LANDSCAPING,
+        self::CATEGORY_PEST_CONTROL,
+        self::CATEGORY_OTHER
+    ];
+
+    // Supported Priorities
+    const PRIORITY_OPTIONS = [
+        self::PRIORITY_LOW,
+        self::PRIORITY_NORMAL,
+        self::PRIORITY_HIGH,
+        self::PRIORITY_URGENT
+    ];
+
+    // Supported Statuses
+    const STATUS_OPTIONS = [
+        self::STATUS_PENDING,
+        self::STATUS_ASSIGNED,
+        self::STATUS_IN_PROGRESS,
+        self::STATUS_COMPLETED,
+        self::STATUS_CANCELLED,
+        self::STATUS_ON_HOLD
+    ];
 
     // Relationships
     public function room(): BelongsTo
@@ -86,6 +125,17 @@ class MaintenanceRequest extends Model
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function maintenanceTasks(): HasMany
+    {
+        return $this->hasMany(MaintenanceTask::class);
+    }
+
+    public function workLogs(): HasManyThrough
+    {
+        return $this->hasManyThrough(StaffHour::class, MaintenanceTask::class, 'maintenance_request_id', 'task_id')
+                   ->where('staff_hours.task_type', MaintenanceTask::class);
     }
 
     // Scopes

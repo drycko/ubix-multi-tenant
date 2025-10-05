@@ -255,8 +255,10 @@ class RoomStatusController extends Controller
      */
     public function inspect(Request $request, string $id)
     {
+        \Log::info("Inspecting room status ID: {$id} passed=" . ($request->passed ? 'true' : 'false')); // i see passed val is coming correctly
+
         $request->validate([
-            'passed' => 'required|boolean',
+            'passed' => 'required|in:true,false,1,0,"true","false","1","0"',
             'inspection_notes' => 'nullable|string|max:1000'
         ]);
 
@@ -269,13 +271,16 @@ class RoomStatusController extends Controller
             ], 400);
         }
 
+        // Convert passed value to boolean
+        $passed = filter_var($request->passed, FILTER_VALIDATE_BOOLEAN);
+
         $updates = [
             'inspected_by' => Auth::id(),
             'inspected_at' => now(),
             'notes' => $request->inspection_notes
         ];
 
-        if ($request->passed) {
+        if ($passed) {
             $updates['housekeeping_status'] = RoomStatus::HOUSEKEEPING_INSPECTED;
             $updates['status'] = RoomStatus::STATUS_INSPECTED;
         } else {
@@ -292,11 +297,11 @@ class RoomStatusController extends Controller
 
         $this->logTenantActivity('inspect_room', 'Inspected room', $roomStatus, [
             'room_id' => $roomStatus->room_id,
-            'passed' => $request->passed,
+            'passed' => $passed,
             'inspection_notes' => $request->inspection_notes
         ]);
 
-        $message = $request->passed ? 
+        $message = $passed ? 
                   'Room passed inspection' : 
                   'Room failed inspection and has been reset';
 

@@ -9,6 +9,11 @@ if (!function_exists('current_tenant')) {
     {
         // Use the tenancy() helper from Stancl package
         if (tenancy()->initialized) {
+            // Get the current tenant
+            // bypass APP_TIMEZONE with tenant timezone if set
+            if (tenant() && tenant()->timezone) {
+                date_default_timezone_set(tenant()->timezone);
+            }
             return tenant();
         }
 

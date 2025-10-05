@@ -400,6 +400,12 @@ Route::middleware([
         // Maintenance Management Routes
         Route::prefix('maintenance')->name('tenant.maintenance.')->group(function () {
             Route::get('/', [MaintenanceController::class, 'index'])->name('index');
+            Route::get('/dashboard', [MaintenanceController::class, 'dashboard'])->name('dashboard');
+            Route::get('/tasks', [MaintenanceController::class, 'tasks'])->name('tasks');
+            Route::post('/tasks', [MaintenanceController::class, 'createTask'])->name('create-task');
+            Route::get('/tasks/{task}', [MaintenanceController::class, 'getTask'])->name('get-task');
+            Route::post('/tasks/{task}', [MaintenanceController::class, 'updateTask'])->name('update-task');
+            Route::post('/tasks/{task}/update-status', [MaintenanceController::class, 'updateTaskStatus'])->name('update-task-status');
             Route::get('/create', [MaintenanceController::class, 'create'])->name('create');
             Route::post('/', [MaintenanceController::class, 'store'])->name('store');
             Route::get('/{maintenance}', [MaintenanceController::class, 'show'])->name('show');
@@ -413,6 +419,7 @@ Route::middleware([
             Route::post('/{maintenance}/hold', [MaintenanceController::class, 'hold'])->name('hold');
             Route::patch('/{maintenance}/update-status', [MaintenanceController::class, 'updateStatus'])->name('update-status');
             Route::post('/{maintenance}/add-work-log', [MaintenanceController::class, 'addWorkLog'])->name('add-work-log');
+            Route::get('/{maintenance}/print', [MaintenanceController::class, 'print'])->name('print');
         });
 
         // Cleaning Schedule & Checklists Management Routes
@@ -429,6 +436,7 @@ Route::middleware([
             Route::post('/update-order', [CleaningScheduleController::class, 'updateOrder'])->name('update-order');
             Route::post('/{checklist}/duplicate', [CleaningScheduleController::class, 'duplicate'])->name('duplicate');
             Route::post('/load-defaults', [CleaningScheduleController::class, 'loadDefaults'])->name('load-defaults');
+            Route::get('/{checklist}/print', [CleaningScheduleController::class, 'print'])->name('print');
         });
     });
 });

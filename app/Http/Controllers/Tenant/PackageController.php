@@ -216,7 +216,7 @@ class PackageController extends Controller
             // Handle image upload to Google Cloud Storage if in production
             if ($request->hasFile('pkg_image') && config('app.env') === 'production') {
                 $file = $request->file('pkg_image');
-                $gcsPath = 'tenant' . $tenant_id . '/package_images/' . uniqid() . '_' . $file->getClientOriginalName();
+                $gcsPath = 'tenant' . $tenant_id . '/package-images/' . uniqid() . '_' . $file->getClientOriginalName();
                 $stream = fopen($file->getRealPath(), 'r');
                 Storage::disk('gcs')->put($gcsPath, $stream);
                 fclose($stream);
@@ -226,7 +226,7 @@ class PackageController extends Controller
                 // If not in production, handle local storage (optional)
                 $file = $request->file('pkg_image');
                 // tenant already stores the files in tenant specific folder like (storage\tenant1\app\public\package_images) we need to adjust the path on show and index methods or blades accordingly
-                $imagePath = $file->store('package_images', 'public');
+                $imagePath = $file->store('package-images', 'public');
             }
 
             // Sanitize HTML input

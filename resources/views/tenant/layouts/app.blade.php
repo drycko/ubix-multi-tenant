@@ -550,15 +550,27 @@
               </a>
               <ul class="nav nav-treeview">
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('maintenance') ? 'active' : '' }}" href="{{ route('tenant.maintenance.index') }}">
-                    <i class="bi bi-circle nav-icon"></i>
+                  <a class="nav-link {{ Request::is('maintenance/dashboard') ? 'active' : '' }}" href="{{ route('tenant.maintenance.dashboard') }}">
+                    <i class="bi bi-speedometer2 nav-icon"></i>
+                    <p>Dashboard</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('maintenance') && !Request::is('maintenance/*') ? 'active' : '' }}" href="{{ route('tenant.maintenance.index') }}">
+                    <i class="bi bi-list-ul nav-icon"></i>
                     <p>All Requests</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('maintenance/tasks') ? 'active' : '' }}" href="{{ route('tenant.maintenance.tasks') }}">
+                    <i class="bi bi-list-task nav-icon"></i>
+                    <p>Manage Tasks</p>
                   </a>
                 </li>
                 @can('create maintenance requests')
                 <li class="nav-item">
                   <a class="nav-link {{ Request::is('maintenance/create') ? 'active' : '' }}" href="{{ route('tenant.maintenance.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
+                    <i class="bi bi-plus-circle nav-icon"></i>
                     <p>Create Request</p>
                   </a>
                 </li>

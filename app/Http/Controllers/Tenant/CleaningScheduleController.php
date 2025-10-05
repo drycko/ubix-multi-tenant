@@ -494,4 +494,19 @@ class CleaningScheduleController extends Controller
         return redirect()->route('tenant.cleaning-schedule.index')
                         ->with('success', "Cleaning checklist '{$checklistName}' deleted successfully.");
     }
+
+    /**
+     * Print view of the cleaning checklist.
+     */
+    public function print(string $id)
+    {
+        $checklist = CleaningChecklist::with([
+            'property', 
+            'roomType'
+        ])->findOrFail($id);
+        
+        $property = current_property();
+
+        return view('tenant.cleaning-schedule.print', compact('checklist', 'property'));
+    }
 }

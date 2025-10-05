@@ -90,3 +90,20 @@ $('#photoModal').on('show.bs.modal', function (event) {
     const photo = button.data('photo');
     $('#modalPhoto').attr('src', photo);
 });
+// Status update
+function updateStatus(status) {
+    if (confirm(`Are you sure you want to change the status to "${status.replace('_', ' ')}"?`)) {
+        $.post(`{{ route('tenant.maintenance.update-status', $maintenanceRequest) }}`, {
+            status: status,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        }, function(data) {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to update status. Please try again.');
+            }
+        }).fail(function() {
+            alert('An error occurred. Please try again.');
+        });
+    }
+}

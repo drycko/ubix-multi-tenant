@@ -150,7 +150,7 @@
                                  data-room-status-id="{{ $roomStatus->id }}" 
                                  style="cursor: pointer;">
                               <div class="card-body text-center p-3">
-                                <div class="room-number h5 mb-1">{{ $roomStatus->room->number }}</div>
+                                <div class="room-number h5 mb-1 text-muted">{{ $roomStatus->room->number }}</div>
                                 <div class="room-type text-xs text-muted mb-2">{{ $roomStatus->room->type->name }}</div>
                                 
                                 <!-- Status Badges -->
@@ -242,9 +242,6 @@
 @include('tenant.room-status.modals.complete-work')
 @include('tenant.room-status.modals.inspect-room')
 
-@endsection
-
-@push('styles')
 <style>
 .room-status-card {
     transition: all 0.2s ease;
@@ -273,4 +270,4 @@
     margin-top: 0.25rem;
 }
 </style>
-@endpush
+@endsection

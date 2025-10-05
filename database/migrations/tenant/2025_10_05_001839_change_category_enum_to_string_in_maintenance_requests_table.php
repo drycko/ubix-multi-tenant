@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('maintenance_requests', function (Blueprint $table) {
+            // Change category from enum to string with default 'other'
+            $table->string('category')->default('other')->change();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('maintenance_requests', function (Blueprint $table) {
+            // Revert category back to enum
+            $table->enum('category', ['plumbing', 'electrical', 'hvac', 'furniture', 'appliance', 'structural', 'other'])->default('other')->change();
+        });
+    }
+};

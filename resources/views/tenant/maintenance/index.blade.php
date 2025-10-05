@@ -10,7 +10,7 @@
     <!--begin::Row-->
     <div class="row">
       <div class="col-sm-6">
-        <h3 class="mb-0">Maintenance Requests</h3>
+        <h3 class="mb-0 text-muted">Maintenance Requests</h3>
       </div>
       <div class="col-sm-6">
         <ol class="breadcrumb float-sm-end">
@@ -30,7 +30,7 @@
 <div class="app-content">
   <!--begin::Container-->
   <div class="container-fluid">
-
+    
     <!-- Property Selector -->
     @include('tenant.components.property-selector')
     
@@ -45,6 +45,16 @@
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
       {{ session('error') }}
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
+
+    @if($errors->any())
+    <div class="alert alert-danger">
+      <ul class="mb-0">
+        @foreach($errors->all() as $error)
+        <li>{{ $error }}</li>
+        @endforeach
+      </ul>
     </div>
     @endif
 
@@ -293,9 +303,17 @@
               </tbody>
             </table>
           </div>
-          <div class="card-footer">
-            {{ $maintenanceRequests->links() }}
+          {{-- Pagination links --}}
+          {{-- Beautiful pagination --}}
+          @if($maintenanceRequests->hasPages())
+          <div class="container-fluid py-3">
+              <div class="row align-items-center">
+                  <div class="col-md-12 float-end">
+                      {{ $maintenanceRequests->links('vendor.pagination.bootstrap-5') }}
+                  </div>
+              </div>
           </div>
+          @endif
         </div>
       </div>
     </div>

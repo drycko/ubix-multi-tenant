@@ -104,7 +104,7 @@ function populateRoomDetailsModal(data) {
     
     // Assignment information
     if (roomStatus.assigned_to) {
-        $('#modal-assigned-staff').text(roomStatus.assignedTo ? roomStatus.assignedTo.name : 'Unknown Staff');
+        $('#modal-assigned-staff').text(roomStatus.assigned_to ? roomStatus.assigned_to.name : 'Unknown Staff');
         $('#modal-assigned-at').text(formatDateTime(roomStatus.assigned_at));
     } else {
         $('#modal-assigned-staff').text('Not assigned');
@@ -118,7 +118,8 @@ function populateRoomDetailsModal(data) {
     
     // Inspector information
     if (roomStatus.inspected_by) {
-        $('#modal-inspected-by').text(roomStatus.inspectedBy ? roomStatus.inspectedBy.name : 'Unknown Inspector');
+        console.log('Inspector data:', roomStatus.inspected_by); // Debugging line
+        $('#modal-inspected-by').text(roomStatus.inspected_by.name);
     } else {
         $('#modal-inspected-by').text('-');
     }

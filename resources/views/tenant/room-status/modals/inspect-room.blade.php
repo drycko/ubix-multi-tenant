@@ -19,6 +19,7 @@
                 <i class="bi bi-check-circle"></i> <strong>Passed</strong> - Room meets standards
               </label>
             </div>
+
             <div class="form-check">
               <input class="form-check-input" type="radio" name="passed" id="inspection_failed" value="0" required>
               <label class="form-check-label text-danger" for="inspection_failed">
@@ -59,28 +60,43 @@ document.getElementById('inspectRoomForm').addEventListener('submit', function(e
         alert('Please select an inspection result');
         return;
     }
-    
-    fetch(`/room-status/${roomStatusId}/inspect`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({
-            passed: passed.value === '1',
-            inspection_notes: inspectionNotes
-        })
+    // log the values to verify
+    console.log('Inspecting room status ID:', roomStatusId, 'Passed:', passed.value, 'Notes:', inspectionNotes);
+    const passedValue = passed.value == '1' ? true : false;
+    // Use jQuery $.post like the working complete function
+    $.post(`/room-status/${roomStatusId}/inspect`, {
+        passed: passedValue,
+        inspection_notes: inspectionNotes,
+        _token: $('meta[name="csrf-token"]').attr('content')
     })
-    .then(response => response.json())
-    .then(data => {
+    .done(function(data) {
         if (data.success) {
             location.reload();
         } else {
-            alert(data.message);
+            alert(data.message || 'Inspection failed');
         }
     })
-    .catch(error => {
-        alert('An error occurred. Please try again.');
+    .fail(function(xhr, status, error) {
+        console.error('Inspection failed:', {
+            status: xhr.status,
+            statusText: xhr.statusText,
+            responseText: xhr.responseText,
+            error: error
+        });
+
+        let errorMessage = 'An error occurred. Please try again.';
+
+        if (xhr.responseJSON && xhr.responseJSON.message) {
+            errorMessage = xhr.responseJSON.message;
+        } else if (xhr.status === 422) {
+            errorMessage = 'Validation error: Please check your input.';
+        } else if (xhr.status === 404) {
+            errorMessage = 'Room not found.';
+        } else if (xhr.status === 500) {
+            errorMessage = 'Server error occurred.';
+        }
+
+        alert(errorMessage);
     });
 });
 </script>

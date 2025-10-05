@@ -180,11 +180,11 @@ body {
   pointer-events: auto !important;
 }
 
-.property-selector .dropdown-menu .dropdown-item:hover,
+/* .property-selector .dropdown-menu .dropdown-item:hover,
 .property-selector .dropdown-menu .dropdown-item:focus {
   background-color: var(--bs-dropdown-link-hover-bg) !important;
   color: var(--bs-dropdown-link-hover-color) !important;
-}
+} */
 
 /* Dark mode dropdown styling */
 [data-bs-theme="dark"] .property-selector .dropdown-menu {

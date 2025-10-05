@@ -205,6 +205,9 @@
               <a href="{{ route('tenant.cleaning-schedule.duplicate', $checklist) }}" class="btn btn-outline-secondary">
                 <i class="bi bi-copy"></i> Duplicate Checklist
               </a>
+              <button type="button" class="btn btn-outline-info" onclick="printCleaningSchedule({{ $checklist->id }})">
+                <i class="bi bi-printer"></i> Print Checklist
+              </button>
               <button type="button" class="btn btn-outline-danger" onclick="confirmDelete()">
                 <i class="bi bi-trash"></i> Delete Checklist
               </button>
@@ -278,6 +281,21 @@
 
 @push('scripts')
 <script>
+function printCleaningSchedule(checklistId) {
+    // Open print-optimized view in new window
+    const printUrl = `{{ route('tenant.cleaning-schedule.print', ['checklist' => '__ID__']) }}`.replace('__ID__', checklistId);
+    const printWindow = window.open(printUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    
+    // Auto-print when window loads
+    if (printWindow) {
+        printWindow.addEventListener('load', function() {
+            setTimeout(function() {
+                printWindow.print();
+            }, 500);
+        });
+    }
+}
+
 function confirmDelete() {
   const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
   modal.show();

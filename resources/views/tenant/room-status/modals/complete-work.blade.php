@@ -37,27 +37,50 @@ document.getElementById('completeWorkForm').addEventListener('submit', function(
     
     const roomStatusId = this.querySelector('input[name="room_status_id"]').value;
     const completionNotes = this.querySelector('textarea[name="completion_notes"]').value;
-    
-    fetch(`/room-status/${roomStatusId}/complete`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({
-            completion_notes: completionNotes
-        })
+
+    if (!roomStatusId) {
+        alert('Room status ID is missing.');
+        return;
+    }
+
+    console.log('Completing work for room status ID:', roomStatusId, 'with notes:', completionNotes);
+
+    // Use jQuery $.post like the working complete function
+    $.post(`/room-status/${roomStatusId}/complete`, {
+        completion_notes: completionNotes,
+        _token: $('meta[name="csrf-token"]').attr('content')
     })
-    .then(response => response.json())
-    .then(data => {
+    .done(function(data) {
+        console.log('Completion response:', data);
+
         if (data.success) {
             location.reload();
         } else {
-            alert(data.message);
+            alert(data.message || 'Completion failed');
         }
     })
-    .catch(error => {
-        alert('An error occurred. Please try again.');
+    .fail(function(xhr, status, error) {
+        console.error('Completion failed:', {
+            status: xhr.status,
+            statusText: xhr.statusText,
+            responseText: xhr.responseText,
+            error: error
+        });
+
+        let errorMessage = 'An error occurred. Please try again.';
+
+        if (xhr.responseJSON && xhr.responseJSON.message) {
+            errorMessage = xhr.responseJSON.message;
+        } else if (xhr.status === 422) {
+            errorMessage = 'Validation error: Please check your input.';
+        } else if (xhr.status === 404) {
+            errorMessage = 'Room not found.';
+        } else if (xhr.status === 500) {
+            errorMessage = 'Server error occurred.';
+        }
+
+        alert(errorMessage);
     });
 });
+
 </script>

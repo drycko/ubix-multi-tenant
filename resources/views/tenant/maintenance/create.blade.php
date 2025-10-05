@@ -10,7 +10,7 @@
     <!--begin::Row-->
     <div class="row">
       <div class="col-sm-6">
-        <h3 class="mb-0">Create Maintenance Request</h3>
+        <h3 class="mb-0 text-muted">Create Maintenance Request</h3>
       </div>
       <div class="col-sm-6">
         <ol class="breadcrumb float-sm-end">
@@ -30,17 +30,31 @@
 <div class="app-content">
   <!--begin::Container-->
   <div class="container-fluid">
-
-    {{-- Validation Errors --}}
-    @if($errors->any())
+    
+    <!-- Property Selector -->
+    @include('tenant.components.property-selector')
+    
+    {{-- Success/Error Messages --}}
+    @if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+      {{ session('success') }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
+    @if(session('error'))
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-      <strong>Please fix the following errors:</strong>
+      {{ session('error') }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
+
+    @if($errors->any())
+    <div class="alert alert-danger">
       <ul class="mb-0">
         @foreach($errors->all() as $error)
         <li>{{ $error }}</li>
         @endforeach
       </ul>
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     @endif
 
@@ -91,15 +105,11 @@
                     <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
                     <select name="category" id="category" class="form-select" required>
                       <option value="">Select Category</option>
-                      <option value="plumbing" {{ old('category') == 'plumbing' ? 'selected' : '' }}>Plumbing</option>
-                      <option value="electrical" {{ old('category') == 'electrical' ? 'selected' : '' }}>Electrical</option>
-                      <option value="hvac" {{ old('category') == 'hvac' ? 'selected' : '' }}>HVAC</option>
-                      <option value="appliance" {{ old('category') == 'appliance' ? 'selected' : '' }}>Appliances</option>
-                      <option value="furniture" {{ old('category') == 'furniture' ? 'selected' : '' }}>Furniture</option>
-                      <option value="paint" {{ old('category') == 'paint' ? 'selected' : '' }}>Paint/Walls</option>
-                      <option value="flooring" {{ old('category') == 'flooring' ? 'selected' : '' }}>Flooring</option>
-                      <option value="security" {{ old('category') == 'security' ? 'selected' : '' }}>Security</option>
-                      <option value="other" {{ old('category') == 'other' ? 'selected' : '' }}>Other</option>
+                      @foreach($categories as $category)
+                      <option value="{{ $category }}" {{ old('category') == $category ? 'selected' : '' }}>
+                        {{ ucwords(str_replace('_', ' ', $category)) }}
+                      </option>
+                      @endforeach
                     </select>
                   </div>
                 </div>
@@ -108,10 +118,11 @@
                     <label for="priority" class="form-label">Priority <span class="text-danger">*</span></label>
                     <select name="priority" id="priority" class="form-select" required>
                       <option value="">Select Priority</option>
-                      <option value="low" {{ old('priority') == 'low' ? 'selected' : '' }}>Low</option>
-                      <option value="normal" {{ old('priority', 'normal') == 'normal' ? 'selected' : '' }}>Normal</option>
-                      <option value="high" {{ old('priority') == 'high' ? 'selected' : '' }}>High</option>
-                      <option value="urgent" {{ old('priority') == 'urgent' ? 'selected' : '' }}>Urgent</option>
+                      @foreach($priorities as $priority)
+                      <option value="{{ $priority }}" {{ old('priority') == $priority ? 'selected' : '' }}>
+                        {{ ucwords(str_replace('_', ' ', $priority)) }}
+                      </option>
+                      @endforeach
                     </select>
                   </div>
                 </div>
@@ -131,26 +142,13 @@
               </div>
 
               <div class="mb-3">
-                <label for="location" class="form-label">Specific Location</label>
-                <input type="text" name="location" id="location" class="form-control" 
-                       value="{{ old('location') }}" 
+                <label for="location_details" class="form-label">Specific Location</label>
+                <input type="text" name="location_details" id="location_details" class="form-control" 
+                       value="{{ old('location_details') }}" 
                        placeholder="e.g., Bathroom sink, Living room ceiling, Kitchen refrigerator">
               </div>
 
               <div class="row">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="reported_by" class="form-label">Reported By</label>
-                    <select name="reported_by" id="reported_by" class="form-select">
-                      <option value="">Select Reporter (Optional)</option>
-                      @foreach($allUsers as $staff)
-                      <option value="{{ $staff->id }}" {{ old('reported_by', auth()->id()) == $staff->id ? 'selected' : '' }}>
-                        {{ $staff->name }}
-                      </option>
-                      @endforeach
-                    </select>
-                  </div>
-                </div>
                 <div class="col-md-6">
                   <div class="mb-3">
                     <label for="assigned_to" class="form-label">Assign To</label>
@@ -164,6 +162,7 @@
                     </select>
                   </div>
                 </div>
+                <div class="col-md-6"></div>
               </div>
 
               <div class="mb-3">
@@ -187,29 +186,19 @@
                 </div>
                 <div class="col-md-6">
                   <div class="mb-3">
-                    <label for="due_date" class="form-label">Due Date</label>
-                    <input type="date" name="due_date" id="due_date" class="form-control" 
-                           value="{{ old('due_date') }}">
+                    <label for="scheduled_for" class="form-label">Scheduled For</label>
+                    <input type="datetime-local" name="scheduled_for" id="scheduled_for" class="form-control" 
+                           value="{{ old('scheduled_for') }}">
                   </div>
                 </div>
               </div>
 
               <div class="mb-3">
                 <div class="form-check">
-                  <input type="checkbox" name="requires_contractor" id="requires_contractor" 
-                         class="form-check-input" value="1" {{ old('requires_contractor') ? 'checked' : '' }}>
-                  <label class="form-check-label" for="requires_contractor">
-                    Requires External Contractor
-                  </label>
-                </div>
-              </div>
-
-              <div class="mb-3">
-                <div class="form-check">
-                  <input type="checkbox" name="affects_guest_experience" id="affects_guest_experience" 
-                         class="form-check-input" value="1" {{ old('affects_guest_experience') ? 'checked' : '' }}>
-                  <label class="form-check-label" for="affects_guest_experience">
-                    Affects Guest Experience
+                  <input type="checkbox" name="requires_room_closure" id="requires_room_closure" 
+                         class="form-check-input" value="1" {{ old('requires_room_closure') ? 'checked' : '' }}>
+                  <label class="form-check-label" for="requires_room_closure">
+                    Requires Room Closure
                   </label>
                 </div>
               </div>
