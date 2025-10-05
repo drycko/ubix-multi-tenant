@@ -231,7 +231,7 @@
           <div class="card mt-3">
             <div class="card-body">
               <div class="d-grid gap-2">
-                <button type="reset" class="btn btn-outline-warning me-2">
+                <button type="reset" class="btn btn-outline-warning ">
                   <i class="fas fa-undo me-1"></i>Reset
                 </button>
                 <button type="submit" class="btn btn-success">

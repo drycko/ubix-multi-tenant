@@ -18,11 +18,18 @@ class User extends Authenticatable
         'super-user',
         'super-manager',
         'property-admin',
-        'support',
         'manager',
-        'receptionist',
-        'housekeeping',
         'accountant',
+        'support',
+        'receptionist',
+        'cashier',
+        'security',
+        'waiter',
+        'chef',
+        'kitchen-staff',
+        'butler',
+        'maintenance',
+        'housekeeping',
         'guest'
     ];
 

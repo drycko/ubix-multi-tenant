@@ -4,9 +4,9 @@
 
 $(document).ready(function() {
     // Initialize tooltips
-    if ($('[title]').length) {
-        $('[title]').tooltip();
-    }
+    // if ($('[title]').length) {
+    //     $('[title]').tooltip();
+    // }
 
     // Auto-hide alerts after 5 seconds
     setTimeout(function() {

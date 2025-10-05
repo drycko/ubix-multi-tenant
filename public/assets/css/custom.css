@@ -71,6 +71,165 @@ body {
   transform: scale(1.02);
 }
 
+/* dropdown-menu should be above everything */
+.dropdown-menu {
+  z-index: 1050 !important; /* Ensure dropdowns appear above other elements */
+}
+
+/* Going to use this in place of .card.border-success */
+.card-border-success {
+  border: 1px solid #198754 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175) !important;
+  padding: 8px !important;
+  background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+/* card-border-success content style to respond to theme change from light to dark */
+/* .card-border-success .card-body {
+  background-color: rgba(25, 135, 84, 0.1) !important;
+  color: #198754 !important;
+}
+[data-bs-theme="dark"] .card-border-success {
+  border: 1px solid #198754 !important;
+  background-color: rgba(25, 135, 84, 0.2) !important;
+  color: #d1e7dd !important;
+} */
+/* Property Selector Specific Fixes */
+.property-selector .dropdown-menu {
+  z-index: 10050 !important; /* Much higher z-index for property selector */
+  position: absolute !important;
+  will-change: transform !important;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175) !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Ensure property selector dropdown button container has proper positioning */
+.property-selector .dropdown {
+  position: relative !important;
+  z-index: 1000 !important;
+}
+
+/* When dropdown is open, increase z-index of entire property selector component */
+.property-selector .dropdown.show {
+  z-index: 9998 !important;
+}
+
+/* Property selector card should have lower z-index when dropdown is open */
+.property-selector .card {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Override any conflicting z-index from other components */
+.card.border-success {
+  z-index: auto !important;
+}
+
+/* Disable mouse interactions on other cards when dropdown is open */
+.dropdown-overlay-active .card:not(.property-selector .card) {
+  pointer-events: none !important;
+  opacity: 0.7 !important;
+  transition: opacity 0.2s ease !important;
+}
+
+/* Disable hover effects on cards when dropdown is active */
+.dropdown-overlay-active .card:not(.property-selector .card):hover {
+  transform: none !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+}
+
+/* Disable metric card hover effects when dropdown is active */
+.dropdown-overlay-active .metric-card:hover {
+  transform: none !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+}
+
+/* Disable small-box hover effects when dropdown is active */
+.dropdown-overlay-active .small-box:hover {
+  transform: none !important;
+}
+
+/* Enhanced dropdown overlay controls - CSS only approach */
+.dropdown-overlay-active .card:not(.property-selector .card),
+.dropdown-overlay-active .info-box:not(.property-selector *),
+.dropdown-overlay-active .small-box:not(.property-selector *),
+.dropdown-overlay-active .nav-link:not(.property-selector *),
+.dropdown-overlay-active .btn:not(.property-selector *) {
+  pointer-events: none !important;
+  opacity: 0.7 !important;
+  user-select: none !important;
+  transition: opacity 0.2s ease !important;
+}
+
+/* Disable hover effects when dropdown overlay is active */
+.dropdown-overlay-active .card:not(.property-selector .card):hover,
+.dropdown-overlay-active .info-box:not(.property-selector *):hover,
+.dropdown-overlay-active .small-box:not(.property-selector *):hover,
+.dropdown-overlay-active .metric-card:not(.property-selector *):hover {
+  transform: none !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+}
+
+/* Ensure dropdown items are clickable */
+.property-selector .dropdown-menu .dropdown-item {
+  position: relative !important;
+  z-index: 10051 !important;
+  background-color: transparent !important;
+  transition: background-color 0.15s ease-in-out !important;
+  pointer-events: auto !important;
+}
+
+.property-selector .dropdown-menu .dropdown-item:hover,
+.property-selector .dropdown-menu .dropdown-item:focus {
+  background-color: var(--bs-dropdown-link-hover-bg) !important;
+  color: var(--bs-dropdown-link-hover-color) !important;
+}
+
+/* Dark mode dropdown styling */
+[data-bs-theme="dark"] .property-selector .dropdown-menu {
+  background-color: var(--bs-dark) !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+/* Bootstrap 5 dropdown menu positioning fix */
+.dropdown-menu[data-bs-popper] {
+  z-index: 9999 !important;
+}
+
+/* Prevent other cards from overlapping */
+.card {
+  position: relative !important;
+}
+
+.card:not(.property-selector .card) {
+  z-index: 1 !important;
+}
+
+/* Additional global dropdown fixes */
+.dropdown-menu {
+  min-width: 200px !important;
+}
+
+/* Fix for modals and dropdowns */
+.modal {
+  z-index: 1055 !important;
+}
+
+.modal-backdrop {
+  z-index: 1054 !important;
+}
+
+/* Tooltip z-index */
+.tooltip {
+  z-index: 1070 !important;
+}
+
+/* Popover z-index */
+.popover {
+  z-index: 1070 !important;
+}
+
 /* button tooltip styles */
 .btn[tooltip] {
   position: relative;
@@ -215,6 +374,15 @@ body {
 /* Room Selection Styles */
 .card-body .room-selection {
   max-height: 300px; /* Set a max height */
+  overflow-y: auto; /* Enable vertical scrolling */
+  border: 1px solid #ced4da; /* Border to match form controls */
+  border-radius: 0.375rem; /* Rounded corners */
+  padding: 10px; /* Padding for better spacing */
+}
+
+/* make any card body scrollable */
+.card-body .scrollable-content {
+  max-height: 500px; /* Set a max height */
   overflow-y: auto; /* Enable vertical scrolling */
   border: 1px solid #ced4da; /* Border to match form controls */
   border-radius: 0.375rem; /* Rounded corners */
@@ -487,4 +655,44 @@ trix-editor .attachment {
     padding: 0.25rem 0.375rem !important;
     font-size: 0.75rem !important;
   }
+}
+
+/* timeline */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -25px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+
+.timeline-content h6 {
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+.timeline-content p {
+    margin-bottom: 0;
 }

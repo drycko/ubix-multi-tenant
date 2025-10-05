@@ -490,6 +490,117 @@
               </ul>
             </li>
             {{-- end room management --}}
+
+            {{-- housekeeping --}}
+            <li class="nav-header">HOUSEKEEPING</li>
+            @can('view housekeeping')
+            <li class="nav-item {{ Request::is('housekeeping*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('housekeeping*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-house-check"></i>
+                <p>Housekeeping
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('housekeeping') ? 'active' : '' }}" href="{{ route('tenant.housekeeping.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Dashboard</p>
+                  </a>
+                </li>
+                @can('create housekeeping tasks')
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('housekeeping/create') ? 'active' : '' }}" href="{{ route('tenant.housekeeping.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Create Task</p>
+                  </a>
+                </li>
+                @endcan
+              </ul>
+            </li>
+            @endcan
+
+            {{-- room status --}}
+            @can('view room status')
+            <li class="nav-item {{ Request::is('room-status*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('room-status*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-list-check"></i>
+                <p>Room Status
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('room-status') ? 'active' : '' }}" href="{{ route('tenant.room-status.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Rooms</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            @endcan
+
+            @can('view maintenance')
+            <li class="nav-item {{ Request::is('maintenance*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('maintenance*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-tools"></i>
+                <p>Maintenance
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('maintenance') ? 'active' : '' }}" href="{{ route('tenant.maintenance.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>All Requests</p>
+                  </a>
+                </li>
+                @can('create maintenance requests')
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('maintenance/create') ? 'active' : '' }}" href="{{ route('tenant.maintenance.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Create Request</p>
+                  </a>
+                </li>
+                @endcan
+              </ul>
+            </li>
+            @endcan
+
+            @can('view cleaning schedules')
+            <li class="nav-item {{ Request::is('cleaning-schedule*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('cleaning-schedule*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-calendar-check"></i>
+                <p>Cleaning Schedule
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('cleaning-schedule') ? 'active' : '' }}" href="{{ route('tenant.cleaning-schedule.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Schedule Overview</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('cleaning-schedule/calendar') ? 'active' : '' }}" href="{{ route('tenant.cleaning-schedule.calendar') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Schedule Calendar</p>
+                  </a>
+                </li>
+                @can('create cleaning schedules')
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('cleaning-schedule/create') ? 'active' : '' }}" href="{{ route('tenant.cleaning-schedule.create') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Create Checklist</p>
+                  </a>
+                </li>
+                @endcan
+              </ul>
+            </li>
+            @endcan
+            {{-- end housekeeping --}}
+
             {{-- financials --}}
             <li class="nav-header">FINANCIALS</li>
             {{-- invoices --}}
@@ -639,13 +750,6 @@
               </ul>
             </li>
             {{-- end users management --}}
-            {{-- settings --}}
-            <li hidden class="nav-item">
-              <a class="nav-link {{ Request::is('settings*') ? 'active' : '' }}" href="{{ route('tenant.settings') }}">
-                <i class="nav-icon bi bi-gear"></i>
-                <p>Settings</p>
-              </a>
-            </li>
             @endif
           </ul>
           <!--end::Sidebar Menu-->

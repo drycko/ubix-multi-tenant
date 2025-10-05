@@ -11,6 +11,9 @@ import './bootstrap';
 
 import * as bootstrap from 'bootstrap';
 
+// Make bootstrap available globally
+window.bootstrap = bootstrap;
+
 // import bootstrap icons
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
@@ -36,6 +39,26 @@ if (window.location.pathname.includes('/roles')) {
 // import my permissions js from public assets only for permissions pages
 if (window.location.pathname.includes('/permissions')) {
     import('../../public/assets/js/permissions.js');
+}
+
+// import my room-status js from public assets only for room-status pages
+if (window.location.pathname.includes('/room-status')) {
+    import('../../public/assets/js/room-status.js');
+}
+
+// import my housekeeping js from public assets only for housekeeping pages
+if (window.location.pathname.includes('/housekeeping')) {
+    import('../../public/assets/js/housekeeping.js');
+}
+
+// import my cleaning-schedule js from public assets only for cleaning-schedule pages
+if (window.location.pathname.includes('/cleaning-schedule')) {
+    import('../../public/assets/js/cleaning-schedule.js');
+}
+
+// import my maintenance js from public assets only for maintenance pages
+if (window.location.pathname.includes('/maintenance')) {
+    import('../../public/assets/js/maintenance.js');
 }
 
 // Initialize everything when DOM is ready
@@ -108,4 +131,3 @@ document.addEventListener('DOMContentLoaded', function() {
 $(document).on('select2:open', () => {
     document.querySelector('.select2-container--open .select2-search__field').focus();
 });
-

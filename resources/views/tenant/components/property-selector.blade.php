@@ -1,7 +1,7 @@
 @if(is_super_user())
-  <div class="row mb-3">
+  <div class="row mb-3 property-selector">
     <div class="col-12">
-      <div class="card border-success">
+      <div class="card-border-success">
         <div class="card-body py-2">
           <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
@@ -9,7 +9,7 @@
               <strong class="text-success">Super User Mode:</strong>
               <span class="ms-2">
                 @if(is_property_selected())
-                  Operating in <strong>{{ current_property()->name ?? 'Unknown Property' }}</strong>
+                  <span class="text-muted">Operating in <strong>{{ current_property()->name ?? 'Unknown Property' }}</strong></span>
                   <span class="badge bg-success ms-1">{{ current_property()->code ?? 'N/A' }}</span>
                 @else
                   <span class="text-warning">Global View</span>
@@ -76,4 +76,58 @@
       </div>
     </div>
   </div>
+
+  {{-- Property Selector JavaScript --}}
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Get the property selector dropdown
+    const propertyDropdown = document.querySelector('.property-selector .dropdown');
+    const dropdownToggle = document.querySelector('.property-selector .dropdown-toggle');
+    const dropdownMenu = document.querySelector('.property-selector .dropdown-menu');
+    const body = document.body;
+    
+    if (propertyDropdown && dropdownToggle && dropdownMenu) {
+      
+      // Function to disable other card interactions
+      function disableOtherCards() {
+        body.classList.add('dropdown-overlay-active');
+      }
+      
+      // Function to re-enable other card interactions
+      function enableOtherCards() {
+        body.classList.remove('dropdown-overlay-active');
+      }
+      
+      // Listen for dropdown show event
+      dropdownToggle.addEventListener('shown.bs.dropdown', function() {
+        disableOtherCards();
+        dropdownMenu.style.zIndex = '10050';
+        dropdownMenu.style.position = 'absolute';
+      });
+      
+      // Listen for dropdown hide event
+      dropdownToggle.addEventListener('hidden.bs.dropdown', function() {
+        enableOtherCards();
+        dropdownMenu.style.zIndex = '';
+        dropdownMenu.style.position = '';
+      });
+      
+      // Ensure dropdown items are clickable
+      const dropdownItems = dropdownMenu.querySelectorAll('.dropdown-item');
+      dropdownItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+          // Let the browser handle the navigation naturally
+          // Bootstrap will handle closing the dropdown
+        });
+      });
+      
+      // Additional safety: close dropdown when pressing Escape
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && propertyDropdown.classList.contains('show')) {
+          dropdownToggle.click();
+        }
+      });
+    }
+  });
+  </script>
 @endif

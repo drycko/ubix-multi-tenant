@@ -89,7 +89,22 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // guest clubs
             'manage guest clubs', 'view guest clubs', 'create guest clubs', 'edit guest clubs', 'delete guest clubs',
-            'manage guest club members', 'view guest club members', 'add guest club members', 'edit guest club members', 'remove guest club members'
+            'manage guest club members', 'view guest club members', 'add guest club members', 'edit guest club members', 'remove guest club members',
+
+            // Housekeeping & Cleaning
+            'view housekeeping', 'create housekeeping tasks', 'edit housekeeping tasks', 'delete housekeeping tasks',
+            'assign housekeeping tasks', 'start housekeeping work', 'complete housekeeping work', 'inspect rooms',
+            'manage room status', 'view room status', 'update room status', 'bulk update room status',
+            'view cleaning schedules', 'create cleaning schedules', 'edit cleaning schedules', 'delete cleaning schedules',
+            'generate cleaning schedules', 'manage cleaning checklists',
+
+            // Maintenance
+            'view maintenance', 'create maintenance requests', 'edit maintenance requests', 'delete maintenance requests',
+            'assign maintenance work', 'start maintenance work', 'complete maintenance work', 'cancel maintenance requests',
+            'view maintenance reports', 'manage maintenance categories', 'approve maintenance costs',
+
+            // tenant settings
+            'manage settings', 'view settings'
         ];
 
         foreach ($permissions as $permission) {
@@ -101,6 +116,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $this->createPropertyAdminRole();   // Creates property admin role with property-level permissions
         $this->createManagerRole();         // Creates manager role with limited permissions
         $this->createStaffRole();          // Creates staff role with basic permissions
+        $this->createHousekeepingRole();   // Creates housekeeping staff role
+        $this->createMaintenanceRole();    // Creates maintenance staff role
         $this->command->info('Roles and permissions seeded successfully.');
     }
 
@@ -136,7 +153,17 @@ class RolesAndPermissionsSeeder extends Seeder
             'edit guest clubs', 'delete guest clubs',
             'manage guest club members', 'view guest club members',
             'view activity logs',
-            'view notifications', 'manage notification settings'
+            'view notifications', 'manage notification settings',
+            
+            // Housekeeping & Maintenance permissions for property admin
+            'view housekeeping', 'create housekeeping tasks', 'edit housekeeping tasks', 'delete housekeeping tasks',
+            'assign housekeeping tasks', 'start housekeeping work', 'complete housekeeping work', 'inspect rooms',
+            'manage room status', 'view room status', 'update room status', 'bulk update room status',
+            'view cleaning schedules', 'create cleaning schedules', 'edit cleaning schedules', 'delete cleaning schedules',
+            'generate cleaning schedules', 'manage cleaning checklists',
+            'view maintenance', 'create maintenance requests', 'edit maintenance requests', 'delete maintenance requests',
+            'assign maintenance work', 'start maintenance work', 'complete maintenance work', 'cancel maintenance requests',
+            'view maintenance reports', 'manage maintenance categories', 'approve maintenance costs'
         ]);
     }
 
@@ -149,7 +176,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'view rooms', 'view room availability',
             'view guests', 'create guests', 'edit guests', 'view guest history',
             'view reports', 'view financial reports', 'view occupancy reports',
-            'view invoices', 'process payments', 'issue refunds'
+            'view invoices', 'process payments', 'issue refunds',
+            
+            // Housekeeping & Maintenance for managers
+            'view housekeeping', 'create housekeeping tasks', 'assign housekeeping tasks',
+            'view room status', 'update room status',
+            'view cleaning schedules', 'generate cleaning schedules',
+            'view maintenance', 'create maintenance requests', 'assign maintenance work'
         ]);
     }
 
@@ -160,7 +193,44 @@ class RolesAndPermissionsSeeder extends Seeder
             'view bookings', 'create bookings', 'checkin bookings', 'checkout bookings',
             'view rooms', 'view room availability',
             'view guests', 'create guests',
-            'view invoices', 'process payments'
+            'view invoices', 'process payments',
+            
+            // Basic housekeeping permissions for staff
+            'view housekeeping', 'start housekeeping work', 'complete housekeeping work',
+            'view room status', 'create maintenance requests'
+        ]);
+    }
+
+    protected function createHousekeepingRole(): void
+    {
+        $role = Role::firstOrCreate(['name' => 'housekeeping', 'guard_name' => 'tenant']);
+        $role->syncPermissions([
+            // Basic access
+            'view bookings', 'view rooms', 'view room availability', 'view guests',
+            
+            // Full housekeeping permissions
+            'view housekeeping', 'start housekeeping work', 'complete housekeeping work',
+            'view room status', 'update room status',
+            'view cleaning schedules', 'manage cleaning checklists',
+            
+            // Maintenance reporting
+            'create maintenance requests', 'view maintenance'
+        ]);
+    }
+
+    protected function createMaintenanceRole(): void
+    {
+        $role = Role::firstOrCreate(['name' => 'maintenance', 'guard_name' => 'tenant']);
+        $role->syncPermissions([
+            // Basic access
+            'view bookings', 'view rooms', 'view room availability',
+            
+            // Full maintenance permissions
+            'view maintenance', 'create maintenance requests', 'edit maintenance requests',
+            'start maintenance work', 'complete maintenance work',
+            
+            // Room status updates for maintenance
+            'view room status', 'update room status'
         ]);
     }
 }

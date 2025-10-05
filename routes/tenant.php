@@ -11,7 +11,6 @@ use App\Http\Controllers\Tenant\RoomAmenityController;
 use App\Http\Controllers\Tenant\GuestController;
 use App\Http\Controllers\Tenant\GuestClubController;
 use App\Http\Controllers\Tenant\TaxController;
-use App\Http\Controllers\Tenant\SettingController;
 use App\Http\Controllers\Tenant\PropertyController;
 use App\Http\Controllers\Tenant\RoomTypeController;
 use App\Http\Controllers\Tenant\PackageController;
@@ -22,6 +21,11 @@ use App\Http\Controllers\Tenant\ReportController;
 use App\Http\Controllers\Tenant\RoleController;
 use App\Http\Controllers\Tenant\PermissionController;
 use App\Http\Controllers\Tenant\RoleAssignmentController;
+// Housekeeping controllers
+use App\Http\Controllers\Tenant\HousekeepingController;
+use App\Http\Controllers\Tenant\RoomStatusController;
+use App\Http\Controllers\Tenant\MaintenanceController;
+use App\Http\Controllers\Tenant\CleaningScheduleController;
 // tenancy controllers
 use App\Http\Controllers\Tenant\TenantUserActivityController;
 use App\Http\Controllers\Tenant\TenantUserNotificationController;
@@ -95,10 +99,6 @@ Route::middleware([
         Route::post('notifications/mark-as-read', [TenantUserNotificationController::class, 'markAsRead'])->name('tenant.notifications.mark-as-read');
         Route::post('notifications/mark-all-as-read', [TenantUserNotificationController::class, 'markAllAsRead'])->name('tenant.notifications.mark-all-as-read');
         Route::delete('notifications/clear-all', [TenantUserNotificationController::class, 'clearAll'])->name('tenant.notifications.clear-all');
-
-        // Settings - accessible to authorized users
-        Route::get('settings', [SettingController::class, 'index'])->name('tenant.settings');
-        Route::put('settings', [SettingController::class, 'update'])->name('tenant.settings.update');
 
         // Reports - comprehensive reporting system
         Route::prefix('reports')->name('tenant.reports.')->group(function () {
@@ -359,5 +359,76 @@ Route::middleware([
         // Property selection
         Route::get('property/select', [PropertyController::class, 'select'])->name('tenant.properties.select');
         Route::post('property/select', [PropertyController::class, 'storeSelection'])->name('tenant.properties.store-selection');
+
+        // Housekeeping Management Routes
+        Route::prefix('housekeeping')->name('tenant.housekeeping.')->group(function () {
+            // Main housekeeping dashboard and coordination
+            Route::get('/', [HousekeepingController::class, 'index'])->name('index');
+            Route::get('/create', [HousekeepingController::class, 'create'])->name('create');
+            Route::post('/', [HousekeepingController::class, 'store'])->name('store');
+            Route::get('/{task}', [HousekeepingController::class, 'show'])->name('show');
+            Route::get('/{task}/edit', [HousekeepingController::class, 'edit'])->name('edit');
+            Route::put('/{task}', [HousekeepingController::class, 'update'])->name('update');
+            Route::delete('/{task}', [HousekeepingController::class, 'destroy'])->name('destroy');
+            
+            // Task status management
+            Route::post('/{task}/start', [HousekeepingController::class, 'start'])->name('start');
+            Route::post('/{task}/complete', [HousekeepingController::class, 'complete'])->name('complete');
+            Route::post('/{task}/cancel', [HousekeepingController::class, 'cancel'])->name('cancel');
+            Route::post('/{task}/assign', [HousekeepingController::class, 'assign'])->name('assign');
+            
+            // Bulk operations and reports
+            Route::get('/rooms', [HousekeepingController::class, 'rooms'])->name('rooms');
+            Route::get('/daily-report', [HousekeepingController::class, 'dailyReport'])->name('daily-report');
+            Route::post('/assign-tasks', [HousekeepingController::class, 'assignTasks'])->name('assign-tasks');
+            Route::post('/bulk-update-status', [HousekeepingController::class, 'bulkUpdateStatus'])->name('bulk-update-status');
+        });
+
+        // Room Status Management Routes
+        Route::prefix('room-status')->name('tenant.room-status.')->group(function () {
+            Route::get('/', [RoomStatusController::class, 'index'])->name('index');
+            Route::get('/initialize', [RoomStatusController::class, 'initializeStatuses'])->name('initialize');
+            Route::post('/bulk-assign', [RoomStatusController::class, 'bulkAssign'])->name('bulk-assign');
+            Route::get('/{roomStatus}', [RoomStatusController::class, 'show'])->name('show');
+            Route::put('/{roomStatus}', [RoomStatusController::class, 'update'])->name('update');
+            Route::post('/{roomStatus}/assign', [RoomStatusController::class, 'assign'])->name('assign');
+            Route::post('/{roomStatus}/start', [RoomStatusController::class, 'start'])->name('start');
+            Route::post('/{roomStatus}/complete', [RoomStatusController::class, 'complete'])->name('complete');
+            Route::post('/{roomStatus}/inspect', [RoomStatusController::class, 'inspect'])->name('inspect');
+        });
+
+        // Maintenance Management Routes
+        Route::prefix('maintenance')->name('tenant.maintenance.')->group(function () {
+            Route::get('/', [MaintenanceController::class, 'index'])->name('index');
+            Route::get('/create', [MaintenanceController::class, 'create'])->name('create');
+            Route::post('/', [MaintenanceController::class, 'store'])->name('store');
+            Route::get('/{maintenance}', [MaintenanceController::class, 'show'])->name('show');
+            Route::get('/{maintenance}/edit', [MaintenanceController::class, 'edit'])->name('edit');
+            Route::put('/{maintenance}', [MaintenanceController::class, 'update'])->name('update');
+            Route::delete('/{maintenance}', [MaintenanceController::class, 'destroy'])->name('destroy');
+            Route::post('/{maintenance}/assign', [MaintenanceController::class, 'assign'])->name('assign');
+            Route::post('/{maintenance}/start', [MaintenanceController::class, 'start'])->name('start');
+            Route::post('/{maintenance}/complete', [MaintenanceController::class, 'complete'])->name('complete');
+            Route::post('/{maintenance}/cancel', [MaintenanceController::class, 'cancel'])->name('cancel');
+            Route::post('/{maintenance}/hold', [MaintenanceController::class, 'hold'])->name('hold');
+            Route::patch('/{maintenance}/update-status', [MaintenanceController::class, 'updateStatus'])->name('update-status');
+            Route::post('/{maintenance}/add-work-log', [MaintenanceController::class, 'addWorkLog'])->name('add-work-log');
+        });
+
+        // Cleaning Schedule & Checklists Management Routes
+        Route::prefix('cleaning-schedule')->name('tenant.cleaning-schedule.')->group(function () {
+            Route::get('/', [CleaningScheduleController::class, 'index'])->name('index');
+            Route::get('/calendar', [CleaningScheduleController::class, 'calendar'])->name('calendar');
+            Route::get('/create', [CleaningScheduleController::class, 'create'])->name('create');
+            Route::post('/', [CleaningScheduleController::class, 'store'])->name('store');
+            Route::get('/{checklist}', [CleaningScheduleController::class, 'show'])->name('show');
+            Route::get('/{checklist}/edit', [CleaningScheduleController::class, 'edit'])->name('edit');
+            Route::put('/{checklist}', [CleaningScheduleController::class, 'update'])->name('update');
+            Route::delete('/{checklist}', [CleaningScheduleController::class, 'destroy'])->name('destroy');
+            Route::post('/generate-schedule', [CleaningScheduleController::class, 'generateSchedule'])->name('generate');
+            Route::post('/update-order', [CleaningScheduleController::class, 'updateOrder'])->name('update-order');
+            Route::post('/{checklist}/duplicate', [CleaningScheduleController::class, 'duplicate'])->name('duplicate');
+            Route::post('/load-defaults', [CleaningScheduleController::class, 'loadDefaults'])->name('load-defaults');
+        });
     });
 });

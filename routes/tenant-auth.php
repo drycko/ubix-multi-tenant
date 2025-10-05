@@ -3,6 +3,7 @@
 use App\Http\Controllers\Tenant\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Tenant\Auth\RegisteredUserController;
 use App\Http\Controllers\Tenant\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Tenant\Auth\NewPasswordController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest:tenant')->group(function () {

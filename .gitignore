@@ -27,3 +27,4 @@ Thumbs.db
 deploy.sh
 npm-debug.log
 update_countries.py
+phase-1-specdoc.md

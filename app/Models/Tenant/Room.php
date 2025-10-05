@@ -90,6 +90,27 @@ class Room extends Model
         return $this->hasMany(RoomOutOfOrder::class, 'room_id');
     }
 
+    // Housekeeping relationships
+    public function currentStatus(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(RoomStatus::class)->latest();
+    }
+
+    public function statuses(): HasMany
+    {
+        return $this->hasMany(RoomStatus::class);
+    }
+
+    public function housekeepingTasks(): HasMany
+    {
+        return $this->hasMany(HousekeepingTask::class);
+    }
+
+    public function maintenanceRequests(): HasMany
+    {
+        return $this->hasMany(MaintenanceRequest::class);
+    }
+
     public function scopeOutOfOrder($query)
     {
         return $query->whereHas('outOfOrder', function ($q) {
