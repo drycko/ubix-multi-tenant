@@ -14,11 +14,11 @@ class Authenticate extends Middleware
     {
         if (! $request->expectsJson()) {
             // Check if we're in a tenant context
-            if ($request->getHost() !== config('app.domain')) {
+            if ($request->getHost() !== config('tenancy.central_domains')[0]) {
                 return route('tenant.login');
             }
-            // For central domain
-            return route('login');
+            // For central domain - redirect to central login
+            return route('central.login');
         }
         return null;
     }

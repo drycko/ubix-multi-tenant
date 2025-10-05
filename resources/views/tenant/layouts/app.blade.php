@@ -49,6 +49,11 @@
             <a href="{{ route('tenant.dashboard') }}" class="nav-link">Home</a>
           </li>
           <li class="nav-item d-none d-md-block">
+            <a href="{{ route('tenant.knowledge-base') }}" class="nav-link">
+              <i class="bi bi-book"></i> Knowledge Base
+            </a>
+          </li>
+          <li class="nav-item d-none d-md-block">
             @if(auth()->check() && auth()->user()->property_id === null)
             <a href="#" class="nav-link"><i class="fas fa-crown"></i> Super User</a>
             @endif

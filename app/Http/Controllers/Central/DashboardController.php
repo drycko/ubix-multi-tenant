@@ -66,4 +66,22 @@ class DashboardController extends Controller
 
         return view('central.stats', compact('stats'));
     }
+
+    /**
+     * Display the central knowledge base
+     */
+    public function knowledgeBase()
+    {
+        // use the central database connection from here because I am in the central app
+        config(['database.connections.tenant' => config('database.connections.central')]);
+        $knowledgeBasePath = base_path('CENTRAL_KNOWLEDGE_BASE.md');
+        
+        if (!file_exists($knowledgeBasePath)) {
+            abort(404, 'Central knowledge base not found');
+        }
+        
+        $content = file_get_contents($knowledgeBasePath);
+        
+        return view('central.knowledge-base', compact('content'));
+    }
 }

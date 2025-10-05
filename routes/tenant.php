@@ -85,6 +85,7 @@ Route::middleware([
         // Dashboard - accessible to all authenticated users
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('tenant.dashboard');
         Route::get('/stats', [DashboardController::class, 'stats'])->name('tenant.stats');
+        Route::get('/knowledge-base', [DashboardController::class, 'knowledgeBase'])->name('tenant.knowledge-base');
 
         // User Activities - user-specific, no property restriction
         Route::get('activities', [TenantUserActivityController::class, 'index'])->name('tenant.activities.index');

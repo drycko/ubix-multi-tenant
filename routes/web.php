@@ -14,6 +14,7 @@ Route::get('/', function () {
 
 // Authentication routes (for central admin)
 require __DIR__.'/auth.php';
+require __DIR__.'/central-auth.php';
 
 // home route redirect to central dashboard
 Route::get('/home', function() {
@@ -29,6 +30,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/central', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/central/dashboard', [DashboardController::class, 'index'])->name('central.dashboard');
     Route::get('central/stats', [DashboardController::class, 'stats'])->name('central.stats');
+    Route::get('central/knowledge-base', [DashboardController::class, 'knowledgeBase'])->name('central.knowledge-base');
 
     Route::get('/central/tenants', [TenantController::class, 'index'])->name('central.tenants.index');
     Route::get('/central/tenants/create', [TenantController::class, 'create'])->name('central.tenants.create');

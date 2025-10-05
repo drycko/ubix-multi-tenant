@@ -152,4 +152,20 @@ class DashboardController extends Controller
 
         return view('tenant.stats', compact('stats', 'bookingsOverTime', 'bookingsByArrivalDate', 'bookingsByRoomType'));
     }
+
+    /**
+     * Display the knowledge base
+     */
+    public function knowledgeBase()
+    {
+        $knowledgeBasePath = base_path('KNOWLEDGE_BASE.md');
+        
+        if (!file_exists($knowledgeBasePath)) {
+            abort(404, 'Knowledge base not found');
+        }
+        
+        $content = file_get_contents($knowledgeBasePath);
+        
+        return view('tenant.knowledge-base', compact('content'));
+    }
 }

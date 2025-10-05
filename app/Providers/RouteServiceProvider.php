@@ -6,6 +6,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 
 
 // app/Providers/RouteServiceProvider.php to separate central and tenant routes
@@ -31,10 +32,20 @@ class RouteServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
         
         $this->routes(function () {
+            // Central authentication routes (must be loaded first)
+            Route::middleware('web')
+                ->domain(config('tenancy.central_domains')[0])
+                ->group(base_path('routes/central-auth.php'));
+                
             // Central routes (admin, tenant management)
             Route::middleware('web')
                 ->domain(config('tenancy.central_domains')[0])
                 ->group(base_path('routes/web.php'));
+                
+            // API routes
+            Route::prefix('api')
+                ->middleware('api')
+                ->group(base_path('routes/api.php'));
                 
             // Tenant routes (customer-facing applications)
             Route::middleware('web')

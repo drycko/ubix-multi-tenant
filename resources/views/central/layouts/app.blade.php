@@ -48,6 +48,11 @@
             <a href="{{ route('central.dashboard') }}" class="nav-link">Home</a>
           </li>
           <li class="nav-item d-none d-md-block">
+            <a href="{{ route('central.knowledge-base') }}" class="nav-link">
+              <i class="bi bi-book"></i> Knowledge Base
+            </a>
+          </li>
+          <li class="nav-item d-none d-md-block">
             @if(Auth::user()->role == 'super-admin')
             <a href="#" class="nav-link"><i class="fas fa-crown"></i> Super Admin</a>
             @endif
@@ -489,7 +494,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <form method="POST" action="{{ route('logout') }}">
+          <form method="POST" action="{{ route('central.logout') }}">
             @csrf
             <button type="submit" class="btn btn-success">Logout</button>
           </form>
