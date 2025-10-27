@@ -127,6 +127,16 @@ class Booking extends Model
         return $this->bookingGuests()->where('is_adult', false);
     }
 
+    /**
+     * Guest feedbacks relationship
+     */
+    public function guestFeedbacks(): HasMany
+    {
+        return $this->hasMany(GuestFeedback::class, 'booking_id', 'id');
+    }
+
+    /*  SCOPES  */ 
+
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
@@ -319,5 +329,23 @@ class Booking extends Model
         }
     }
 
+    public function getGuestCountAttribute()
+    {
+        return $this->bookingGuests()->count();
+    }
+
+    public function getIsSharedAttribute()
+    {
+        return $this->is_shared ? true : false;
+    }
+
+    public function getRatingAttribute()
+    {
+        $feedbacks = $this->guestFeedbacks;
+        if ($feedbacks->isEmpty()) {
+            return null;
+        }
+        return round($feedbacks->avg('rating'), 2);
+    }
     
 }

@@ -67,6 +67,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'view invoices', 'create invoices', 'edit invoices', 'process payments',
             'issue refunds', 'view payment history',
 
+            // refunds
+            'view refunds', 'create refunds', 'edit refunds', 'delete refunds',
+
             // tax rates
             // 'view tax rates', 'create tax rates', 'edit tax rates', 'delete tax rates',
 

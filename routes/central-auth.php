@@ -21,6 +21,10 @@ Route::middleware(['web'])->group(function () {
     Route::get('central/login', [CentralLoginController::class, 'showLoginForm'])->name('central.login');
     Route::post('central/login', [CentralLoginController::class, 'login']);
     Route::post('central/logout', [CentralLoginController::class, 'logout'])->name('central.logout');
+    // Fallback route for 'login' to prevent errors
+    Route::get('login', function() {
+        return redirect()->route('central.login');
+    })->name('login');
     
     // Password Reset Routes (if needed in the future)
     // Route::get('central/password/reset', [CentralPasswordResetController::class, 'showLinkRequestForm'])->name('central.password.request');

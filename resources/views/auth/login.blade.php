@@ -3,7 +3,7 @@
 @section('title', 'Login')
 
 @section('content')
-<form method="POST" action="{{ route('login') }}">
+<form method="POST" action="{{ route('central.login') }}">
     @csrf
 
     @if(session('status'))

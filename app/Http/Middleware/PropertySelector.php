@@ -83,8 +83,8 @@ class PropertySelector
     protected function shouldSkipMiddleware(Request $request): bool
     {
         $skipRoutes = [
-            'login',
-            'register',
+            'tenant.login',
+            'tenant.register',
             'password/*',
             'auth/*',
             'property.select',

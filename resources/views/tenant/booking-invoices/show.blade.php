@@ -159,9 +159,35 @@
                   </tr>
                 </tbody>
                 <tfoot>
-                  <tr class="table-dark">
-                    <th colspan="4" class="text-end">Total Amount:</th>
+                  @if($bookingInvoice->taxes)
+                  <tr class="text-muted">
+                    <td colspan="4" class="text-end">Subtotal:</td>
+                    <td class="text-end">{{ $currency }} {{ number_format($bookingInvoice->taxes['subtotal'], 2) }}</td>
+                  </tr>
+                  <tr class="text-muted">
+                    <td colspan="4" class="text-end">Tax ({{ $bookingInvoice->taxes['name'] }} {{ $bookingInvoice->taxes['rate'] }}%):</td>
+                    <td class="text-end">{{ $currency }} {{ number_format($bookingInvoice->taxes['amount'], 2) }}</td>
+                  </tr>
+                  @endif
+                  <tr class="text-muted">
+                    <th colspan="4" class="text-end">Total:</th>
                     <th class="text-end">{{ $currency }} {{ number_format($bookingInvoice->amount, 2) }}</th>
+                  </tr>
+                  @if ($bookingInvoice->total_paid > 0)
+                  <tr>
+                    <td colspan="4" class="text-end">Total Payments:</td>
+                    <td class="text-end text-success">- {{ $currency }} {{ number_format($bookingInvoice->total_paid, 2) }}</td>
+                  </tr>
+                  @endif
+                  @if ($bookingInvoice->total_refunded > 0)
+                  <tr class="text-danger">
+                    <td colspan="4" class="text-end">Total Refunds:</td>
+                    <td class="text-end text-danger">- {{ $currency }} {{ number_format($bookingInvoice->total_refunded, 2) }}</td>
+                  </tr>
+                  @endif
+                  <tr class="">
+                    <th colspan="4" class="text-end">Balance Remaining:</th>
+                    <th class="text-end">{{ $currency }} {{ number_format($bookingInvoice->remaining_balance, 2) }}</th>
                   </tr>
                 </tfoot>
               </table>
@@ -180,16 +206,17 @@
             </div>
             @endif
 
-            <!-- Payment History -->
-            @if($bookingInvoice->invoicePayments->count() > 0)
+            <!-- Transaction History (we will need to mix these with refunds) -->
+            @if($transactions->count() > 0)
             <div class="mt-4">
-              <h6>Payment History:</h6>
+              <h6>Transaction History:</h6>
               <div class="table-responsive">
                 <table class="table table-sm table-striped">
                   <thead>
                     <tr>
                       <th>Date</th>
                       <th>Method</th>
+                      <th>Type</th>
                       <th>Reference</th>
                       <th>Amount</th>
                       <th>Status</th>
@@ -197,37 +224,44 @@
                     </tr>
                   </thead>
                   <tbody>
-                    @foreach($bookingInvoice->invoicePayments->sortByDesc('payment_date') as $payment)
-                    <tr>
-                      <td>{{ $payment->payment_date->format('M j, Y') }}</td>
-                      <td>{{ $payment->payment_method_label }}</td>
-                      <td>{{ $payment->reference_number ?? '-' }}</td>
-                      <td>{{ $currency }} {{ number_format($payment->amount, 2) }}</td>
+                    @foreach($transactions->sortByDesc('created_at') as $transaction)
+                    @if($transaction->type === 'refund')
+                    <tr class="table-danger">
+                    @elseif($transaction->type === 'payment')
+                    <tr class="table-success">
+                    @endif
+                      <td>{{ $transaction->created_at->format('M j, Y') }}</td>
+                      <td>{{ $transaction->payment_method_label }}</td>
+                      <td>{{ $transaction->type }}</td>
+                      <td>{{ $transaction->reference_number ?? '-' }}</td>
+                      <td>{{ $currency }} {{ number_format($transaction->amount, 2) }}</td>
                       <td>
-                        <span class="badge bg-{{ $payment->status === 'completed' ? 'success' : ($payment->status === 'pending' ? 'warning' : 'danger') }}">
-                          {{ $payment->status_label }}
+                        @if($transaction->type === 'refund')
+                        <span class="badge bg-{{ $transaction->status === 'approved' ? 'success' : ($transaction->status === 'pending' ? 'warning' : 'danger') }}">
+                          {{ $transaction->status }}
                         </span>
+                        @else
+                        <span class="badge bg-{{ $transaction->status === 'completed' ? 'success' : ($transaction->status === 'pending' ? 'warning' : 'danger') }}">
+                          {{ $transaction->status_label }}
+                        </span>
+                        @endif
                       </td>
                       <td>
                         <div class="btn-group btn-group-sm">
-                          <a href="{{ route('tenant.invoice-payments.show', [$bookingInvoice, $payment]) }}" 
+                          {{-- Do not mix routes --}}
+                          @if($transaction->type === 'refund')
+                          <a href="{{ route('tenant.refunds.show', $transaction) }}" 
+                             class="btn btn-outline-primary btn-sm" title="View Refund">
+                            <i class="fas fa-eye"></i>
+                          </a>
+
+                          @else
+                          <a href="{{ route('tenant.invoice-payments.show', [$bookingInvoice, $transaction]) }}" 
                              class="btn btn-outline-primary btn-sm" title="View Payment">
                             <i class="fas fa-eye"></i>
                           </a>
-                          <a href="{{ route('tenant.invoice-payments.edit', [$bookingInvoice, $payment]) }}" 
-                             class="btn btn-outline-warning btn-sm" title="Edit Payment">
-                            <i class="fas fa-edit"></i>
-                          </a>
-                          <form action="{{ route('tenant.invoice-payments.destroy', [$bookingInvoice, $payment]) }}" 
-                                method="POST" 
-                                style="display: inline;"
-                                onsubmit="return confirm('Are you sure you want to delete this payment?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete Payment">
-                              <i class="fas fa-trash"></i>
-                            </button>
-                          </form>
+                          
+                          @endif
                         </div>
                       </td>
                     </tr>
@@ -262,6 +296,10 @@
               @if($bookingInvoice->invoicePayments->count() > 0)
               <a href="{{ route('tenant.invoice-payments.index', $bookingInvoice) }}" class="btn btn-outline-success">
                 <i class="fas fa-list"></i> View All Payments ({{ $bookingInvoice->invoicePayments->count() }})
+              </a>
+              @else
+              <a href="#" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#emailInvoiceModal">
+                <i class="fas fa-link"></i> Send Invoice via Email
               </a>
               @endif
               <a href="{{ route('tenant.booking-invoices.download', $bookingInvoice) }}" class="btn btn-primary">
@@ -407,6 +445,23 @@
           $guestId = $primaryGuest ? $primaryGuest->id : null;
         @endphp
         @include('tenant.invoice-payments.partials.payment-form')
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Email Invoice Modal -->
+<div class="modal fade" id="emailInvoiceModal" tabindex="-1" aria-labelledby="emailInvoiceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="emailInvoiceModalLabel">
+          <i class="fas fa-envelope"></i> Email Invoice - Invoice {{ $bookingInvoice->invoice_number }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        @include('tenant.booking-invoices.partials.email-form')
       </div>
     </div>
   </div>

@@ -26,6 +26,13 @@ use App\Http\Controllers\Tenant\HousekeepingController;
 use App\Http\Controllers\Tenant\RoomStatusController;
 use App\Http\Controllers\Tenant\MaintenanceController;
 use App\Http\Controllers\Tenant\CleaningScheduleController;
+// Settings controller
+use App\Http\Controllers\Tenant\TenantSettingController;
+// guest portal controllers
+use App\Http\Controllers\Tenant\GuestPortalController;
+use App\Http\Controllers\Tenant\SelfCheckInController;
+use App\Http\Controllers\Tenant\GuestRequestController;
+
 // tenancy controllers
 use App\Http\Controllers\Tenant\TenantUserActivityController;
 use App\Http\Controllers\Tenant\TenantUserNotificationController;
@@ -75,10 +82,47 @@ Route::middleware([
     // Tenant authentication routes
     require __DIR__.'/tenant-auth.php';
 
+    // Tenant Payment routes
+    require __DIR__.'/tenant-payment.php';
+
     // Public routes
     Route::get('/', function () {
-        return redirect()->route('tenant.dashboard');
-    })->name('tenant.home');
+        return redirect()->route('tenant.guest-portal.landing');
+    })->name('tenant.guest-portal.home');
+    Route::get('booking-invoices/{bookingInvoice}/guest', [BookingInvoiceController::class, 'publicView'])->name('tenant.booking-invoices.public-view');
+
+    // Guest Portal Dashboard
+    Route::get('/portal', [GuestPortalController::class, 'index'])->name('tenant.guest-portal.index');
+    // landing page
+    Route::get('/portal/landing', [GuestPortalController::class, 'landing'])->name('tenant.guest-portal.landing');
+    Route::post('/portal/landing', [GuestPortalController::class, 'landingSearch'])->name('tenant.guest-portal.landing.post');
+    // Booking form and submission
+    Route::get('/portal/booking', [GuestPortalController::class, 'showBookingForm'])->name('tenant.guest-portal.booking');
+    Route::post('/portal/booking', [GuestPortalController::class, 'showBookingForm'])->name('tenant.guest-portal.booking.search');
+    Route::post('/portal/booking/submit', [GuestPortalController::class, 'book'])->name('tenant.guest-portal.book');
+    // package booking
+    Route::get('/portal/booking/select-package', [GuestPortalController::class, 'showPackageSelection'])->name('tenant.guest-portal.booking.select-package');
+    Route::get('/portal/booking/packages/{package}', [GuestPortalController::class, 'showPackageBookingForm'])->name('tenant.guest-portal.package-booking');
+    Route::post('/portal/booking/packages', [GuestPortalController::class, 'bookPackage'])->name('tenant.guest-portal.package-booking.submit');
+    // Self Check-In/Out
+    Route::get('/portal/checkin', [SelfCheckInController::class, 'index'])->name('tenant.guest-portal.checkin');
+    Route::post('/portal/checkin/{booking}', [SelfCheckInController::class, 'checkIn'])->name('tenant.guest-portal.checkin.submit');
+    Route::post('/portal/checkout/{booking}', [SelfCheckInController::class, 'checkOut'])->name('tenant.guest-portal.checkout.submit');
+    // Guest Requests & Feedback
+    Route::get('/portal/requests', [GuestRequestController::class, 'index'])->name('tenant.guest-portal.requests');
+    Route::post('/portal/requests', [GuestRequestController::class, 'store'])->name('tenant.guest-portal.requests.store');
+    Route::post('/portal/feedback', [GuestRequestController::class, 'storeFeedback'])->name('tenant.guest-portal.feedback.store');
+    // Digital Keys
+    Route::get('/portal/keys', [DigitalKeyController::class, 'index'])->name('tenant.guest-portal.keys');
+    Route::post('/portal/keys/{key}/deactivate', [DigitalKeyController::class, 'deactivate'])->name('tenant.guest-portal.keys.deactivate');
+
+    // settings route group
+    Route::prefix('/settings')->middleware('auth:tenant')->name('tenant.settings.')->group(function () {
+        Route::get('/', [TenantSettingController::class, 'index'])->name('index');
+        Route::get('/payfast', [TenantSettingController::class, 'editPayfast'])->name('payfast.edit');
+        Route::post('/payfast', [TenantSettingController::class, 'updatePayfast'])->name('payfast.update');
+    });
+
 
     // Protected routes with property context
     Route::middleware(['auth:tenant', 'property.selector'])->group(function () {
@@ -147,6 +191,9 @@ Route::middleware([
             Route::get('/booking-invoices/{bookingInvoice}', [BookingInvoiceController::class, 'show'])->name('tenant.booking-invoices.show');
             Route::get('/booking-invoices/{bookingInvoice}/download', [BookingInvoiceController::class, 'download'])->name('tenant.booking-invoices.download');
             Route::get('/booking-invoices/{bookingInvoice}/print', [BookingInvoiceController::class, 'print'])->name('tenant.booking-invoices.print');
+
+            // Send invoice via email
+            Route::post('/booking-invoices/{bookingInvoice}/send-email', [BookingInvoiceController::class, 'sendEmail'])->name('tenant.booking-invoices.send-email');
 
             // invoice payments - property-specific
             Route::get('/booking-invoices/{bookingInvoice}/payments', [InvoicePaymentController::class, 'index'])->name('tenant.invoice-payments.index');
@@ -282,6 +329,17 @@ Route::middleware([
             ]);
             Route::post('room-packages/{roomPackage}/toggle-status', [PackageController::class, 'toggleStatus'])->name('tenant.room-packages.toggle-status');
             Route::post('/room-packages/{roomPackage}/clone', [PackageController::class, 'clone'])->name('tenant.room-packages.clone');
+
+            // Refund management - property-specific
+            Route::resource('refunds', \App\Http\Controllers\Tenant\RefundController::class)->names([
+                'index' => 'tenant.refunds.index',
+                'create' => 'tenant.refunds.create',
+                'store' => 'tenant.refunds.store',
+                'show' => 'tenant.refunds.show',
+                'edit' => 'tenant.refunds.edit',
+                'update' => 'tenant.refunds.update',
+                'destroy' => 'tenant.refunds.destroy',
+            ]);
         });
 
 

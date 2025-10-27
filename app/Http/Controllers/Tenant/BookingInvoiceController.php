@@ -5,14 +5,31 @@ namespace App\Http\Controllers\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\BookingInvoice;
 use App\Models\Tenant\InvoicePayment;
+use App\Models\Tenant\TenantSetting;
 use App\Traits\LogsTenantUserActivity;
+use App\Services\Tenant\NotificationService;
+use App\Services\PayfastGatewayService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class BookingInvoiceController extends Controller
 {
     use LogsTenantUserActivity;
-    
+
+    protected NotificationService $notificationService;
+    protected PayfastGatewayService $payfastGatewayService;
+
+    public function __construct(NotificationService $notificationService, PayfastGatewayService $payfastGatewayService)
+    {
+        $this->middleware('permission:view invoices')->only(['index', 'show']);
+        $this->middleware('permission:create invoices')->only(['create', 'store']);
+        $this->middleware('permission:edit invoices')->only(['edit', 'update']);
+        $this->middleware('permission:delete invoices')->only(['destroy']);
+
+        $this->notificationService = $notificationService;
+        $this->payfastGatewayService = $payfastGatewayService;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -88,11 +105,61 @@ class BookingInvoiceController extends Controller
         ]);
 
         $paymentMethods = InvoicePayment::getPaymentMethods();
+
+        // booking invoice tax breakdown
+        $bookingInvoice->taxes = $bookingInvoice->tax_breakdown;
         
         $property = current_property();
         $currency = property_currency();
+        // get transactions by mixing payments and refunds
+        $transactions = $bookingInvoice->invoicePayments->map(function($payment) {
+            $payment->type = 'payment';
+            return $payment;
+        })->merge(
+            $bookingInvoice->refunds->map(function($refund) {
+                $refund->type = 'refund';
+                return $refund;
+            })
+        )->sortBy('created_at');
 
-        return view('tenant.booking-invoices.show', compact('bookingInvoice', 'property', 'currency', 'paymentMethods'));
+        return view('tenant.booking-invoices.show', compact('bookingInvoice', 'property', 'currency', 'paymentMethods', 'transactions'));
+    }
+
+    /**
+     * Send invoice via email.
+     */
+    public function sendEmail(Request $request, BookingInvoice $bookingInvoice)
+    {
+        // Authorization check
+        if ($bookingInvoice->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'recipient_email' => 'required|string',
+            'mail_recipient_cc' => 'nullable|string',
+        ]);
+
+        // Send email using service
+        $this->notificationService->sendInvoiceEmail($bookingInvoice, [
+            'recipient_email' => $request->input('recipient_email'),
+            'cc_emails' => $request->input('mail_recipient_cc') ? array_map('trim', explode(',', $request->input('mail_recipient_cc'))) : [],
+        ]);
+
+        // Log the email sending activity
+        $this->logTenantActivity(
+            'send_invoice_email',
+            'Sent invoice email: ' . $bookingInvoice->invoice_number,
+            $bookingInvoice,
+            [
+                'table' => 'booking_invoices',
+                'id' => $bookingInvoice->id,
+                'user_id' => auth()->id(),
+                'action' => 'email'
+            ]
+        );
+
+        return redirect()->back()->with('success', 'Invoice email sent successfully.');
     }
 
     /**
@@ -110,6 +177,8 @@ class BookingInvoiceController extends Controller
         
         $property = current_property();
         $currency = property_currency();
+        // booking invoice tax breakdown
+        $bookingInvoice->taxes = $bookingInvoice->tax_breakdown;
 
         // Log the download activity
         $this->logTenantActivity(
@@ -157,6 +226,8 @@ class BookingInvoiceController extends Controller
         
         $property = current_property();
         $currency = property_currency();
+        // booking invoice tax breakdown
+        $bookingInvoice->taxes = $bookingInvoice->tax_breakdown;
 
         return view('tenant.booking-invoices.print', compact('bookingInvoice', 'property', 'currency'));
     }
@@ -201,5 +272,37 @@ class BookingInvoiceController extends Controller
         }
 
         return $invoiceNumber;
+    }
+
+    /**
+     * Public view of the invoice.
+     */
+    public function publicView(BookingInvoice $bookingInvoice)
+    {
+        // Eager load relationships
+        $bookingInvoice->load(['booking.room.type', 'booking.package', 'booking.bookingGuests']);
+
+        $property = current_property();
+        $currency = property_currency();
+        // booking invoice tax breakdown
+        $bookingInvoice->taxes = $bookingInvoice->tax_breakdown;
+
+        $paymentMethods = BookingInvoice::supportedGateways();
+        // get default payment method from settings else get from config
+        $defaultPaymentMethod = TenantSetting::getSetting('default_invoice_payment_method') ?? config('payment.default_gateway');
+        
+        if ($defaultPaymentMethod && array_key_exists($defaultPaymentMethod, $paymentMethods)) {
+            // move the default payment method to the top
+            $paymentMethod = [$defaultPaymentMethod => $paymentMethods[$defaultPaymentMethod]];
+            unset($paymentMethods[$defaultPaymentMethod]);
+            $paymentMethods = $paymentMethod + $paymentMethods;
+        } else {
+            // no default, use all supported methods
+            $paymentMethods = BookingInvoice::supportedGateways();
+        }
+        \Log::info('Default payment remaining balance: ' . $bookingInvoice->remaining_balance);
+        $payFastForm = $this->payfastGatewayService->buildPayfastForm($bookingInvoice);
+
+        return view('tenant.booking-invoices.public-view', compact('bookingInvoice', 'property', 'currency', 'defaultPaymentMethod', 'payFastForm'));
     }
 }

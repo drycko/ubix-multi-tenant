@@ -107,6 +107,17 @@
                     <td>{{ $room->display_order }}</td>
                   </tr>
                 </table>
+                <h5><i class="bi bi-hash"></i> Property Information</h5>
+                <table class="table table-sm">
+                  <tr>
+                    <td><strong>Property Name:</strong></td>
+                    <td>{{ $room->property->name }}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Property Address:</strong></td>
+                    <td>{{ $room->property->address }}</td>
+                  </tr>
+                </table>
               </div>
               
               <div class="col-md-6">
@@ -314,23 +325,44 @@
         <div class="card mt-3">
           <div class="card-header">
             <h3 class="card-title">
-              <i class="bi bi-building"></i> Property Information
+              <i class="bi bi-house"></i> Housekeeping Log
             </h3>
+            <div class="card-tools">
+              <a href="{{ route('tenant.room-status.index') }}" class="btn btn-outline-primary btn-sm">
+                View All
+              </a>
+            </div>
           </div>
           <div class="card-body">
             <table class="table table-sm">
-              <tr>
-                <td><strong>Property:</strong></td>
-                <td>{{ $room->property->name ?? 'N/A' }}</td>
-              </tr>
-              <tr>
-                <td><strong>Location:</strong></td>
-                <td>{{ $room->property->address ?? 'N/A' }}</td>
-              </tr>
-              <tr>
-                <td><strong>Currency:</strong></td>
-                <td><span class="badge bg-info">{{ $currency }}</span></td>
-              </tr>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if($room->statuses && $room->statuses->count() > 0)
+                  @foreach($room->statuses as $status)
+                    <tr>
+                      <td>{{ $status->created_at->format('M d, Y') }}</td>
+                      <td>
+                        <span class="badge bg-{{ $status->status === 'clean' ? 'success' : ($status->status === 'inspected' ? 'info' : 'secondary') }}">
+                          {{ ucfirst($status->status) }}
+                        </span>
+                      </td>
+                      <td>{{ $status->notes ?? 'N/A' }}</td>
+                    </tr>
+                  @endforeach
+                @else
+                  <tr>
+                    <td colspan="3" class="text-center text-muted">
+                      <i class="bi bi-info-circle"></i> No housekeeping records found.
+                    </td>
+                  </tr>
+                @endif
+              </tbody>
             </table>
           </div>
         </div>

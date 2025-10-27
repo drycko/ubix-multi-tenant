@@ -429,8 +429,8 @@ $allowedWeekdays = array_map(fn($d) => $dayMap[$d] ?? strtoupper(substr($d,0,3))
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-          <i class="fas fa-times"></i> Close
+        <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+          <i class="fas fa-check"></i> Done
         </button>
       </div>
     </div>

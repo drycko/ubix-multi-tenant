@@ -126,8 +126,3 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('All JavaScript libraries initialized successfully');
 });
-
-// Add error handling for Select2
-$(document).on('select2:open', () => {
-    document.querySelector('.select2-container--open .select2-search__field').focus();
-});

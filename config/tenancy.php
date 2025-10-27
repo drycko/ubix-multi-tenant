@@ -26,7 +26,8 @@ return [
     ],
 
     'middleware' => [
-        Stancl\Tenancy\Middleware\InitializeTenancyByPath::class,
+        Stancl\Tenancy\Middleware\InitializeTenancyByDomain::class,
+        // Stancl\Tenancy\Middleware\InitializeTenancyByPath::class,
         // Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains::class,
     ],
 

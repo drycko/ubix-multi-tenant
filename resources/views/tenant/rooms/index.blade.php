@@ -158,6 +158,7 @@
                       <th style="width: 100px;">Floor</th>
                       <th style="width: 150px;">Current Rate</th>
                       <th style="width: 100px;">Status</th>
+                      <th style="width: 100px;">Housekeeping</th>
                       <th style="width: 200px;">Actions</th>
                     </tr>
                   </thead>
@@ -244,6 +245,17 @@
                             <i class="bi bi-{{ $room->is_enabled ? 'check-circle' : 'pause-circle' }}"></i>
                             {{ $room->is_enabled ? 'Active' : 'Inactive' }}
                           </span>
+                        </td>
+                        <td>
+                          @if($room->statuses->isNotEmpty())
+                            @php
+                              $latestStatus = $room->statuses->first();
+                            @endphp
+                            <small class="text-muted">
+                              Current Status: {{ ucfirst($latestStatus->status) }} 
+                              (as of {{ $latestStatus->created_at->format('M d, Y') }})
+                            </small>
+                          @endif
                         </td>
                         <td>
                           <div class="btn-group" role="group">

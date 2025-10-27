@@ -315,6 +315,61 @@ A: Clear your browser cache and cookies. If the issue persists, contact support 
 **Q: I accidentally deleted important data. Can it be recovered?**
 A: Contact support immediately. Most actions can be recovered from backups, but prompt reporting increases recovery success.
 
+---
+
+## 💳 PayFast Payment Gateway
+
+PayFast is a secure South African payment gateway integrated into Ubix for tenant-specific online payments.
+
+### Setup & Configuration
+1. Go to **Settings** → **Payment Gateway**
+2. Enter your PayFast Merchant ID and Merchant Key (provided by PayFast)
+3. Optionally set passphrase and test mode
+4. Save settings; credentials are encrypted per tenant
+
+### Usage
+- Guests and staff can pay invoices online using PayFast
+- Payment links are generated for each invoice
+- Payment status updates automatically after successful transactions
+- Refunds can be processed directly from the invoice or refund module
+
+### Troubleshooting
+- Ensure credentials are correct and active
+- For test payments, enable test mode in settings
+- Check payment logs for errors or failed transactions
+- Contact support for integration issues
+
+---
+
+## 💸 Refund Module
+
+The Refund module allows tenants to manage refunds for bookings and payments, with full audit tracking.
+
+### Features
+- Create, view, edit, and delete refunds
+- Link refunds to invoices and payments
+- Track refund status (pending, approved, rejected)
+- View refund history per booking/invoice
+- Refunds update invoice balances automatically
+
+### Workflow
+1. Go to **Refunds** → **Create New**
+2. Enter refund amount, reason, and link to invoice/payment
+3. Set status (pending, approved, rejected)
+4. Refunds appear in the invoice details and affect remaining balance
+5. Only approved refunds reduce invoice balance
+
+### Permissions
+- Roles with refund permissions can manage refunds
+- All refund actions are logged for audit purposes
+
+### Troubleshooting
+- Refund not updating invoice: Check refund status is 'approved'
+- Cannot create refund: Verify user role and permissions
+- Refund not visible: Ensure correct invoice/payment linkage
+
+---
+
 ### Troubleshooting
 
 **Login Issues:**
@@ -394,4 +449,4 @@ Check the announcements section for detailed release notes and update informatio
 
 *This knowledge base is continuously updated. For the most current information, bookmark this page and check back regularly. If you can't find what you're looking for, don't hesitate to contact our support team.*
 
-**Last Updated: October 5, 2025**
+**Last Updated: October 24, 2025**

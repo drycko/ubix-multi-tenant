@@ -16,6 +16,14 @@ use Illuminate\Support\Facades\DB;
 class PackageController extends Controller
 {
     use LogsTenantUserActivity;
+
+    public function __construct()
+    {
+        $this->middleware(['auth:tenant', 'permission:view room packages'])->only(['index', 'show']);
+        $this->middleware(['auth:tenant', 'permission:create room packages'])->only(['create', 'store', 'importPackage', 'import']);
+        $this->middleware(['auth:tenant', 'permission:edit room packages'])->only(['edit', 'update']);
+        $this->middleware(['auth:tenant', 'permission:delete room packages'])->only(['destroy']);
+    }
     /**
      * Display a listing of the resource.
      */

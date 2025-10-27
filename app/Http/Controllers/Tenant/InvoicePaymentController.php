@@ -13,6 +13,14 @@ class InvoicePaymentController extends Controller
 {
     use LogsTenantUserActivity;
 
+    public function __construct()
+    {
+        $this->middleware('permission:view invoice payments')->only(['index', 'show']);
+        $this->middleware('permission:create invoice payments')->only(['create', 'store']);
+        $this->middleware('permission:edit invoice payments')->only(['edit', 'update']);
+        $this->middleware('permission:delete invoice payments')->only(['destroy']);
+    }
+
     /**
      * Display a listing of payments for an invoice.
      */

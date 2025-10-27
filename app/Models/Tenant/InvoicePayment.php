@@ -80,6 +80,19 @@ class InvoicePayment extends Model
         return $this->belongsTo(BookingInvoice::class);
     }
 
+    public function refunds()
+    {
+        return $this->hasMany(Refund::class, 'payment_id');
+    }
+
+    /**
+     * Get refunded amount for this payment.
+     */
+    public function getRefundedAmountAttribute(): float
+    {
+        return $this->refunds()->sum('amount');
+    }
+
     /**
      * Get the guest who made the payment.
      */

@@ -283,9 +283,35 @@
             </tr>
         </tbody>
         <tfoot>
+            @if($bookingInvoice->taxes && $bookingInvoice->taxes['amount'] > 0)
+            <tr>
+                <td colspan="5" class="text-right">Subtotal:</td>
+                <td class="text-right">{{ $currency }} {{ number_format($bookingInvoice->taxes['subtotal'], 2) }}</td>
+            </tr>
+            <tr>
+                <td colspan="5" class="text-right">Tax ({{ $bookingInvoice->taxes['name'] }} - {{ $bookingInvoice->taxes['rate'] }}{{ $bookingInvoice->taxes['type'] == 'percentage' ? '%' : '' }}):</td>
+                <td class="text-right">{{ $currency }} {{ number_format($bookingInvoice->taxes['amount'], 2) }}</td>
+            </tr>
+            @endif
             <tr class="total-row">
                 <td colspan="5" class="text-right"><strong>TOTAL AMOUNT:</strong></td>
                 <td class="text-right total-amount">{{ $currency }} {{ number_format($bookingInvoice->amount, 2) }}</td>
+            </tr>
+            @if ($bookingInvoice->amount_paid > 0)
+            <tr>
+                <td colspan="5" class="text-right">Amount Paid:</td>
+                <td class="text-right paid-amount">{{ $currency }} {{ number_format($bookingInvoice->amount_paid, 2) }}</td>
+            </tr>
+            @endif
+            @if ($bookingInvoice->total_refunded > 0)
+            <tr>
+                <td colspan="5" class="text-right">Total Refunded:</td>
+                <td class="text-right refunded-amount">- {{ $currency }} {{ number_format($bookingInvoice->total_refunded, 2) }}</td>
+            </tr>
+            @endif
+            <tr>
+                <td colspan="5" class="text-right"><strong>Balance Due:</strong></td>
+                <td class="text-right balance-due"><strong>{{ $currency }} {{ number_format($bookingInvoice->remaining_balance, 2) }}</strong></td>
             </tr>
         </tfoot>
     </table>

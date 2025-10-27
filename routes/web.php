@@ -13,7 +13,7 @@ Route::get('/', function () {
 });
 
 // Authentication routes (for central admin)
-require __DIR__.'/auth.php';
+// require __DIR__.'/auth.php';
 require __DIR__.'/central-auth.php';
 
 // home route redirect to central dashboard

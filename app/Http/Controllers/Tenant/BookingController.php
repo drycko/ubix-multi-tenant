@@ -20,6 +20,14 @@ use Exception;
 class BookingController extends Controller
 {
     use LogsTenantUserActivity;
+    
+    public function __construct()
+    {
+        $this->middleware(['auth:tenant', 'permission:view bookings'])->only(['index', 'show']);
+        $this->middleware(['auth:tenant', 'permission:create bookings'])->only(['create', 'store']);
+        $this->middleware(['auth:tenant', 'permission:edit bookings'])->only(['edit', 'update']);
+        $this->middleware(['auth:tenant', 'permission:delete bookings'])->only(['destroy']);
+    }
     /**
      * Display a listing of the bookings. This is better optimized for large datasets.
      */
@@ -368,7 +376,7 @@ class BookingController extends Controller
             }
 
             $invoice_number = $this->generateUniqueInvoiceNumber('0000001');
-            $invoice_status = $booking_status == 'pending' ? 'paid' : 'pending';
+            $invoice_status = 'pending';
 
             // Calculate tax for the booking
             $taxService = new TaxCalculationService();

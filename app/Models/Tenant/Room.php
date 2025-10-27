@@ -14,6 +14,8 @@ class Room extends Model
 {
     use HasFactory, SoftDeletes;
 
+    const HOLD_ROOM_MINUTES = 120; // number of minutes to hold a room for pending and booked bookings before auto-cancelling
+
     // Define fillable attributes
     protected $fillable = [
         'room_type_id',
@@ -124,9 +126,54 @@ class Room extends Model
         return $query->orderBy('display_order', 'asc')->whereDoesntHave('bookings', function ($q) use ($arrivalDate, $departureDate) {
             $q->where('status', 'confirmed')
               ->where('arrival_date', '<', $departureDate)
-              ->where('departure_date', '>', $arrivalDate);
+              ->where('departure_date', '>', $arrivalDate)
+              ->orWhere(function ($q) {
+                  $q->whereIn('status', ['pending', 'booked'])
+                    ->where('created_at', '>=', now()->subMinutes(self::HOLD_ROOM_MINUTES))
+                    ->where('departure_date', '>', now());
+              });
         });
         // we need to also add type->rates to each room in the controller
+    }
+
+    /**
+     * get rooms on hold for pending and booked bookings
+     */
+    public function scopeOnHold($query)
+    {
+        return $query->whereHas('bookings', function ($q) {
+            $q->whereIn('status', ['pending', 'booked'])
+              ->where('created_at', '>=', now()->subMinutes(self::HOLD_ROOM_MINUTES))
+              ->where('arrival_date', '<=', now())
+              ->where('departure_date', '>', now());
+        });
+    }
+
+    /**
+     * Check if room is available for given date range
+     * @return bool
+     */
+    public function scopeAvailable($query)
+    {
+        return $query->whereDoesntHave('bookings', function ($q) {
+            $q->where('status', 'confirmed')
+              ->where('created_at', '>=', now()->subMinutes(self::HOLD_ROOM_MINUTES))
+              ->where('arrival_date', '<=', now())
+              ->where('departure_date', '>=', now());
+        });
+    }
+
+    /**
+     * Check if room is available for given date range
+     * @return bool
+     */
+    public function isAvailable($arrivalDate, $departureDate): bool
+    {
+        return !$this->bookings()->where('status', 'confirmed')
+            ->where('created_at', '>=', now()->subMinutes(self::HOLD_ROOM_MINUTES))
+            ->where('arrival_date', '<', $departureDate)
+            ->where('departure_date', '>', $arrivalDate)
+            ->exists();
     }
 
     /**
@@ -145,5 +192,29 @@ class Room extends Model
         }
         // let's use the scope to get available rooms
         return self::availableForDates($arrivalDate, $departureDate)->where('is_enabled', true)->get();
+    }
+
+    /**
+     * get room feedbacks
+     */
+    public function feedbacks(): HasMany
+    {
+        return $this->hasMany(GuestFeedback::class, 'room_id', 'id');
+    }
+
+    /**
+     * Get average rating
+     */
+    public function getAverageRatingAttribute(): float
+    {
+        return round($this->feedbacks()->where('status', 'published')->avg('rating'), 2);
+    }
+
+    /**
+     * Get total published feedback count
+     */
+    public function getPublishedFeedbackCountAttribute(): int
+    {
+        return $this->feedbacks()->where('status', 'published')->count();
     }
 }

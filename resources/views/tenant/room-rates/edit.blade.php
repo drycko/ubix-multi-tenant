@@ -168,7 +168,7 @@
                   </h6>
                 </div>
                 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                   <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="is_shared" name="is_shared" 
                            value="1" {{ old('is_shared', $roomRate->is_shared) ? 'checked' : '' }}>
@@ -179,7 +179,7 @@
                   </div>
                 </div>
 
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                   <div class="form-check">
                     <input type="checkbox" class="form-check-input" id="is_active" name="is_active" 
                            value="1" {{ old('is_active', $roomRate->is_active) ? 'checked' : '' }}>
@@ -188,6 +188,18 @@
                     </label>
                     <div class="form-text">Rate is available for bookings</div>
                   </div>
+                </div>
+
+                {{-- is per night or per person dropdown --}}
+                <div class="col-md-4 mb-3">
+                  <label class="form-label">Rate Basis</label>
+                  <select class="form-select @error('is_per_night') is-invalid @enderror" id="is_per_night" name="is_per_night">
+                    <option value="0" {{ old('is_per_night', $roomRate->conditions['is_per_night'] ?? false) == false ? 'selected' : '' }}>Per Person</option>
+                    <option value="1" {{ old('is_per_night', $roomRate->conditions['is_per_night'] ?? false) == true ? 'selected' : '' }}>Per Night</option>
+                  </select>
+                  @error('is_per_night')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                  @enderror
                 </div>
               </div>
 
@@ -207,9 +219,11 @@
                     @endphp
                     @if($conditions && count($conditions) > 0)
                       @foreach($conditions as $index => $condition)
+                      {{-- Except for the is_per_night condition --}}
+                        @if($index === 'is_per_night') @continue @endif
                         <div class="input-group mb-2 condition-row">
-                          <input type="text" class="form-control" name="conditions[]" 
-                                 value="{{ $condition }}" placeholder="e.g., Advance booking required">
+                          <input type="text" class="form-control condition-key" name="conditions[{{ $index }}][key]" value="{{ $condition['key'] ?? '' }}" placeholder="Condition Key">
+                          <input type="text" class="form-control condition-value" name="conditions[{{ $index }}][value]" value="{{ $condition['value'] ?? '' }}" placeholder="Condition Value">
                           <button type="button" class="btn btn-outline-danger remove-condition">
                             <i class="bi bi-dash"></i>
                           </button>
@@ -217,7 +231,7 @@
                       @endforeach
                     @endif
                   </div>
-                  <button type="button" class="btn btn-outline-secondary btn-sm" id="add-condition">
+                  <button type="button" class="btn btn-outline-success btn-sm" id="add-condition">
                     <i class="bi bi-plus"></i> Add Condition
                   </button>
                 </div>
@@ -251,18 +265,32 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Add condition functionality
     document.getElementById('add-condition').addEventListener('click', function() {
-        const container = document.getElementById('conditions-container');
-        const newCondition = document.createElement('div');
-        newCondition.className = 'input-group mb-2 condition-row';
-        newCondition.innerHTML = `
-            <input type="text" class="form-control" name="conditions[]" 
-                   placeholder="e.g., Advance booking required">
-            <button type="button" class="btn btn-outline-danger remove-condition">
-                <i class="bi bi-dash"></i>
-            </button>
-        `;
-        container.appendChild(newCondition);
+      const container = document.getElementById('conditions-container');
+      const index = container.children.length;
+      const newCondition = document.createElement('div');
+      newCondition.className = 'input-group mb-2 condition-row';
+      newCondition.innerHTML = `
+          <input type="text" class="form-control" name="conditions[${index}][key]" placeholder="Condition Key">
+          <input type="text" class="form-control" name="conditions[${index}][value]" placeholder="Condition Value">
+          <button type="button" class="btn btn-outline-danger remove-condition">
+              <i class="bi bi-dash"></i>
+          </button>
+      `;
+      container.appendChild(newCondition);
     });
+    // document.getElementById('add-condition').addEventListener('click', function() {
+    //     const container = document.getElementById('conditions-container');
+    //     const newCondition = document.createElement('div');
+    //     newCondition.className = 'input-group mb-2 condition-row';
+    //     newCondition.innerHTML = `
+    //         <input type="text" class="form-control" name="conditions[]" 
+    //                placeholder="e.g., Advance booking required">
+    //         <button type="button" class="btn btn-outline-danger remove-condition">
+    //             <i class="bi bi-dash"></i>
+    //         </button>
+    //     `;
+    //     container.appendChild(newCondition);
+    // });
 
     // Remove condition functionality
     document.addEventListener('click', function(e) {
@@ -270,6 +298,20 @@ document.addEventListener('DOMContentLoaded', function() {
             e.target.closest('.condition-row').remove();
         }
     });
+
+    // Prevent spaces in condition key inputs
+    function preventSpaces(event) {
+        if (event.key === ' ') {
+            event.preventDefault();
+        }
+    }
+    document.querySelectorAll('.condition-key').forEach(function(input) {
+        input.addEventListener('keydown', preventSpaces);
+    });
+
+    // document.querySelectorAll('.condition-value').forEach(function(input) {
+    //     input.addEventListener('keydown', preventSpaces);
+    // });
 
     // Min/max nights validation
     const minNights = document.getElementById('min_nights');

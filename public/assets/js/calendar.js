@@ -1,5 +1,3 @@
-import $ from 'jquery';
-
 $(function() {
   "use strict";
   // ✅ **Generate Available Date Ranges Based on Allowed Check-In Days**
@@ -29,13 +27,13 @@ $(function() {
     // Generate the calendar header with Next and Previous Month Buttons
     $('#calendar').prepend(`
       <div class="calendar-header d-flex justify-content-between align-items-center">
-        <button class="btn txt-brook-blue btn-sm prev-month month-nav-btn">
+        <button class="btn btn-sm btn-outline-success prev-month month-nav-btn">
           &lt; Previous
         </button>
         <h4 class="month-year text-center">
           ${new Date(year, month).toLocaleString('default', { month: 'long' })} ${year}
         </h4>
-        <button class="btn txt-brook-blue btn-sm next-month month-nav-btn">
+        <button class="btn btn-outline-success btn-sm next-month month-nav-btn">
           Next &gt;
         </button>
       </div>

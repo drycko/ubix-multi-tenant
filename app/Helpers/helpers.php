@@ -22,6 +22,20 @@ if (!function_exists('current_tenant')) {
     }
 }
 
+// current tenant currency
+if (!function_exists('tenant_currency')) {
+    function tenant_currency()
+    {   
+        // first try to get from settings if set
+        $currency = \App\Models\Tenant\TenantSetting::getSetting('currency');
+        if ($currency) {
+            return $currency;
+        }
+        $tenant = current_tenant();
+        return $tenant ? $tenant->currency : null;
+    }
+}
+
 if (!function_exists('is_super_user')) {
     function is_super_user()
     {

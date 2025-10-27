@@ -16,6 +16,15 @@ class GuestController extends Controller
 {
     use LogsTenantUserActivity;
 
+    public function __construct()
+    {
+        $this->middleware('permission:view guests')->only(['index', 'show', 'bookings', 'invoices', 'payments']);
+        $this->middleware('permission:create guests')->only(['create', 'store']);
+        $this->middleware('permission:edit guests')->only(['edit', 'update']);
+        $this->middleware('permission:delete guests')->only(['destroy']);
+        $this->middleware('permission:manage guest profiles')->only(['toggleStatus']);
+    }
+
     /**
      * Display a listing of the resource.
      */

@@ -28,6 +28,15 @@ class RoomRateController extends Controller
     
     // Build the query
     $query = RoomRate::with(['roomType', 'property']);
+
+    // Temporary to add is_per_night condition if not exists
+    // $roomRatesToUpdate = $query->whereNull('conditions->is_per_night')->get();
+    // foreach ($roomRatesToUpdate as $rate) {
+    //   $conditions = $rate->conditions ?? [];
+    //   $conditions['is_per_night'] = false;
+    //   $rate->conditions = $conditions;
+    //   $rate->save();
+    // }
     
     // Apply property filter
     if ($propertyId) {
@@ -246,7 +255,21 @@ class RoomRateController extends Controller
     // Set defaults for checkboxes
     $validated['is_shared'] = $request->has('is_shared');
     $validated['is_active'] = $request->has('is_active');
-    $validated['conditions'] = $validated['conditions'] ?? [];
+    // set conditions
+    $conditions = $validated['conditions'] ?? [];
+
+    $validated['conditions']['is_per_night'] = $request->is_per_night == 1 ? true : false;
+    foreach ($conditions as $condition) {
+      $key = $condition['key'] ?? null;
+      $value = $condition['value'] ?? null;
+      // add conditions to validated array
+      if ($key && $value) {
+        $validated['conditions'][] = [
+          'key' => $key,
+          'value' => $value,
+        ];
+      }
+    }
     
     // Create the room rate
     $roomRate = RoomRate::create(array_merge($validated, ['property_id' => $propertyId]));
@@ -279,8 +302,10 @@ class RoomRateController extends Controller
     }
     
     $roomRate->load(['roomType', 'property']);
-    
-    return view('tenant.room-rates.show', compact('roomRate'));
+    $rateBasis = $roomRate->conditions['is_per_night'] ?? false ? 'per night' : 'per person';
+    $currency = tenant_currency();
+
+    return view('tenant.room-rates.show', compact('roomRate', 'currency', 'rateBasis'));
   }
   
   /**
@@ -329,8 +354,27 @@ class RoomRateController extends Controller
     // Set defaults for checkboxes
     $validated['is_shared'] = $request->has('is_shared');
     $validated['is_active'] = $request->has('is_active');
-    $validated['conditions'] = $validated['conditions'] ?? [];
-    
+    // $validated['conditions'] = $validated['conditions'] ?? [];
+    // set conditions
+    $conditions = $validated['conditions'] ?? [];
+    foreach ($conditions as $condition) {
+      $key = $condition['key'] ?? null;
+      $value = $condition['value'] ?? null;
+      // add conditions to validated array
+      if ($key && $value) {
+        // remove existing conditions to avoid duplication
+        $validated['conditions'] = [];
+        $validated['conditions'][] = [
+          'key' => $key,
+          'value' => $value,
+        ];
+      }
+    }
+
+    $is_per_night = $request->is_per_night == 1 ? true : false;
+
+    $validated['conditions']['is_per_night'] = $is_per_night;
+
     // Store old values for logging
     $oldValues = $roomRate->toArray();
     

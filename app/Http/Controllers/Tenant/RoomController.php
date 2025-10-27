@@ -28,15 +28,17 @@ class RoomController extends Controller
      * Display a listing of the resource.
      */
     public function index(Request $request)
-    {
+    {   
+        // build the base query
+        $query = Room::with(['type', 'statuses']);
         // Get the property context
         $propertyId = $request->get('property_id');
         if (!$propertyId && !is_super_user()) {
             $propertyId = auth()->user()->property_id;
+            // add where clause to filter by property
+            $query->where('property_id', $propertyId);
         }
         
-        // build the query with filters
-        $query = Room::where('property_id', $propertyId);
 
         // Search filter
         if ($search = request('search')) {

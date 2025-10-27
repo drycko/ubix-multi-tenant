@@ -14,6 +14,15 @@ class GuestClubController extends Controller
 {
     use LogsTenantUserActivity;
 
+    public function __construct()
+    {
+        $this->middleware('permission:view guest clubs')->only(['index', 'show', 'members']);
+        $this->middleware('permission:create guest clubs')->only(['create', 'store']);
+        $this->middleware('permission:edit guest clubs')->only(['edit', 'update']);
+        $this->middleware('permission:manage guest clubs')->only(['toggleStatus', 'changeMemberStatus', 'bulkAction']);
+        $this->middleware('permission:delete guest clubs')->only(['destroy', 'removeMember']);
+    }
+
     /**
      * Display a listing of the resource.
      */

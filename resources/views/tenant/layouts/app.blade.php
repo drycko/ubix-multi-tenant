@@ -7,7 +7,7 @@
   
   <!-- CSRF Token -->
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Ubix Admin - @yield('title')</title>
+  <title>{{ config('app.name') }} Admin - @yield('title')</title>
   <!--begin::Accessibility Meta Tags-->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <meta name="color-scheme" content="light dark" />
@@ -55,7 +55,7 @@
           </li>
           <li class="nav-item d-none d-md-block">
             @if(auth()->check() && auth()->user()->property_id === null)
-            <a href="#" class="nav-link"><i class="fas fa-crown"></i> Super User</a>
+            <a href="#" class="nav-link text-warning"><i class="fas fa-crown"></i> Super User</a>
             @endif
           </li>
         </ul>
@@ -63,13 +63,13 @@
 
         <!--begin::End Navbar Links-->
         <ul class="navbar-nav ms-auto">
-          <!--begin::Navbar Search-->
+          <!--begin::Navbar Settings-->
           <li class="nav-item">
-            <a class="nav-link" data-widget="navbar-search" href="#" role="button">
-              <i class="bi bi-search"></i>
+            <a class="nav-link" href="{{ route('tenant.settings.index') }}" role="button">
+              <i class="bi bi-gear-fill"></i>
             </a>
           </li>
-          <!--end::Navbar Search-->
+          <!--end::Navbar Settings-->
 
           <!--begin::Messages Dropdown Menu-->
           <li hidden class="nav-item dropdown">
@@ -159,7 +159,7 @@
               <!--begin::Menu Footer-->
               <li class="user-footer">
 
-                {{-- <a hidden href="{{ route('tenant.settings') }}" class="btn btn-default btn-flat">Settings</a> --}}
+                <a hidden href="{{ route('tenant.settings.index') }}" class="btn btn-default btn-flat">Settings</a>
                 <a href="{{ route('tenant.users.profile') }}" class="btn btn-default btn-flat">Profile</a>
                 <a href="#" class="btn btn-default btn-flat float-end" data-bs-toggle="modal" data-bs-target="#logoutModal">Logout</a>
               </li>
@@ -629,6 +629,14 @@
               </a>
             </li>
             @endcan
+            @can('view refunds')
+            <li class="nav-item">
+              <a class="nav-link {{ Request::is('refunds*') ? 'active' : '' }}" href="{{ route('tenant.refunds.index') }}">
+                <i class="nav-icon bi bi-arrow-counterclockwise"></i>
+                <p>Refunds</p>
+              </a>
+            </li>
+            @endcan
             {{-- Tax Management --}}
             <li class="nav-item {{ Request::is('taxes*') ? 'menu-open' : '' }}">
               <a class="nav-link {{ Request::is('taxes*') ? 'active' : '' }}" href="#">
@@ -783,12 +791,12 @@
     <!--begin::Footer-->
     <footer class="app-footer">
       <!--begin::To the end-->
-      <div class="float-end d-none d-sm-inline"><b>Version</b> 1.0.0</div>
+      <div class="float-end d-none d-sm-inline"><b>Version</b> {{ env('APP_VERSION') }}</div>
       <!--end::To the end-->
       <!--begin::Copyright-->
       <strong>
         Copyright &copy; 2025&nbsp;
-        <a href="https://nexusflow.co.za" class="text-decoration-none text-success"> Ubix</a>.
+        <a href="https://nexusflow.co.za" class="text-decoration-none text-success"> {{ config('app.name') }}</a>.
       </strong>
       All rights reserved.
       <!--end::Copyright-->

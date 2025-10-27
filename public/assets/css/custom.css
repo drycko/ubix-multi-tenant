@@ -389,6 +389,18 @@ body {
   padding: 10px; /* Padding for better spacing */
 }
 
+/* make ul.scrollable-content */
+
+ul.scrollable-content {
+  max-height: 300px; /* Set a max height */
+  overflow-y: auto; /* Enable vertical scrolling */
+  border: 1px solid #ced4da; /* Border to match form controls */
+  border-radius: 0.375rem; /* Rounded corners */
+  padding: 10px; /* Padding for better spacing */
+}
+
+/* Flag icon styles for country selector */
+
 select .flag-icon {
   width: 20px;
   height: 15px;

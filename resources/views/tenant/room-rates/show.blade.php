@@ -8,7 +8,7 @@
   <div class="container-fluid">
     <div class="row">
       <div class="col-sm-6">
-        <h4 class="mb-0">
+        <h4 class="mb-0 text-muted">
           {{ $roomRate->name }}
           <span class="badge bg-{{ $roomRate->is_active ? 'success' : 'danger' }} ms-2">
             {{ $roomRate->is_active ? 'Active' : 'Inactive' }}
@@ -123,10 +123,10 @@
                 </p>
               </div>
               <div class="col-md-6 mb-3">
-                <label class="form-label fw-bold">Amount</label>
+                <label class="form-label fw-bold">Amount</label> <small >({{ $rateBasis }})</small>
                 <p class="mb-0">
-                  <span class="h4 text-success">R{{ number_format($roomRate->amount, 2) }}</span>
-                  <small class="text-muted">{{ ucfirst(str_replace('_', ' ', $roomRate->rate_type)) }}</small>
+                  <span class="h4 text-success">{{ $currency }}{{ number_format($roomRate->amount, 2) }}</span>
+                  <small class="text-muted">({{ ucfirst(str_replace('_', ' ', $roomRate->rate_type)) }})</small>
                 </p>
               </div>
             </div>
@@ -197,6 +197,15 @@
 
         <!-- Conditions -->
         @if($roomRate->conditions && count($roomRate->conditions) > 0)
+        @php
+        // log raw conditions
+        \Log::info('Room Rate Conditions:', $roomRate->conditions);
+          // Filter out the is_per_night condition for display
+          $filteredConditions = array_filter($roomRate->conditions, function($condition) {
+              return isset($condition['key']) && $condition['key'] !== 'is_per_night';
+          });
+        @endphp
+        @if(count($filteredConditions) > 0)
         <div class="card mb-3">
           <div class="card-header">
             <h5 class="card-title mb-0">
@@ -206,14 +215,17 @@
           <div class="card-body">
             <ul class="list-unstyled mb-0">
               @foreach($roomRate->conditions as $condition)
-                <li class="mb-2">
-                  <i class="bi bi-check-circle text-success me-2"></i>
-                  {{ $condition }}
-                </li>
+                @if(is_array($condition) && isset($condition['key'], $condition['value']))
+                  <li class="mb-2">
+                    <i class="bi bi-check-circle text-success me-2"></i>
+                    <strong>{{ ucfirst(str_replace('_', ' ', $condition['key'])) }}:</strong> {{ $condition['value'] }}
+                  </li>
+                @endif
               @endforeach
             </ul>
           </div>
         </div>
+        @endif
         @endif
 
       </div>
