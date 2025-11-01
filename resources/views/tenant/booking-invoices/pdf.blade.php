@@ -246,7 +246,7 @@
             <strong>Check-in:</strong> {{ $bookingInvoice->booking->arrival_date->format('l, F j, Y') }}<br>
             <strong>Check-out:</strong> {{ $bookingInvoice->booking->departure_date->format('l, F j, Y') }}<br>
             <strong>Duration:</strong> {{ $bookingInvoice->booking->nights }} night(s)<br>
-            <strong>Room Type:</strong> {{ $bookingInvoice->booking->is_shared ? 'Shared Room' : 'Private Room' }}
+            <strong>Booking Type:</strong> {{ $bookingInvoice->booking->is_shared ? 'Shared Room' : 'Private Room' }}
         </div>
     </div>
 

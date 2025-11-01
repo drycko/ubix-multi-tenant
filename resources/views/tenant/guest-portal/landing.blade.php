@@ -41,7 +41,7 @@
           <!--Tab-->
           <div class="tab active-tab" id="tab1">
             <div class="listing-search-form">
-              <form method="POST" action="{{ route('tenant.guest-portal.landing.post') }}">
+              <form method="POST" action="{{ route('tenant.guest-portal.index.post') }}">
                 @csrf
                 <div class="row">
                   <div class="form-group col-lg-4 col-md-6 col-sm-12">
@@ -77,7 +77,7 @@
           <!--Tab-->
           <div class="tab" id="tab2">
             <div class="listing-search-form">
-              <form method="POST" action="{{ route('tenant.guest-portal.landing.post') }}">
+              <form method="POST" action="{{ route('tenant.guest-portal.index.post') }}">
                 @csrf
                 <div class="row">
                   <div class="form-group col-lg-4 col-md-6 col-sm-12">
@@ -91,14 +91,14 @@
                   
                   <!-- Form Group -->
                   <div class="form-group col-lg-3 col-md-6 col-sm-12 date-picker">
-                    <input type="date" min="{{ \Carbon\Carbon::today()->format('Y-m-d') }}" name="checkin_date" id="checkin_date" placeholder="Check-in Date">
-                    <span class="icon flaticon-calendar" data-text="Select Date"></span>
+                    {{-- <input type="date" min="{{ \Carbon\Carbon::today()->format('Y-m-d') }}" name="checkin_date" id="checkin_date" placeholder="Check-in Date">
+                    <span class="icon flaticon-calendar" data-text="Select Date"></span> --}}
                   </div>
                   
                   <!-- Form Group -->
                   <div class="form-group col-lg-3 col-md-6 col-sm-12 date-picker">
-                    <input type="date" min="{{ \Carbon\Carbon::today()->format('Y-m-d') }}" name="checkout_date" id="checkout_date" placeholder="Checkout Date">
-                    <span class="icon flaticon-calendar" data-text="Select Date"></span>
+                    {{-- <input type="date" min="{{ \Carbon\Carbon::today()->format('Y-m-d') }}" name="checkout_date" id="checkout_date" placeholder="Checkout Date">
+                    <span class="icon flaticon-calendar" data-text="Select Date"></span> --}}
                   </div>
                   
                   <!-- Form Group -->

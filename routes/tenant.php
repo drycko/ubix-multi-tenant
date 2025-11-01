@@ -87,45 +87,50 @@ Route::middleware([
 
     // Public routes
     Route::get('/', function () {
-        return redirect()->route('tenant.guest-portal.landing');
+        return redirect()->route('tenant.guest-portal.index');
     })->name('tenant.guest-portal.home');
     Route::get('booking-invoices/{bookingInvoice}/guest', [BookingInvoiceController::class, 'publicView'])->name('tenant.booking-invoices.public-view');
 
-    // Guest Portal Dashboard
-    Route::get('/portal', [GuestPortalController::class, 'index'])->name('tenant.guest-portal.index');
     // landing page
-    Route::get('/portal/landing', [GuestPortalController::class, 'landing'])->name('tenant.guest-portal.landing');
-    Route::post('/portal/landing', [GuestPortalController::class, 'landingSearch'])->name('tenant.guest-portal.landing.post');
-    // Booking form and submission
-    Route::get('/portal/booking', [GuestPortalController::class, 'showBookingForm'])->name('tenant.guest-portal.booking');
-    Route::post('/portal/booking', [GuestPortalController::class, 'showBookingForm'])->name('tenant.guest-portal.booking.search');
-    Route::post('/portal/booking/submit', [GuestPortalController::class, 'book'])->name('tenant.guest-portal.book');
-    // package booking
-    Route::get('/portal/booking/select-package', [GuestPortalController::class, 'showPackageSelection'])->name('tenant.guest-portal.booking.select-package');
-    Route::get('/portal/booking/packages/{package}', [GuestPortalController::class, 'showPackageBookingForm'])->name('tenant.guest-portal.package-booking');
-    Route::post('/portal/booking/packages', [GuestPortalController::class, 'bookPackage'])->name('tenant.guest-portal.package-booking.submit');
-    // Self Check-In/Out
-    Route::get('/portal/checkin', [SelfCheckInController::class, 'index'])->name('tenant.guest-portal.checkin');
-    Route::post('/portal/checkin/{booking}', [SelfCheckInController::class, 'checkIn'])->name('tenant.guest-portal.checkin.submit');
-    Route::post('/portal/checkout/{booking}', [SelfCheckInController::class, 'checkOut'])->name('tenant.guest-portal.checkout.submit');
-    // Guest Requests & Feedback
-    Route::get('/portal/requests', [GuestRequestController::class, 'index'])->name('tenant.guest-portal.requests');
-    Route::post('/portal/requests', [GuestRequestController::class, 'store'])->name('tenant.guest-portal.requests.store');
-    Route::post('/portal/feedback', [GuestRequestController::class, 'storeFeedback'])->name('tenant.guest-portal.feedback.store');
-    // Digital Keys
-    Route::get('/portal/keys', [DigitalKeyController::class, 'index'])->name('tenant.guest-portal.keys');
-    Route::post('/portal/keys/{key}/deactivate', [DigitalKeyController::class, 'deactivate'])->name('tenant.guest-portal.keys.deactivate');
+    Route::get('/index', [GuestPortalController::class, 'index'])->name('tenant.guest-portal.index');
+    Route::post('/index', [GuestPortalController::class, 'landingSearch'])->name('tenant.guest-portal.index.post');
+    
+    Route::prefix('/guest')->group(function () {
+        Route::get('/booking', [GuestPortalController::class, 'showPackageBookingForm'])->name('tenant.guest-portal.booking');
+        // Route::post('/booking', [GuestPortalController::class, 'showBookingForm'])->name('tenant.guest-portal.booking.search');
+        Route::post('/booking/submit', [GuestPortalController::class, 'book'])->name('tenant.guest-portal.booking.store');
+        Route::get('/booking/select-package', [GuestPortalController::class, 'showPackageSelection'])->name('tenant.guest-portal.booking.select-package');
+        // Route::get('/booking/packages/{package}', [GuestPortalController::class, 'showPackageBookingForm'])->name('tenant.guest-portal.package-booking');
+        Route::post('/booking/packages', [GuestPortalController::class, 'bookPackage'])->name('tenant.guest-portal.package-booking.submit');
+        Route::get('/login', [GuestPortalController::class, 'showLoginForm'])->name('tenant.guest-portal.login');
+        Route::post('/send-login-link', [GuestPortalController::class, 'sendLoginLink'])->name('tenant.guest-portal.send-login-link');
+        Route::get('/magic-login/{guest}', [GuestPortalController::class, 'magicLogin'])->name('tenant.guest-portal.magic-login')->middleware('signed');
+        Route::post('/logout', [GuestPortalController::class, 'logout'])->name('tenant.guest-portal.logout');
+
+        Route::get('/error', [GuestPortalController::class, 'showErrorPage'])->name('tenant.guest-portal.error');
+
+        Route::prefix('/portal')->middleware('guest.portal')->group(function () {
+            Route::get('/', [GuestPortalController::class, 'dashboard'])->name('tenant.guest-portal.dashboard');
+            Route::get('/checkin', [SelfCheckInController::class, 'index'])->name('tenant.guest-portal.checkin');
+            Route::post('/checkin/{booking}', [SelfCheckInController::class, 'checkIn'])->name('tenant.guest-portal.checkin.submit');
+            Route::post('/checkout/{booking}', [SelfCheckInController::class, 'checkOut'])->name('tenant.guest-portal.checkout.submit');
+            Route::get('/requests', [GuestRequestController::class, 'index'])->name('tenant.guest-portal.requests');
+            Route::post('/requests', [GuestRequestController::class, 'store'])->name('tenant.guest-portal.requests.store');
+            Route::post('/feedback', [GuestRequestController::class, 'storeFeedback'])->name('tenant.guest-portal.feedback.store');
+            Route::get('/keys', [DigitalKeyController::class, 'index'])->name('tenant.guest-portal.keys');
+            Route::post('/keys/{key}/deactivate', [DigitalKeyController::class, 'deactivate'])->name('tenant.guest-portal.keys.deactivate');
+        });
+    });
 
     // settings route group
-    Route::prefix('/settings')->middleware('auth:tenant')->name('tenant.settings.')->group(function () {
+    Route::prefix('/t/settings')->middleware('auth:tenant')->name('tenant.settings.')->group(function () {
         Route::get('/', [TenantSettingController::class, 'index'])->name('index');
         Route::get('/payfast', [TenantSettingController::class, 'editPayfast'])->name('payfast.edit');
         Route::post('/payfast', [TenantSettingController::class, 'updatePayfast'])->name('payfast.update');
     });
 
-
-    // Protected routes with property context
-    Route::middleware(['auth:tenant', 'property.selector'])->group(function () {
+    // Protected routes with property context (prefixed 't' for tenant)
+    Route::prefix('/t')->middleware(['auth:tenant', 'property.selector'])->group(function () {
         // Dashboard - accessible to all authenticated users
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('tenant.dashboard');
         Route::get('/stats', [DashboardController::class, 'stats'])->name('tenant.stats');

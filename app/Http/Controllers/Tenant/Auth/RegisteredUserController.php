@@ -26,25 +26,31 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+        \Log::info('Starting registration process for tenant: ' . current_tenant()->name);
+        try {
+            $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+                'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
 
-        // Assign default tenant role
-        $user->assignRole('guest');
+            // Assign default tenant role
+            $user->assignRole('guest');
 
-        event(new Registered($user));
+            event(new Registered($user));
 
-        Auth::guard('tenant')->login($user);
+            Auth::guard('tenant')->login($user);
 
-        return redirect(RouteServiceProvider::TENANT_HOME);
+            return redirect(RouteServiceProvider::TENANT_HOME);
+        } catch (\Exception $e) {
+            \Log::error('Registration failed: ' . $e->getMessage());
+            return redirect()->back()->withInput()->withErrors(['error' => 'Registration failed: ' . $e->getMessage()]);
+        }
     }
 }

@@ -70,6 +70,11 @@
               </h3>
             </div>
             <div class="card-body">
+              <div class="mb-3">
+                <div class="alert alert-info">
+                  <i class="bi bi-info-circle"></i> Image dimensions should be 420x250 pixels for best results.
+                </div>
+              </div>
               <!-- Package Name -->
               <div class="row mb-3">
                 <div class="col-md-6">

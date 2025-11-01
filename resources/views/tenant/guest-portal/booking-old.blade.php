@@ -1,312 +1,695 @@
+@php
+// Pass allowed check-in days and nights to JS
+// $package->pkg_checkin_days is a json array stored as string in DB, e.g. '["Wednesday","Sunday"]'
+$allowedDays = $packageCheckinDays ?? ['Monday','Wednesday','Friday']; // Example fallback
+$packageNights = $packageNumberOfNights ?? 1;
+// Map to 3-letter uppercase codes for JS calendar logic
+$dayMap = [
+'Sunday' => 'SUN',
+'Monday' => 'MON',
+'Tuesday' => 'TUE',
+'Wednesday' => 'WED',
+'Thursday' => 'THU',
+'Friday' => 'FRI',
+'Saturday' => 'SAT',
+];
+$allowedWeekdays = array_map(fn($d) => $dayMap[$d] ?? strtoupper(substr($d,0,3)), $allowedDays);
+@endphp
+
 @extends('tenant.layouts.guest')
 
 @section('title', 'Book a Room')
 
+{{-- calendar css (for booking form) --}}
+<link rel="stylesheet" href="{{ asset('assets/css/calendar.css') }}">
+
+<script>
+  // allowedWeekdays: e.g. ["MON","WED","FRI"]
+  const allowedWeekdays = @json($allowedWeekdays);
+  let packageNights = @json($packageNights); // since this is free pick we will allow the user to change nights
+</script>
+
 @section('content')
 <!-- Listing Section / Sytle Two-->
-<section class="ls-section style-two">
+<section class="add-listing-section">
   <div class="auto-container">
-    <div class="filters-backdrop"></div>
+    {{-- <div class="filters-backdrop"></div> --}}
     
     <div class="row">
+      <!-- Sidebar Column -->
+      <div class="sidebar-column sidebar-side sticky-container col-lg-4 col-md-12 col-sm-12">
+        <aside class="sidebar theiaStickySidebar">
+          <div class="sticky-sidebar">
+            <ul class="listing-content-list">
+              <li class="active"><span class="icon text-muted bi bi-calendar"></span> <span id="summaryDates">Date Range</span></li>
+              <li><span class="icon text-muted bi bi-door-open"></span> <span id="summaryRoom">Room</span></li>
+              <li><span class="icon text-muted bi bi-person"></span> <span id="summaryGuests">Guests</span></li>
+              <li><span class="icon text-muted bi bi-cash"></span> {{ $currencySymbol }}<span id="summaryRate">0.00</span></li>
+              <li><span class="icon text-muted bi bi-credit-card"></span> {{ $currencySymbol }}<span id="summaryTotal">0.00</span></li>
+              <li><span class="icon text-muted bi bi-card-list"></span> <span id="summaryRequests">Special Requests</span></li>
+            </ul>
 
-      <!-- Filters Column -->
+            <div class="d-flex justify-content-between mt-3">
+              <div>
+                <a href="javascript:void(0);" class="theme-btn btn-style-one bg-gray small" id="prevStep"><span class="icon flaticon-left-arrow"></span> Back</a>
+                <a href="javascript:void(0);" class="theme-btn btn-style-one bg-green small" id="nextStep">Next <span class="icon flaticon-right"></span></a>
+              </div>
+            </div>
+        </aside>
+      </div>
+      
+      {{-- <!-- Filters Column -->
       <div class="filters-column col-lg-4 col-md-12 col-sm-12">
+        <!-- Sidebar Summary -->
         <div class="inner-column">
           <button type="button" class="theme-btn close-filters">X</button>
           <div class="default-tabs style-two tabs-box">
             <!--Tabs Box-->
             <ul class="tab-buttons clearfix">
-              <li class="tab-btn active-btn" data-tab="#tabFilters">Filters</li>
-              <li class="tab-btn" data-tab="#tabSummary">Booking Summary</li>
+              <li class="tab-btn active-btn" data-tab="#tabSummary">Booking Summary</li>
             </ul>
-            <!-- Top Filters -->
-            {{-- <ul class="top-filters">
-              <li class="active"><a href="javascript:void(0);" id="filters-tab">Filters</a></li>
-              <li><a href="javascript:void(0);" id="summary-tab">Summary</a></li>
-            </ul> --}}
             <div class="tabs-content p-0 pt-3">
-              <!--Tab-->
-              {{-- <div class="tab active-tab" id="tabFilters"> --}}
-                <!-- Listing Form -->
-                <div class="tab active-tab listing-search-form" id="tabFilters">
-                  <form action="{{ route('tenant.guest-portal.booking.search') }}" method="GET">
-                    <div class="row">
-
-                      <!-- Form Group -->
-                      <div class="form-group col-lg-12 col-md-12 col-sm-12">
-                        <select name="room_type" id="room_type" class="chosen-select">
-                          <option value="">All Room Types</option>
-                          @foreach($availableRoomTypes as $roomType)
-                            <option value="{{ $roomType->id }}" {{ old('room_type', $selectedRoomType) == $roomType->id ? 'selected' : '' }}>{{ $roomType->name }}</option>
-                          @endforeach
-                        </select>
-                      </div>
-
-                      <div class="form-group col-lg-12 col-md-12 col-sm-12">
-                        <input type="date"
-                          min="{{ \Carbon\Carbon::today()->format('Y-m-d') }}"
-                          name="checkin_date" id="checkin_date"
-                          value="{{ old('checkin_date', $checkinDate) }}"
-                          placeholder="Check-in Date">
-                        <span class="icon flaticon-calendar" data-text="Check-in Date"></span>
-                      </div>
-                      <!-- Form Group -->
-                      <div class="form-group col-lg-12 col-md-12 col-sm-12 location">
-                        <input type="date"
-                          min="{{ \Carbon\Carbon::today()->format('Y-m-d') }}"
-                          name="checkout_date" id="checkout_date"
-                          value="{{ old('checkout_date', $checkoutDate) }}"
-                          placeholder="Check-out Date">
-                        <span class="icon flaticon-calendar" data-text="Check-out Date"></span>
-                      </div>
-
-                      <!-- Form Group -->
-                      {{-- <div class="form-group col-lg-12 col-md-12 col-sm-12">
-                        <select class="chosen-select">
-                          <option>Price</option>
-                          <option>Residential</option>
-                          <option>Commercial</option>
-                          <option>Industrial</option>
-                          <option>Apartments</option>
-                        </select>
-                      </div> --}}
-                    </div>
-
-                    
-                    <!-- Switchbox Outer -->
-                    <div class="switchbox-outer">
-
-                      <ul class="switchbox">
-                        <li>
-                          <label class="switch">
-                            <input type="checkbox" name="is_shared" id="is_shared" @if(old('is_shared', $isShared)) checked @endif>
-                            <span class="slider round"></span>
-                            <span class="title">With Company</span>
-                          </label>
-                        </li>
-                        {{-- <li>
-                          <label class="switch">
-                            <input type="checkbox">
-                            <span class="slider round"></span>
-                            <span class="title">Near Me</span>
-                          </label>
-                        </li> --}}
-                      </ul>
-                    </div>
-
-                    <!-- Checkboxes Ouer -->
-                    <div class="checkbox-outer">
-                      <h4>Amenities</h4>
-                      <ul class="checkboxes two-column scrollable-content" style="max-height: 150px; overflow-y: auto;">
-                        @foreach($roomAmenities as $amenity)
-                        <li>
-                          <input type="checkbox" id="amenity-{{ $amenity->id }}" name="amenities[]"
-                          @if(in_array($amenity->slug, old('amenities', []))) checked @endif
-                          value="{{ $amenity->slug }}">
-                          <label for="amenity-{{ $amenity->id }}">{{ $amenity->name }}</label>
-                        </li>
-                        @endforeach
-                      </ul>
-                    </div>
-
-                    <div class="form-group text-center">
-                      <button type="submit" class="theme-btn bg-green btn-style-one">Show Results</button>
-                    </div>
-                  </form>
-                </div>
-                <!-- End Listing Form -->
-              {{-- </div> --}}
-              <!--Tab-->
-              <div class="tab" id="tabSummary">
-                <!-- Booking summary -->
-                <div class="listing-search-form" id="summary">
-                  <div class="summary-box">
-                    {{-- <h4>Booking Summary</h4> --}}
-                    <ul class="summary-list">
-                      <li class="border-bottom">
-                        <div class="sec-title text-center mb-1 mt-2">
-                          <h4>Date Range</h4>
-                          <span class="divider"></span>
-                          <div class="text">{{ \Carbon\Carbon::parse($checkinDate)->format('M d, Y') }} - {{ \Carbon\Carbon::parse($checkoutDate)->format('M d, Y') }}</div>
-                        </div>
-                        {{-- <span class="icon flaticon-time"></span><strong class="text-green">Check-in Date:</strong> <span>{{ \Carbon\Carbon::parse($checkinDate)->format('M d, Y') }}</span> --}}
-                      </li>
-                      <li class="border-bottom">
-                        <div class="sec-title text-center mb-1 mt-2">
-                          <h4>Number of Nights</h4>
-                          <span class="divider"></span>
-                          <div class="text">{{ \Carbon\Carbon::parse($checkinDate)->diffInDays(\Carbon\Carbon::parse($checkoutDate)) }} Night(s)</div>
-                        </div>
-                      </li>
-                      <li class="border-bottom">
-                        <div class="sec-title text-center mb-1 mt-2">
-                          <h4>Room Type</h4>
-                          <span class="divider"></span>
-                          <div class="text">{{ $selectedRoomTypeName ?? 'All' }}</div>
-                        </div>
-                      </li>
-                      <li class="border-bottom">
-                        <div class="sec-title text-center mb-1 mt-2">
-                          <h4>Sharing Option</h4>
-                          <span class="divider"></span>
-                          <div class="text">{{ $isShared ? 'With Company' : 'Private' }}</div>
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-                <!-- End Booking summary -->
+              <div class="tab active-tab" id="bookingSummary">
+                <ul class="list-group list-group-flush">
+                  <li class="list-group-item"><strong>Date Range:</strong> <span id="summaryDates"></span></li>
+                  <li class="list-group-item"><strong>Room:</strong> <span id="summaryRoom"></span></li>
+                  <li class="list-group-item"><strong>Guests:</strong> <span id="summaryGuests"></span></li>
+                  <li class="list-group-item"><strong>Rate:</strong> <span id="summaryRate"></span></li>
+                  <li class="list-group-item"><strong>Total:</strong> <span id="summaryTotal"></span></li>
+                  <li class="list-group-item"><strong>Special Requests:</strong> <span id="summaryRequests"></span></li>
+                </ul>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      
+      </div> --}}
+      <!-- Main Stepper -->
       <!-- Content Column -->
       <div class="content-column col-lg-8 col-md-12 col-sm-12">
         <div class="ls-outer">
-          <button type="button" class="theme-btn btn-style-two toggle-filters">Show Filters</button>
-
-          <!-- ls Switcher -->
-          <div class="ls-switcher">
-            <div class="showing-result">
-              <div class="arrange">
-                <a href="#" class="active"><span class="icon flaticon-squares"></span></a>
-                <a href="#"><span class="icon flaticon-setup"></span></a>
-              </div>
-              <div class="text">{{ $availableRooms->count() }} Results Found (Showing {{ $availableRooms->firstItem() }}-{{ $availableRooms->lastItem() }})</div>
-            </div>
-            <div class="sort-by">
-              <select class="chosen-select">
-                <option>Sort By</option>
-                <option>Room Type</option>
-              </select>
-            </div>
-          </div>
-          <!-- Listings -->
-          <div class="row">
-            @foreach($availableRooms as $room)
-            @php
-              $room_name = $room->name;
-              $room_type_name = $room->type->name;
-              $room_web_description = $room->web_description;
-              $room_code = $room->code;
-              // if image has http or https, use it directly
-              $room_image = preg_match('/^https?:\/\//', $room->web_image) ? $room->web_image : asset('storage/' . $room->web_image);
-              // if no image, use default
-              $room_image = $room_image ? $room_image : asset('assets/images/image_not_available.png');
-
-              $on_error_image = asset('assets/images/image_not_available.png');
-              
-              $room_description = $room->description;
-
-              // if checkout is the same as checkin date, set checkout date to next day
-              if ($checkinDate == $checkoutDate) {
-                  $checkoutDate = \Carbon\Carbon::parse($checkoutDate)->addDay();
-              }
-
-              if ($isShared) {
-                $guests = $room->type->max_capacity;
-                $roomRate = $room->type->getRangeRates(true, $checkinDate, $checkoutDate)->first();
-              } else {
-                $guests = 1;
-                $roomRate = $room->type->getRangeRates(false, $checkinDate, $checkoutDate)->first();
-              }
-
-              $rateBasis = $roomRate->conditions['is_per_night'] ?? false ? 'per night' : 'per person';
-
-              $dailyRate = $roomRate->amount;
-              // adjust daily rate based on rate basis
-              if ($rateBasis == 'per person') {
-                $dailyRate = $dailyRate * max(1, $guests);
-              }
-
-              $room_rate_total = $dailyRate;
-              $room_price_display = number_format($room_rate_total, 2);
-              // generate thumbnail image
-              $room_thumbnail = $room_image;
-              $room_location = $room->property->name ?? 'N/A';
-
-              $room_amenities = $room->type->amenities_with_details; // icons are bi bi-*
-              $first_amenity = $room_amenities->last();
-              $amenities_count = $room->type->amenities_count;
-              $is_available = $room->isAvailable($checkinDate, $checkoutDate);
-
-              // calculate rate basis display
-              
-
-            @endphp
-            <!-- Listing Block -->
-            <div class="listing-block col-lg-6 col-md-6 col-sm-12">
-              <div class="inner-box">
-                <div class="image-box">
-                  <figure class="image"><img src="{{ $room_thumbnail }}" alt=""></figure>
-                  <div class="tags">
-                    @if($room->is_featured)
-                      <span>Featured</span>
-                    @endif
-                    <span>{{ $currency }}{{ $room_price_display }} (/night)</span>
-                  </div>
-                  {{-- <a href="#" class="like-btn"><span class="flaticon-heart"></span> Save</a> --}}
-                </div>
-                <div class="lower-content">
-                  {{-- <div class="user-thumb"><img src="images/resource/user-thumb-1.jpg" alt="" /></div> --}}
-                  <div class="rating">
-                    @if($room->average_rating && $room->published_feedback_count > 0)
-                      @for($i = 1; $i <= 5; $i++)
-                        @if($i <= floor($room->average_rating))
-                          <span class="fa fa-star"></span>
-                        @elseif($i - $room->average_rating < 1)
-                          <span class="fa fa-star-half-o"></span>
-                        @else
-                          <span class="fa fa-star"></span>
-                        @endif
-                      @endfor
-                    <span class="title">({{ $room->published_feedback_count }})</span>
-                    @else
-                    <span class="far fa-star"></span>
-                    <span class="far fa-star"></span>
-                    <span class="far fa-star"></span>
-                    <span class="far fa-star"></span>
-                    <span class="far fa-star"></span>
-                    @endif
-                  </div>
-                  <h3><a href="#">{{ $room_name }} <span class="icon icon-verified"></span></a></h3>
-                  <div class="text">{{ $room_web_description }}</div>
-                  <ul class="info">
-                    <li><span class="flaticon-pin"></span> {{ $room_location }}</li>
-                    <li><button type="submit" class="theme-btn small bg-green btn-style-one">Book Now</button></li>
+          {{-- <div class="col-lg-8"> --}}
+            <div class="stepper-container">
+              {{-- <div class="card-body"> --}}
+                <!-- Bootstrap 4 Stepper -->
+                <div id="bookingStepper" class="stepper-wrapper">
+                  <ul class="nav nav-pills mb-4" role="tablist">
+                    <li class="nav-item">
+                      <a class="nav-link stepper-link active" id="step1-tab" data-toggle="pill" href="#step1" role="tab">Step 1: Dates</a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link stepper-link" id="step2-tab" data-toggle="pill" href="#step2" role="tab">Step 2: Room</a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link stepper-link" id="step3-tab" data-toggle="pill" href="#step3" role="tab">Step 3: Guests</a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link stepper-link" id="step4-tab" data-toggle="pill" href="#step4" role="tab">Step 4: Confirm</a>
+                    </li>
                   </ul>
+                  <form id="bookingForm" method="POST" action="{{ route('tenant.guest-portal.booking.store') }}">
+                    @csrf
+                    <div class="tab-content">
+                      <!-- Step 1: Date Range -->
+                      <div class="tab-pane fade show active" id="step1" role="tabpanel">
+                        <div class="form-row">
+                          <div class="form-group col-md-5">
+                            <label for="arrival_date">Arrival Date</label>
+                            <input type="date" class="form-control" id="arrival_date" name="arrival_date" min="{{ \Carbon\Carbon::today()->format('Y-m-d') }}" required>
+                          </div>
+                          <div class="form-group col-md-5">
+                            <label for="departure_date">Departure Date</label>
+                            <input type="date" class="form-control" id="departure_date" name="departure_date" min="{{ \Carbon\Carbon::today()->format('Y-m-d') }}" required>
+                          </div>
+                          <div class="form-group col-md-2 d-flex align-items-end">
+                            <a href="#" type="button" class="btn btn-outline-success mt-4 float-right" data-toggle="modal" data-target="#calendarModal"><i class="fas fa-calendar-alt"></i> Pick Dates</a>
+                          </div>
+                          
+                        </div>
+                        <div class="form-row">
+
+                          <div class="form-group col-md-5">
+                            <label for="is_shared">Multiple Guests</label>
+                            <select class="form-control" id="is_shared" name="is_shared">
+                              <option value="0">No</option>
+                              <option value="1">Yes</option>
+                            </select>
+                          </div>
+                          {{-- <div class="form-group col-md-5">
+                            <label for="number_of_nights">Nights <small class="text-muted">(Min: {{ $packageNights }}, Max: {{ $packageMaxNights }})</small></label>
+                            <input type="number" class="form-control"
+                              id="number_of_nights" name="number_of_nights"
+                              min="{{ $packageNights }}" max="{{ $packageMaxNights }}"
+                              value="{{ old('number_of_nights', $packageNights) }}" required>
+                            <div class="invalid-feedback">
+                              Please enter a valid number of nights.
+                            </div>
+                          </div> --}}
+                        </div>
+                        <a type="button" class="theme-btn btn-style-one bg-green float-right" id="toStep2">Next <span class="icon flaticon-right"></span></a>
+                      </div>
+                      <!-- Step 2: Select Room -->
+                      {{-- ... previous step markup ... --}}
+                      <!-- Step 2: Select Room -->
+                      <div class="tab-pane fade" id="step2" role="tabpanel">
+                        <div class="row scollable-listings" style="max-height:90vh;overflow-y:auto;">
+                          @foreach($availableRooms as $room)
+                          @php
+                          $room_name = $room->name;
+                          $room_type_name = $room->type->name;
+                          $room_web_description = $room->web_description;
+                          $room_code = $room->code;
+                          $room_image = preg_match('/^https?:\/\//', $room->web_image) ? $room->web_image : asset('storage/' . $room->web_image);
+                          $room_image = $room_image ? $room_image : asset('assets/images/image_not_available.png');
+                          $on_error_image = asset('assets/images/image_not_available.png');
+                          $room_description = $room->description;
+                          if ($checkinDate == $checkoutDate) {
+                            $checkoutDate = \Carbon\Carbon::parse($checkoutDate)->addDay();
+                          }
+                          if ($isShared) {
+                            $guests = $room->type->max_capacity;
+                            $roomRate = $room->type->getRangeRates(true, $checkinDate, $checkoutDate)->first();
+                          } else {
+                            $guests = 1;
+                            $roomRate = $room->type->getRangeRates(false, $checkinDate, $checkoutDate)->first();
+                          }
+                          $rateBasis = $roomRate->conditions['is_per_night'] ?? false ? 'per night' : 'per person';
+                          $dailyRate = $roomRate->amount;
+                          if ($rateBasis == 'per person') {
+                            $dailyRate = $dailyRate * max(1, $guests);
+                          }
+                          $room_rate_total = $dailyRate;
+                          $room_price_display = number_format($room_rate_total, 2);
+                          $room_thumbnail = $room_image;
+                          $room_location = $room->property->name ?? 'N/A';
+                          $room_amenities = $room->type->amenities_with_details; // icons are bi bi-*
+                          $first_amenity = $room_amenities->last();
+                          $amenities_count = $room->type->amenities_count;
+                          $is_available = $room->isAvailable($checkinDate, $checkoutDate);
+
+                          
+                          @endphp
+                          
+                          <!-- Listing Block -->
+                          <div class="listing-block col-lg-6 col-md-6 col-sm-12">
+                            <label class="inner-box">
+                              <input type="radio"
+                                name="room_id"
+                                value="{{ $room->id }}"
+                                class="room-radio"
+                                data-typeid="{{ $room->room_type_id }}"
+                                data-type="{{ $room_type_name }}"
+                                data-rate="{{ $dailyRate }}"
+                                data-shared-rate="{{ $room->type->rates->where('is_shared', true)->first()?->amount ?? 0 }}"
+                                data-max="{{ $room->type->max_capacity }}"
+                                data-roomname="{{ $room_name }}"
+                                style="position:absolute;top:10px;left:10px;z-index:2;"
+                                {{ old('room_id') == $room->id ? 'checked' : '' }}
+                                {{ !$is_available ? 'disabled' : '' }}
+                              >
+                              <div class="inner-box {{ !$is_available ? 'bg-light text-muted' : '' }}" style="padding-left:30px;">
+                                <figure class="image"><img src="{{ $room_thumbnail }}" alt=""></figure>
+                                <div class="tags">
+                                  @if($room->is_featured)
+                                    <span>Featured</span>
+                                  @endif
+                                  <span>{{ $currencySymbol }}{{ $room_price_display }} (/night)</span>
+                                </div>
+                                {{-- <a href="#" class="like-btn"><span class="flaticon-heart"></span> Save</a> --}}
+                              </div>
+                              <div class="lower-content">
+                                {{-- <div class="user-thumb"><img src="images/resource/user-thumb-1.jpg" alt="" /></div> --}}
+                                <div class="rating">
+                                  @if($room->average_rating && $room->published_feedback_count > 0)
+                                    @for($i = 1; $i <= 5; $i++)
+                                      @if($i <= floor($room->average_rating))
+                                        <span class="fa fa-star"></span>
+                                      @elseif($i - $room->average_rating < 1)
+                                        <span class="fa fa-star-half-o"></span>
+                                      @else
+                                        <span class="fa fa-star"></span>
+                                      @endif
+                                    @endfor
+                                  <span class="title">({{ $room->published_feedback_count }})</span>
+                                  @else
+                                  <span class="far fa-star"></span>
+                                  <span class="far fa-star"></span>
+                                  <span class="far fa-star"></span>
+                                  <span class="far fa-star"></span>
+                                  <span class="far fa-star"></span>
+                                  @endif
+                                </div>
+                                <h3><a href="#">{{ $room_name }} <span class="icon icon-verified"></span></a></h3>
+                                <div class="text">{{ $room_web_description }}</div>
+                                <ul class="info">
+                                  <li><span class="flaticon-pin"></span> {{ $room_location }}</li>
+                                  <li><button type="button" class="theme-btn small bg-green btn-style-one">Book Now</button></li>
+                                </ul>
+                              </div>
+                              <div class="bottom-box">
+                                <div class="places"> 
+                                  <div class="place"><i class="icon {{ $first_amenity->icon }}"></i> {{ $first_amenity->name ?? 'N/A' }} </div>
+                                  <span class="count">+{{ $amenities_count - 1 }}</span>
+                                </div>
+                                <div class="status"><span class="{{ $is_available ? 'text-success' : 'text-danger' }}">{{ $is_available ? $room_type_count . ' Available' : 'Not Available' }}</span></div>
+                              </div>
+                            </label>
+                          </div>
+                          @endforeach
+                        </div>
+                        {{-- @if($availableRooms->hasPages())
+                        <!-- Pagination -->
+                        <div class="container-fluid py-3 justify-content-center">
+                          <div class="row align-items-center">
+                            <div class="col-md-12 float-end">
+                              {{ $availableRooms->links('vendor.pagination.bootstrap-4') }}
+                            </div>
+                          </div>
+                        </div>
+                        @endif --}}
+                        
+                        <div class="form-row mt-3">
+                          <div class="form-group col-md-4">
+                            <label for="is_shared">Multiple Guests</label>
+                            <select class="form-control" id="is_shared" name="is_shared">
+                              <option value="0">No</option>
+                              <option value="1">Yes</option>
+                            </select>
+                          </div>
+                          <input type="number" id="count_guests" name="count_guests" class="d-none" value="1">
+                          <div class="form-group col-md-4">
+                            <label for="daily_rate">Daily Rate</label>
+                            <input type="number" class="form-control" id="daily_rate" name="daily_rate" min="0" step="0.01" required readonly>
+                          </div>
+                          <div class="form-group col-md-4">
+                            <label for="total_amount">Total Amount</label>
+                            <input type="text" class="form-control" id="total_amount" name="total_amount" readonly>
+                          </div>
+                        </div>
+                        <div class="">
+                          <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-secondary me-2" id="backToStep1">Back</button>
+                            <a type="button" class="theme-btn btn-style-one bg-green float-right" id="toStep3">Next <span class="icon flaticon-right"></span></a>
+                          </div>
+                        </div>
+                      </div>
+                      {{-- ... next step markup ... --}}
+                      {{-- <div class="tab-pane fade" id="step2" role="tabpanel">
+                        <div class="form-row">
+                          <div class="form-group col-md-8">
+                            <label for="room_id">Room</label>
+                            <select class="form-control" id="room_id" name="room_id" required>
+                              <option value="">Select Room</option>
+                              @foreach($availableRooms as $room)
+                              <option value="{{ $room->id }}"
+                                data-type="{{ $room->type->name }}"
+                                data-rate="{{ $room->type->rates->where('is_shared', false)->first()?->amount ?? 0 }}"
+                                data-shared-rate="{{ $room->type->rates->where('is_shared', true)->first()?->amount ?? 0 }}"
+                                data-max="{{ $room->type->max_capacity }}">
+                                Room {{ $room->number }} - {{ $room->type->name }}
+                              </option>
+                              @endforeach
+                            </select>
+                          </div>
+                        </div>
+                        <div class="form-row">
+                          <div class="form-group col-md-6">
+                            <label for="daily_rate">Daily Rate</label>
+                            <input type="number" class="form-control" id="daily_rate" name="daily_rate" min="0" step="0.01" required readonly>
+                          </div>
+                          <div class="form-group col-md-6">
+                            <label for="total_amount">Total Amount</label>
+                            <input type="text" class="form-control" id="total_amount" name="total_amount" readonly>
+                          </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="backToStep1">Back</button>
+                        <button type="button" class="btn btn-primary float-right" id="toStep3">Next</button>
+                      </div> --}}
+                      <!-- Step 3: Guest Details -->
+                      <div class="tab-pane fade" id="step3" role="tabpanel">
+                        <div id="guestFields" class="mb-3">
+                          <!-- Primary guest fields -->
+                          <div class="form-row">
+                            <div class="form-group col-md-6">
+                              <label for="guest_fname_1">First Name</label>
+                              <input type="text" class="form-control" id="guest_fname_1" name="guests[0][fname]" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                              <label for="guest_lname_1">Last Name</label>
+                              <input type="text" class="form-control" id="guest_lname_1" name="guests[0][lname]" required>
+                            </div>
+                          </div>
+                          <div class="form-row">
+                            <div class="form-group col-md-6">
+                              <label for="guest_phone_1">Your Phone</label>
+                              <input type="text" class="form-control" id="guest_phone_1" name="guests[0][phone]">
+                            </div>
+                            
+                            <div class="form-group col-md-6">
+                              <label for="guest_email_1">Your Email</label>
+                              <input type="email" class="form-control" id="guest_email_1" name="guests[0][email]" required>
+                            </div>
+                          </div>
+                          <div class="form-row">
+                            <div class="form-group col-md-12">
+                              <label for="special_requests_1">Special Requests</label>
+                              <textarea class="form-control" id="special_requests_1" name="guests[0][special_requests]"></textarea>
+                            </div>
+                          </div>
+                          <!-- Placeholder for additional guests, injected dynamically -->
+                          <div id="additionalGuestFields"></div>
+                          <button type="button" class="btn btn-outline-info btn-sm" id="addGuestBtn">Add Another Guest</button>
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="backToStep2">Back</button>
+                        <a type="button" class="theme-btn btn-style-one bg-green float-right" id="toStep4">Next <span class="icon flaticon-right"></span></a>
+                      </div>
+                      <!-- Step 4: Confirm and Submit -->
+                      <div class="tab-pane fade" id="step4" role="tabpanel">
+                        <h5>Review & Confirm</h5>
+                        <div class="alert alert-info">
+                          Please review your booking details before submitting.
+                        </div>
+                        <div id="confirmationSummary" class="mb-3"></div>
+                        <div hidden class="form-group">
+                          <label for="source">Booking Source</label>
+                          <select class="form-control" id="source" name="source">
+                            <option value="website" selected>Website</option>
+                            <option value="walk_in">Walk In</option>
+                            <option value="phone">Phone</option>
+                            <option value="agent">Agent</option>
+                          </select>
+                        </div>
+                        <button type="button" class="theme-btn btn-style-one small bg-gray" id="backToStep3"><span class="icon flaticon-left-arrow"></span> Back</button>
+                        <button type="submit"  class="theme-btn btn-style-one bg-green small float-right">Submit Booking <span class="icon flaticon-plus-symbol"></span></button>
+                      </div>
+                    </div>
+                  </form>
                 </div>
-                <div class="bottom-box">
-                  <div class="places"> 
-                    <div class="place"><i class="icon {{ $first_amenity->icon }}"></i> {{ $first_amenity->name ?? 'N/A' }} </div>
-                    <span class="count">+{{ $amenities_count - 1 }}</span>
-                  </div>
-                  <div class="status"><span class="{{ $is_available ? 'text-success' : 'text-danger' }}">{{ $is_available ? 'Available' : 'Not Available' }}</span></div>
-                </div>
-              </div>
+              {{-- </div> --}}
             </div>
-            @endforeach
           </div>
-          @if($availableRooms->hasPages())
-          <!-- Pagination -->
-          <div class="container-fluid py-3 justify-content-center">
-            <div class="row align-items-center">
-                <div class="col-md-12 float-end">
-                    {{ $availableRooms->links('vendor.pagination.bootstrap-4') }}
-                </div>
-            </div>
-          </div>
-          @endif
         </div>
       </div>
     </div>
   </div>
+  <!-- End Listing Section -->
 </section>
-<!--End Listing Page Section -->
 
+  @push('scripts')
+    {{-- Calendar Modal --}}
+  <div class="modal fade" id="calendarModal" tabindex="-1" aria-labelledby="calendarModalLabel" aria-hidden="true">
+    <div class="modal-dialog calendar-modal">
+      <div class="modal-content">
+        {{-- <div class="modal-header">
+          <h5 class="modal-title" id="calendarModalLabel">
+            <i class="fas fa-calendar-alt"></i>&nbsp;Select Check-In Date
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div> --}}
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Property Notice: </strong>This property lets you check-in on 
+            @foreach($allowedDays as $day)
+            <span class="badge bg-secondary text-white">{{ $day }}</span>@if(!$loop->last) @endif
+            @endforeach
+            .
+          </div>
+          <div id="calendar" class="calendar"></div>
+          {{-- <hr> --}}
+          <div class="booking-range-preview mt-3 text-center">
+            <p class="mb-0">Selected dates will appear here</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="resetCalendarSelection">
+            <i class="fas fa-undo"></i> Reset
+          </button>
+          <button type="button" class="btn btn-success" id="confirmCalendarSelection" data-bs-dismiss="modal">
+            <i class="fas fa-check"></i> Done
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {{-- Calendar JS (for booking form) --}}
+  <script src="{{ asset('assets/js/calendar_dynamic.js') }}"></script>
+  <script>
+    $(function() {
+      // $('#number_of_nights').on('input', function() {
+      //   // let nights = $(this).val();
+      //   packageNights = $(this).val();
+      //   // generateAvailableDateRanges(allowedWeekdays, nights);
+      // });
+
+      $('#pickDates').click(function() {
+        $('#calendarModal').modal('show');
+        // initCalendar(allowedWeekdays, packageNights);
+      });
+
+      // make sure departure_date is at least arrival_date + number_of_nights
+      $('#arrival_date').change(function() {
+        let arrival = $(this).val();
+        let nights = parseInt($('#number_of_nights').val()) || packageNights;
+        if (arrival) {
+          let minDeparture = new Date(arrival);
+          minDeparture.setDate(minDeparture.getDate() + nights);
+          let minDepartureStr = minDeparture.toISOString().split('T')[0];
+          $('#departure_date').attr('min', minDepartureStr);
+          if ($('#departure_date').val() < minDepartureStr) {
+            $('#departure_date').val(minDepartureStr);
+          }
+        }
+      });
+    });
+  </script>
+  {{-- Stepper JS --}}
+  <script>
+    $(function() {
+      let currentStep = 1;
+      let maxGuests = 1; // Will be set when room selected
+      // dynamic summary buttons
+      function updateSummaryButtons() {
+        $('#prevStep').toggle(currentStep > 1);
+        if (currentStep < 4) {
+          $('#nextStep').html('Next <span class="icon flaticon-right"></span>');
+        } else {
+          $('#nextStep').text('Submit');
+        }
+      }
+      updateSummaryButtons();
+      $('#prevStep').click(function() {
+        if (currentStep > 1) {
+          showStep(currentStep - 1);
+          updateSummaryButtons();
+        }
+      });
+      $('#nextStep').click(function() {
+        if (currentStep < 4) {
+          if (!validateStep(currentStep)) {
+            return;
+          }
+          showStep(currentStep + 1);
+          updateSummaryButtons();
+        } else {
+          // submit the form
+          $('#bookingForm').submit();
+        }
+      });
+      function validateStep(step) {
+        if (step === 1) {
+          let arrival = $('#arrival_date').val();
+          let departure = $('#departure_date').val();
+          let nights = parseInt($('#number_of_nights').val()) || packageNights;
+          if (!arrival || !departure) {
+            alert('Please select both arrival and departure dates.');
+            return;
+          }
+          let arrivalDate = new Date(arrival);
+          let departureDate = new Date(departure);
+          let diffTime = Math.abs(departureDate - arrivalDate);
+          let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays < nights) {
+            alert(`Please ensure your stay is at least ${nights} nights.`);
+            return;
+          }
+          // all good
+          // return true;
+        } else if (step === 2) {
+          if (!$('.room-radio:checked').length) {
+            alert('Please select a room to proceed.');
+            return false;
+          }
+        } else if (step === 3) {
+          // validate guest details
+          let valid = true;
+          $('#guestFields input[required], #guestFields textarea[required]').each(function() {
+            if (!$(this).val()) {
+              valid = false;
+              return false; // break loop
+            }
+          });
+          if (!valid) {
+            alert('Please fill in all required guest details.');
+            return false;
+          }
+        }
+        return true;
+      }
+      function showStep(step) {
+        $('#bookingStepper .nav-link').removeClass('active');
+        $('#bookingStepper .tab-pane').removeClass('show active');
+        $('#bookingStepper .nav-link').eq(step-1).addClass('active');
+        $('#bookingStepper .tab-pane').eq(step-1).addClass('show active');
+        currentStep = step;
+      }
+      // $('#toStep2').click(function() { showStep(2); updateSummary(); });
+      // validate step 1 before moving to step 2
+      $('#toStep2').click(function() {
+        let arrival = $('#arrival_date').val();
+        let departure = $('#departure_date').val();
+        let nights = parseInt($('#number_of_nights').val()) || packageNights;
+        if (!arrival || !departure) {
+          alert('Please select both arrival and departure dates.');
+          return;
+        }
+        let arrivalDate = new Date(arrival);
+        let departureDate = new Date(departure);
+        let diffTime = Math.abs(departureDate - arrivalDate);
+        let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays < nights) {
+          alert(`Please ensure your stay is at least ${nights} nights.`);
+          return;
+        }
+        showStep(2);
+        updateSummary();
+      });
+      $('#toStep3').click(function() {
+        // validate room radio selection
+        if (!$('.room-radio:checked').length) {
+          alert('Please select a room to proceed.');
+          return;
+        }
+        // update summary and go to step 3
+        updateSummary();
+        showStep(3);
+      });
+      $('#toStep4').click(function() { showStep(4); updateSummary(); showConfirmation(); });
+      $('#backToStep1').click(function() { showStep(1); });
+      $('#backToStep2').click(function() { showStep(2); });
+      $('#backToStep3').click(function() { showStep(3); });
+      $('#is_shared').change(function() {
+        let roomOpt = $('.room-radio:checked'); // this is now a radio button(handled below, remove here)
+        let isShared = $('#is_shared').val() == '1';
+        let rate = isShared ? roomOpt.data('shared-rate') : roomOpt.data('rate');
+        maxGuests = isShared ? roomOpt.data('max') : 1;
+        $('#daily_rate').val(rate);
+        let nights = getNights();
+        $('#total_amount').val(rate * nights * maxGuests);
+        updateSummary();
+        if ($('#additionalGuestFields').children().length > (maxGuests-1)) {
+          $('#additionalGuestFields').empty();
+        }
+      });
+      // When a room is selected
+      $('.room-radio').change(function() {
+          var $radio = $(this);
+          var rate = $radio.data('rate');
+          var maxGuests = $radio.data('max');
+          $('#daily_rate').val(rate);
+          let nights = getNights();
+          $('#total_amount').val(rate * nights * maxGuests);
+          // Optionally update summary, guest capacity, etc.
+          updateSummary();
+      });
+      $('#addGuestBtn').click(function() {
+        let count = $('#additionalGuestFields').children().length + 2;
+        if (count <= maxGuests) {
+          $('#count_guests').val(count);
+          let field = `
+            <div class="border p-2 mb-2">
+              <h6>Guest ${count}</h6>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label for="guest_fname_${count}">First Name</label>
+                  <input type="text" class="form-control" id="guest_fname_${count}" name="guests[${count-1}][fname]" required>
+                </div>
+                <div class="form-group col-md-6">
+                  <label for="guest_lname_${count}">Last Name</label>
+                  <input type="text" class="form-control" id="guest_lname_${count}" name="guests[${count-1}][lname]" required>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label for="guest_email_${count}">Email</label>
+                  <input type="email" class="form-control" id="guest_email_${count}" name="guests[${count-1}][email]" required>
+                </div>
+                <div class="form-group col-md-6">
+                  <label for="guest_phone_${count}">Phone</label>
+                  <input type="text" class="form-control" id="guest_phone_${count}" name="guests[${count-1}][phone]">
+                </div>
+              </div>
+              <div class="form-row">
+                  <div class="form-group col-md-12">
+                    <label for="special_requests_${count}">Special Requests</label>
+                    <textarea class="form-control" id="special_requests_${count}" name="guests[${count-1}][special_requests]"></textarea>
+                  </div>
+              </div>
+            </div>`;
+          $('#additionalGuestFields').append(field);
+        }
+      });
+      $('#arrival_date, #departure_date').change(function() {
+        updateSummary();
+        let arrival = $('#arrival_date').val();
+        $('#departure_date').attr('min', arrival);
+      });
+      function formatDisplayDate(dateStr) {
+        let options = { year: 'numeric', month: 'short', day: 'numeric' };
+        let dateObj = new Date(dateStr);
+        return dateObj.toLocaleDateString(undefined, options);
+      }
+      function updateSummary() {
+        // must format dates nicely to display here
+        let arrival = formatDisplayDate($('#arrival_date').val());
+        let departure = formatDisplayDate($('#departure_date').val());
+        $('#summaryDates').text(arrival + ' to ' + departure);
+        let roomText = $('.room-radio:checked').data('roomname'); // get from selected radio
+        $('#summaryRoom').text(roomText);
+        // guest first and last names
+        let guestFNames = $('#guestFields input[type="text"][id^="guest_fname_"]').map(function(){ return $(this).val(); }).get().join(', ');
+        let guestLNames = $('#guestFields input[type="text"][id^="guest_lname_"]').map(function(){ return $(this).val(); }).get().join(', ');
+        $('#summaryGuests').text(guestFNames + ' ' + guestLNames || 'Not entered');
+        $('#summaryRate').text($('#daily_rate').val());
+        $('#summaryTotal').text($('#total_amount').val());
+        let reqs = $('#guestFields input[type="text"][id^="special_requests_"]').map(function(){ return $(this).val(); }).get().join('; ');
+        $('#summaryRequests').text(reqs);
+      }
+      function showConfirmation() {
+        let html = `
+        
+            <ul class="list-group">
+                <li class="list-group-item"><strong>Date Range:</strong> ${$('#summaryDates').text()} (${getNights()} nights)</li>
+                <li class="list-group-item"><strong>Room:</strong> ${$('#summaryRoom').text()}</li>
+                <li class="list-group-item"><strong>Guests:</strong> ${$('#summaryGuests').text()}</li>
+                <li class="list-group-item"><strong>Rate:</strong> {{ $currencySymbol }} ${$('#summaryRate').text()}</li>
+                <li class="list-group-item"><strong>Total:</strong> {{ $currencySymbol }} ${$('#summaryTotal').text()}</li>
+                <li class="list-group-item"><strong>Requests:</strong> ${$('#summaryRequests').text()}</li>
+            </ul>`;
+        $('#confirmationSummary').html(html);
+      }
+      function getNights() {
+        let a = $('#arrival_date').val();
+        let d = $('#departure_date').val();
+        if(a && d) {
+          let start = new Date(a);
+          let end = new Date(d);
+          let diff = (end - start)/(1000*60*60*24);
+          return diff > 0 ? diff : 1;
+        }
+        return 1;
+      }
+      showStep(1);
+    });
+  </script>
+  @endpush
 @endsection
-
-alright I need us to move on from this screen, I need to have a 4 step booking here. Step1. Date rage with calendar. Step2. Select Room. Step3. Guest Details, (must have an option to add more guests for details based on the $room->type->max_capacity). Step4. Confirm the booking. then button to submit the booking. The left side bar Summary must just track the bookings steps with the choices. I have internal booking form on views/tenant/bookings/create.blade.php to understand the required booking information.

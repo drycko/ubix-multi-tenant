@@ -86,6 +86,9 @@ class RoomType extends Model
             });
         }
 
+        // order by effective_from date (latest first)
+        $ratesQuery->orderBy('effective_from', 'desc');
+
         // Execute and return the rates
         return $ratesQuery->get();
     }

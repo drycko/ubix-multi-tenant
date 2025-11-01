@@ -17,6 +17,9 @@
 <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/images/apple-touch-icon.png') }}">
 <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('assets/images/favicon-32x32.png') }}">
 <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('assets/images/favicon-16x16.png') }}"> --}}
+
+{{-- custom css --}}
+<link rel="stylesheet" href="{{ asset('assets/css/custom.css') }}">
 <link rel="manifest" href="{{ asset('assets/images/site.webmanifest') }}">
 <!-- Responsive -->
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -71,44 +74,34 @@
             <!-- Add Listing -->
             <a href="#" class="add-listing"> <span class="flaticon-plus-symbol"></span> Book a Room</a>
 
-            <!-- Cart btn -->
-            <div hidden class="cart-btn">
-              <a href="#"><i class="icon flaticon-shopping-bag"></i> <span class="count">2</span></a>
-
-              <div class="shopping-cart">
-                <ul class="shopping-cart-items">
-                  <li class="cart-item">
-                    <img src="{{ asset('vendor/guest-listdo/images/resource/item-thumb-1.jpg') }}" alt="" class="thumb" />
-                    <span class="item-name">Dolar Sit Amet</span>
-                    <span class="item-quantity">1 x <span class="item-amount">$7.90</span></span>
-                    <a href="shop-single.html" class="product-detail"></a>
-                    <button class="remove-item"><span class="fa fa-times"></span></button>
-                  </li>
-
-                  <li class="cart-item">
-                    <img src="{{ asset('vendor/guest-listdo/images/resource/item-thumb-2.jpg') }}" alt="" class="thumb"  />
-                    <span class="item-name">Lorem Ipsum</span>
-                    <span class="item-quantity">3 x <span class="item-amount">$7.90</span></span>
-                    <a href="shop-single.html" class="product-detail"></a>
-                    <button class="remove-item"><span class="fa fa-times"></span></button>
-                  </li>
-                </ul>
-
-                <div class="shopping-cart-total"><span>Subtotal: </span> $57.70</div>
-
-                <div class="cart-footer">
-                  <a href="cart.html" class="theme-btn btn-style-one">View Cart</a>
-                  <a href="checkout.html" class="theme-btn btn-style-two bg-red">Checkout</a>
-                </div>
-              </div> <!--end shopping-cart -->
-            </div>
-
+            {{-- if guest is not authenticated --}}
+            @if(!$guest)
             <!-- Login/Register -->
-            <div class="login-box"> 
+            <div class="login-box">
               <span class="flaticon-user"></span> 
-              <a href="#" class="call-modal">Login</a> or 
-              <a href="#" class="call-modal">Register </a>
+              <a href="javascript:void(0);" data-toggle="modal" data-target="#loginModal">Login</a>
             </div>
+            @else
+            <!-- Dashboard Option -->
+            <div class="dropdown dashboard-option">
+              <a class="dropdown-toggle" role="button" data-toggle="dropdown" aria-expanded="false"> 
+                <img src="{{ $guest->profile_photo_url }}" alt="avatar" class="thumb"> 
+                <span class="name text-muted">{{ $guest->first_name }} {{ $guest->last_name }}</span>
+              </a>
+              <div class="dropdown-menu">
+                <a class="dropdown-item active" href="dashboard.html"> <i class="la la-home"></i> Dashboard</a>
+                <a class="dropdown-item" href="dashboard-profile.html"><i class="la la-user"></i>Profile</a>
+                <a class="dropdown-item" href="dashboard-listing.html"><i class="la la-layer-group"></i>Listings</a>
+                <a class="dropdown-item" href="dashboard-messages.html"><i class="la la-envelope"></i> Messages </a>
+                <a class="dropdown-item" href="dashboard-reviews.html"><i class="la la-calendar"></i> Reviews</a>
+                <a class="dropdown-item" href="dashboard-favorites.html"><i class="la la-thumbs-o-up"></i>Favorites</a>
+                <form method="POST" action="{{ route('tenant.guest-portal.logout') }}" class="dropdown-item">
+                    @csrf
+                    <button type="submit"><i class="la la-sign-out"></i> Logout</button>
+                </form>
+              </div>
+            </div>
+            @endif
           </div>
         </div>
       </div>
@@ -161,7 +154,7 @@
     @yield('content')
 
   <!-- Call to Action -->
-  <section class="call-to-action" style="background-image: url({{ asset('vendor/guest-listdo/images/background/1.jpg') }})">
+  <section hidden class="call-to-action" style="background-image: url({{ asset('vendor/guest-listdo/images/background/1.jpg') }})">
     <div class="auto-container">
       <div class="content">
         <h3>Need More Information</h3>
@@ -235,20 +228,52 @@
   @endif
 
 </div><!-- End Page Wrapper -->
+@include('tenant.guest-portal.auth.login-modal')
+@include('tenant.guest-portal.auth.register-modal')
 
 <script src="{{ asset('vendor/guest-listdo/js/jquery.js') }}"></script> 
 <script src="{{ asset('vendor/guest-listdo/js/popper.min.js') }}"></script>
 <script src="{{ asset('vendor/guest-listdo/js/chosen.min.js') }}"></script>
 <script src="{{ asset('vendor/guest-listdo/js/bootstrap.min.js') }}"></script>
 <script src="{{ asset('vendor/guest-listdo/js/jquery.fancybox.js') }}"></script>
-<script src="{{ asset('vendor/guest-listdo/js/jquery.modal.min.js') }}"></script>
+{{-- <script src="{{ asset('vendor/guest-listdo/js/jquery.modal.min.js') }}"></script> --}}
 <script src="{{ asset('vendor/guest-listdo/js/jquery.hideseek.min.js') }}"></script>
 <script src="{{ asset('vendor/guest-listdo/js/mmenu.polyfills.js') }}"></script>
+<script src="{{ asset('vendor/guest-listdo/js/sticky_sidebar.min.js') }}"></script>
 <script src="{{ asset('vendor/guest-listdo/js/mmenu.js') }}"></script>
 <script src="{{ asset('vendor/guest-listdo/js/owl.js') }}"></script>
 <script src="{{ asset('vendor/guest-listdo/js/wow.js') }}"></script>
 <script src="{{ asset('vendor/guest-listdo/js/appear.js') }}"></script>
 <script src="{{ asset('vendor/guest-listdo/js/script.js') }}"></script>
+
+{{-- custom scripts --}}
+<script>
+  $(document).ready(function() {
+    // Close floating message boxes
+    $('.floating-message-box .close-btn').on('click', function() {
+      $(this).closest('.floating-message-box').fadeOut();
+    });
+    // toggle login/register modal
+    $('#registerLink').on('click', function(e) {
+      e.preventDefault();
+      $('#loginModal').modal('hide');
+      setTimeout(function() {
+      $('#registerModal').modal('show');
+      }, 500);
+    });
+    $('#loginLink').on('click', function(e) {
+      e.preventDefault();
+      $('#registerModal').modal('hide');
+      setTimeout(function() {
+      $('#loginModal').modal('show');
+      }, 500);
+    });
+  });
+</script>
+
+{{-- page scripts --}}
+@stack('scripts')
+
 
 <!-- Typed Script -->
 {{-- <script src="{{ asset('vendor/guest-listdo/js/typed.js') }}"></script>

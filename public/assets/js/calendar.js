@@ -132,7 +132,24 @@ $(function() {
     $('.ubook-booking-range').html(`<strong class="txt-brook-blue">${dateRange}</strong>`);
     $('#arrival_date').val(selectedDate.toISOString().split('T')[0]); // format to yyyy-mm-dd
     $('#departure_date').val(checkoutDate.toISOString().split('T')[0]); // format to yyyy-mm-dd
+    // update booking-range-preview (also fix the issue with arrival date showing one day before)
+    $('.booking-range-preview').html(`
+      <p class="mb-0">
+        Checkin: <strong>${formatDateInput(selectedDate)}</strong> - Checkout: <strong>${formatDateInput(checkoutDate)}</strong>
+      </p>
+    `);
 
+  });
+
+  $('#number_of_nights').on('input', function() {
+    packageNights = $(this).val();
+    console.log('number_of_nights changed:', packageNights);
+    generateAvailableDateRanges(allowedWeekdays, packageNights);
+  });
+
+  // ✅ Confirm button to close modal (additional actions can be added here)
+  $('#confirmCalendarSelection').on('click', function() {
+    $('#calendarModal').modal('hide');
   });
 
   // ✅ Function to restore original date classes
@@ -161,6 +178,14 @@ $(function() {
     });
   }
 
+  function formatDateInput(d) {
+    if (!d) return '';
+    // Use local date values, pad with zero if needed
+    let year = d.getFullYear();
+    let month = String(d.getMonth() + 1).padStart(2, '0');
+    let day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 
   // ✅ **helper functions for calendar generation**
   function getFirstDayOfMonth(month, year) {
@@ -171,3 +196,8 @@ $(function() {
     return new Date(year, month + 1, 0).getDate();
   }
 });
+
+// this calendar.js script works well with package nights being constant since the nights value is set only once during page load
+// but if the nights value is changed dynamically (e.g. user can change number of nights) then we need to listen to that change and regenerate the calendar
+// so in booking.blade.php we will add an event listener to number_of_nights input to update packageNights and regenerate the calendar
+// should we do that or we create a new calendar_dynamic.js file that will allow guest to pick arrival and departure dates more easily?

@@ -15,17 +15,6 @@
   max-width: 420px;
 }
 
-@media screen and (max-width: 768px) {
-  .calendar {
-    padding-bottom: 0;
-    margin-bottom: 0;
-  }
-  .calendar-grid {
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
-}
-
 .calendar-header {
   text-align: center;
   font-size: 1.5rem;
@@ -42,7 +31,7 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-gap: 5px;
-  padding: 10px;
+  padding: 8px;
   text-align: center;
   font-weight: bold;
 }
@@ -129,6 +118,10 @@
   color: #fff!important;
 }
 
+.available-date p {
+  color: #fff!important;
+}
+
 .empty-cell {
   background-color: #fff;
 }
@@ -163,5 +156,30 @@
   .event-name {
     font-size: 0.7rem;
     padding: 2px;
+  }
+}
+
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+  .calendar {
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+  .calendar-grid {
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+  .weekdays {
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+  /* calendar modal to be full screen on mobile */
+  .calendar-modal {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
   }
 }

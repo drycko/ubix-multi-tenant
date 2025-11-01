@@ -55,6 +55,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
     ];
+    protected $connection = 'tenant';
 
     protected $guard_name = 'tenant';
 

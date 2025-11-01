@@ -1059,7 +1059,6 @@ class BookingController extends Controller
         }
     }
 
-
     // Helper methods to add to your controller
     private function extractFirstName($fullName)
     {

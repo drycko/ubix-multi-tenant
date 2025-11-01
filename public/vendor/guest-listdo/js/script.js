@@ -580,16 +580,16 @@
 	})
 
 	// Open modal in AJAX callback
-	$('.call-modal').on('click', function(event) {
-	  event.preventDefault();
-	  this.blur();
-	  $.get(this.href, function(html) {
-	    $(html).appendTo('body').modal({
-			fadeDuration: 300,
-			fadeDelay: 0.15
-	    });
-	  });
-	});
+	// $('.call-modal').on('click', function(event) {
+	//   event.preventDefault();
+	//   this.blur();
+	//   $.get(this.href, function(html) {
+	//     $(html).appendTo('body').modal({
+	// 		fadeDuration: 300,
+	// 		fadeDelay: 0.15
+	//     });
+	//   });
+	// });
 
 	//Coming Soon Coundown.
 	if($('.cs-countdown').length){

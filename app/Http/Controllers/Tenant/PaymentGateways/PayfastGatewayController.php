@@ -113,7 +113,7 @@ class PayfastGatewayController extends Controller
   {
       // TODO: Handle successful payment return
       $bookingInvoice = BookingInvoice::where('id', $request->input('m_payment_id'))->first();
-      return view('tenant.payment.success', compact('bookingInvoice'));
+      return view('tenant.payfast.success', compact('bookingInvoice'));
   }
 
   // Handle PayFast cancel
@@ -121,7 +121,7 @@ class PayfastGatewayController extends Controller
   {
       // TODO: Handle payment cancellation
       $bookingInvoice = BookingInvoice::where('id', $request->input('m_payment_id'))->first();
-      return view('tenant.payment.cancel', compact('bookingInvoice'));
+      return view('tenant.payfast.cancel', compact('bookingInvoice'));
   }
 
   // Handle PayFast notify (IPN)

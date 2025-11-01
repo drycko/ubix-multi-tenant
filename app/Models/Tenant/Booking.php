@@ -18,6 +18,18 @@ class Booking extends Model
     const STATUS_PENDING = 'pending';
     const VALID_STATUSES = ['pending','booked','confirmed','checked_in','checked_out','cancelled','no_show'];
 
+    const TABLE = 'bookings';
+
+    const ALLOWED_BOOKING_DAYS = [
+        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    ];
+
+    const DEFAULT_MAX_BOOKING_DAYS_AHEAD = 365;
+    const DEFAULT_MIN_BOOKING_HOURS_AHEAD = 24;
+    const DEFAULT_MIN_NIGHTS = 1;
+    const DEFAULT_MAX_NIGHTS = 30;
+
+
     protected $fillable = [
         'bcode',
         'room_id',
@@ -329,15 +341,22 @@ class Booking extends Model
         }
     }
 
+    public static function calculateDailyRate($isShared = false)
+    {
+        // room does not have standard_rate, we get it from room type rates
+        $standard_rate = $this->type->rates->where('is_shared', $isShared)->first() ?? 0; // Default rate
+        return $standard_rate;
+    }
+
     public function getGuestCountAttribute()
     {
         return $this->bookingGuests()->count();
     }
 
-    public function getIsSharedAttribute()
-    {
-        return $this->is_shared ? true : false;
-    }
+    // public function getIsSharedAttribute()
+    // {
+    //     return $this->is_shared ? true : false;
+    // }
 
     public function getRatingAttribute()
     {

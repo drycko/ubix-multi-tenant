@@ -274,15 +274,18 @@
 <body>
     <!-- Print Actions (hidden when printing) -->
     <div class="print-actions">
-        {{-- <button onclick="window.print()" class="btn btn-primary">
+        <button onclick="window.print()" class="btn btn-primary">
             🖨️ Print Invoice
         </button>
+        {{-- only if user is logged in --}}
+        @if(auth()->check())
         <a href="{{ route('tenant.booking-invoices.download', $bookingInvoice) }}" class="btn btn-success">
             📥 Download PDF
-        </a> --}}
+        </a>
         <a href="{{ route('tenant.booking-invoices.show', $bookingInvoice) }}" class="btn btn-secondary">
             ⬅️ Back to Invoice
         </a>
+        @endif
     </div>
     {{-- Success/Error Messages --}}
     @if(session('success'))
@@ -373,7 +376,7 @@
             <strong>Check-in:</strong> {{ $bookingInvoice->booking->arrival_date->format('l, F j, Y') }}<br>
             <strong>Check-out:</strong> {{ $bookingInvoice->booking->departure_date->format('l, F j, Y') }}<br>
             <strong>Duration:</strong> {{ $bookingInvoice->booking->nights }} night(s)<br>
-            <strong>Room Type:</strong> {{ $bookingInvoice->booking->is_shared ? 'Shared Room' : 'Private Room' }}
+            <strong>Booking Type:</strong> {{ $bookingInvoice->booking->is_shared ? 'Shared Room' : 'Private Room' }}
         </div>
     </div>
 

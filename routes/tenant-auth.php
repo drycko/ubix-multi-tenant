@@ -10,7 +10,9 @@ Route::middleware('guest:tenant')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('tenant.register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    // Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::post('register', [RegisteredUserController::class, 'store'])
+    ->name('tenant.register.store');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('tenant.login');

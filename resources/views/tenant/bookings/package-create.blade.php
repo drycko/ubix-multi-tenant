@@ -16,32 +16,6 @@ $dayMap = [
 $allowedWeekdays = array_map(fn($d) => $dayMap[$d] ?? strtoupper(substr($d,0,3)), $allowedDays);
 @endphp
 
-{{-- calendar css (for booking form) --}}
-<link rel="stylesheet" href="{{ asset('assets/css/calendar.css') }}">
-
-<script>
-  // allowedWeekdays: e.g. ["MON","WED","FRI"]
-  const allowedWeekdays = @json($allowedWeekdays);
-  const packageNights = @json($packageNights);
-</script>
-@php
-// Pass allowed check-in days and nights from the package to JS
-// $package->pkg_checkin_days is a json array stored as string in DB, e.g. '["Wednesday","Sunday"]'
-$allowedDays = json_decode($package->pkg_checkin_days, true) ?? ['Monday','Wednesday','Friday']; // Example fallback
-$packageNights = $package->pkg_number_of_nights ?? 1;
-// Map to 3-letter uppercase codes for JS calendar logic
-$dayMap = [
-'Sunday' => 'SUN',
-'Monday' => 'MON',
-'Tuesday' => 'TUE',
-'Wednesday' => 'WED',
-'Thursday' => 'THU',
-'Friday' => 'FRI',
-'Saturday' => 'SAT',
-];
-$allowedWeekdays = array_map(fn($d) => $dayMap[$d] ?? strtoupper(substr($d,0,3)), $allowedDays);
-@endphp
-
 @extends('tenant.layouts.app')
 
 @section('title', 'Create Package Booking')
@@ -424,12 +398,12 @@ $allowedWeekdays = array_map(fn($d) => $dayMap[$d] ?? strtoupper(substr($d,0,3))
           for this {{ $packageNights }}-night package.
         </div>
         <div id="calendar" class="calendar"></div>
-        <div class="ubook-booking-range mt-3 text-center">
+        <div class="booking-range-preview mt-3 text-center">
           <p class="mb-0">Selected dates will appear here</p>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+        <button type="button" class="btn btn-success" id="confirmCalendarSelection" data-bs-dismiss="modal">
           <i class="fas fa-check"></i> Done
         </button>
       </div>

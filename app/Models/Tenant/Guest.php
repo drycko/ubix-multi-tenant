@@ -172,4 +172,39 @@ class Guest extends Model
 
         return $meetsSpendRequirement && $meetsBookingRequirement;
     }
+
+    /**
+     * Get the user's profile photo url.
+     */
+    public function getProfilePhotoUrlAttribute()
+    {
+        // guest does not have profile photo(so we get from users table if there is any user email same as guest email)
+        $user = User::where('email', $this->email)->first();
+        if ($user && $user->profile_photo_path) {
+            // Handle different storage configurations
+            if (config('app.env') === 'production') {
+                // For production with GCS or other cloud storage
+                $gcsConfig = config('filesystems.disks.gcs');
+                $bucket = $gcsConfig['bucket'] ?? null;
+                $path = ltrim($this->profile_photo_path, '/');
+                return $bucket ? "https://storage.googleapis.com/{$bucket}/{$path}" : asset('storage/' . $this->profile_photo_path);
+            } else {
+                // For local development - just use asset helper
+                return asset('storage/' . $this->profile_photo_path);
+            }
+            
+        }
+        else {
+            return $this->defaultProfilePhotoUrl();
+        }
+
+    }
+
+    /**
+     * Get the default profile photo url if no photo is set.
+     */
+    protected function defaultProfilePhotoUrl()
+    {
+        return 'https://ui-avatars.com/api/?name='.urlencode($this->full_name).'&color=7F9CF5&background=EBF4FF';
+    }
 }
