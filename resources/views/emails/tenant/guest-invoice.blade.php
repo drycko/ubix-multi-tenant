@@ -17,5 +17,5 @@ If you have any questions or need further assistance, please do not hesitate to 
 Thank you for choosing our services!
 
 Best regards,  
-{{ config('app.name') }} Team
+{{ $bookingInvoice->booking->property->name }} Team
 @endcomponent

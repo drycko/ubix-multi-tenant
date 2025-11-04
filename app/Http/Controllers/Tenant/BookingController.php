@@ -726,6 +726,76 @@ class BookingController extends Controller
     }
 
     /**
+     * Trashed bookings list.
+     */
+    public function trashed(Request $request)
+    {
+        $propertyId = selected_property_id();
+
+        $query = Booking::onlyTrashed()->where('property_id', $propertyId);
+
+        // Paginate results
+        $bookings = $query->orderBy('deleted_at', 'desc')->paginate(15)->appends($request->except('page'));
+
+        $currency = property_currency();
+
+        return view('tenant.bookings.trashed', compact('bookings', 'currency'));
+    }
+
+    /**
+     * Restore a trashed booking.
+     */
+    public function restore($id)
+    {
+        $booking = Booking::onlyTrashed()->findOrFail($id);
+        if ($booking->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized action.');
+        }
+        // must restore related booking guests and invoices too, does this automatically with withTrashed?
+        $booking->restore();
+
+        $this->logTenantActivity(
+            'restore_booking',
+            'Restored booking: ' . $booking->bcode . ' for room ' . $room->number . ' (ID: ' . $room->id . ')',
+            $booking,
+            [
+                'table' => 'bookings',
+                'id' => $booking->id,
+                'user_id' => auth()->id(),
+                'changes' => $booking->toArray()
+            ]
+        );
+
+        return redirect()->route('tenant.bookings.trashed')->with('success', 'Booking restored successfully!');
+    }
+
+    /**
+     * Permanently delete a trashed booking.
+     */
+    public function forceDelete($id)
+    {
+        $booking = Booking::onlyTrashed()->findOrFail($id);
+        if ($booking->property_id !== selected_property_id()) {
+            abort(403, 'Unauthorized action.');
+        }
+        $oldBooking = $booking;
+        $booking->forceDelete();
+        $this->logTenantActivity(
+            'force_delete_booking',
+            'Permanently deleted booking: ' . $oldBooking->bcode . ' for room ' . $room->number . ' (ID: ' . $room->id . ')',
+            $oldBooking,
+            [
+                'table' => 'bookings',
+                'id' => $oldBooking->id,
+                'user_id' => auth()->id(),
+                'changes' => $oldBooking->toArray()
+            ]
+        );
+
+        return redirect()->route('tenant.bookings.trashed')->with('success', 'Booking permanently deleted!');
+    }
+
+    /**
      * Show the form for importing bookings.
      */
     public function importBookings()
@@ -1270,6 +1340,17 @@ class BookingController extends Controller
         );
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Delete all pending bookings after a specified minutes from creation
+     */
+    public function deletePendingBookings($timeLimitInMinutes = 7)
+    {
+        $timeLimit = now()->subMinutes($timeLimitInMinutes);
+        Booking::where('status', 'pending')
+            ->where('created_at', '<', $timeLimit)
+            ->delete();
     }
 
     /**

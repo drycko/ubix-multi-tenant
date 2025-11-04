@@ -885,7 +885,6 @@ $tenantConfirmIcon = $tenant_icons_path . '/brook-cost.png';
       function showConfirmation() {
         @if ($package)
         let html = `
-        
           <ul class="list-group">
             <li class="list-group-item active">Package: <span id="summaryDates">{{ $package->pkg_name }}</span></li>
             <li class="list-group-item"><strong>Date Range:</strong> ${$('#summaryDates').text()} (${getNights()} nights)</li>
@@ -898,7 +897,6 @@ $tenantConfirmIcon = $tenant_icons_path . '/brook-cost.png';
         $('#confirmationSummary').html(html);
         @else
         let html = `
-        
           <ul class="list-group">
             <li class="list-group-item"><strong>Date Range:</strong> ${$('#summaryDates').text()} (${getNights()} nights)</li>
             <li class="list-group-item"><strong>Room:</strong> ${$('#summaryRoom').text()}</li>

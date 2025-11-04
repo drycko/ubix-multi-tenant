@@ -90,6 +90,14 @@ class Package extends Model
     }
 
     /**
+     * Get the bookings associated with the package.
+     */
+    public function bookings()
+    {
+        return $this->hasMany(Booking::class, 'package_id', 'id');
+    }
+
+    /**
      * Scope a query to only include active packages.
      */
     public function scopeActive($query)

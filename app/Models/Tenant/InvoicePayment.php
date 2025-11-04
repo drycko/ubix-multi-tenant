@@ -147,6 +147,8 @@ class InvoicePayment extends Model
             'check' => 'Check',
             'mobile_money' => 'Mobile Money',
             'paypal' => 'PayPal',
+            'payfast' => 'PayFast',
+            'paygate' => 'PayGate',
             'other' => 'Other',
         ];
     }

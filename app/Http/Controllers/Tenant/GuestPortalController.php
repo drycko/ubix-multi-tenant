@@ -12,6 +12,7 @@ use App\Models\Tenant\Guest;
 use App\Models\Tenant\GuestRequest;
 use App\Models\Tenant\GuestFeedback;
 use App\Models\Tenant\DigitalKey;
+use App\Models\Tenant\TenantSetting;
 use App\Services\TaxCalculationService;
 use App\Services\Tenant\NotificationService;
 use App\Traits\LogsTenantUserActivity;
@@ -430,8 +431,6 @@ class GuestPortalController extends Controller
         'tax_id' => $taxCalculation['tax_id'],
         'status' => $invoice_status,
       ]);
-      // if we reach here, we can commit the transaction and redirect to show new booking page
-      // \DB::commit();
       
       // $this->logActivity('created', 'Booking', $booking->id, "Created booking {$booking->bcode} for room {$room->number}");
       $this->logTenantActivity(
@@ -465,6 +464,19 @@ class GuestPortalController extends Controller
   // error page
   public function showErrorPage($errorCode)
   {
+    $guest = $this->getGuest();
+    $tenant_branding_path = asset('storage/branding');
+    $tenantLogoImage = TenantSetting::getSetting('tenant_logo');
+    // address 
+    $tenantAddressStreet = TenantSetting::getSetting('tenant_address_street');
+    $tenantAddressStreet2 = TenantSetting::getSetting('tenant_address_street_2');
+    $tenantAddressCity = TenantSetting::getSetting('tenant_address_city');
+    $tenantAddressState = TenantSetting::getSetting('tenant_address_state');
+    $tenantAddressZip = TenantSetting::getSetting('tenant_address_zip');
+    $tenantAddressCountry = TenantSetting::getSetting('tenant_address_country');
+
+    $tenantLogo = $tenantLogoImage ? $tenant_branding_path . '/' . $tenantLogoImage : asset('assets/images/ubix-logo-small.png');
+    $tenantLogoSmall = $tenantLogoImage ? $tenant_branding_path . '/' . $tenantLogoImage : asset('assets/images/ubix-logo-small.png');
     // get error message based on code
     $errorMessages = [
       404 => 'We’re sorry, but the page you were looking for doesn’t exist.',
@@ -472,7 +484,9 @@ class GuestPortalController extends Controller
       403 => 'You do not have permission to access this page.',
     ];
     $error = $errorMessages[$errorCode] ?? 'Unknown error';
-    return view('tenant.guest-portal.error', compact('error'));
+    return view('tenant.guest-portal.error', compact('guest', 'error', 'tenantLogo', 'tenantLogoSmall',
+    'tenantAddressStreet', 'tenantAddressStreet2', 'tenantAddressCity', 'tenantAddressState',
+    'tenantAddressZip', 'tenantAddressCountry'));
   }
 
   public function showPackageBookingForm(Request $request)
@@ -611,5 +625,14 @@ class GuestPortalController extends Controller
     session()->forget('guest_id');
     return redirect()->route('tenant.guest-portal.login');
   }
+
+  /**
+   * Display a custom error page
+   */
+  // public function showErrorPage()
+  // {
+  //   return view('tenant.guest-portal.error');
+  
+  // }
 }
   

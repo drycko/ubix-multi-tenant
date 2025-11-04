@@ -69,10 +69,11 @@ class BookingInvoice extends Model
         return $availableMethods;
     }
 
-    // protected static function booted()
-    // {
-    //     static::addGlobalScope(new PropertyScope);
-    // }
+    // default payment gateway from Settings either (paygate_is_default or payfast_is_default) or config
+    public static function defaultPaymentGateway(): ?string
+    {
+        return TenantSetting::getSetting('paygate_is_default') ? 'paygate' : (TenantSetting::getSetting('payfast_is_default') ? 'payfast' : null);
+    }
 
     // local scopes
     public function forProperty($query, $propertyId)
@@ -83,7 +84,7 @@ class BookingInvoice extends Model
     // Relationships
     public function booking(): BelongsTo
     {
-        return $this->belongsTo(Booking::class);
+        return $this->belongsTo(Booking::class, 'booking_id', 'id');
     }
 
     public function property(): BelongsTo

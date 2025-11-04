@@ -7,9 +7,9 @@
   <div class="container-fluid">
     <div class="row">
       <div class="col-sm-6">
-        <h3 class="mb-0">
+        <h4 class="mb-0 text-muted">
           <i class="fas fa-cogs"></i> Settings
-        </h3>
+        </h4>
       </div>
       <div class="col-sm-6">
         <ol class="breadcrumb float-sm-end">
@@ -33,12 +33,27 @@
           </div>
           <div class="card-body">
             <ul class="list-group list-group-flush">
+              {{-- Payment Gateways --}}
+              @foreach ($paymentGateways as $gateway => $settings)
               <li class="list-group-item d-flex justify-content-between align-items-center">
-                <span><i class="fas fa-credit-card me-2 text-warning"></i>PayFast Payment Gateway</span>
-                <a href="{{ route('tenant.settings.payfast.edit') }}" class="btn btn-sm btn-warning">
+                <span>
+                  <i class="fas fa-credit-card me-2 text-success"></i>{{ ucfirst($gateway) }} Payment Gateway
+                  @if ($settings['is_default'])
+                  <span class="badge bg-primary ms-2">Default</span>
+                  @endif
+                </span>
+                <a href="{{ route('tenant.settings.' . $gateway . '.edit') }}" class="btn btn-sm btn-success">
                   <i class="fas fa-edit me-1"></i>Edit
                 </a>
               </li>
+              @endforeach
+              {{-- Paygate settings --}}
+              {{-- <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-credit-card me-2 text-success"></i>PayGate Payment Gateway</span>
+                <a href="{{ route('tenant.settings.paygate.edit') }}" class="btn btn-sm btn-success">
+                  <i class="fas fa-edit me-1"></i>Edit
+                </a>
+              </li> --}}
               {{-- Add more settings modules here as needed --}}
             </ul>
           </div>

@@ -92,7 +92,7 @@ class Booking extends Model
 
     public function package(): BelongsTo
     {
-        return $this->belongsTo(Package::class);
+        return $this->belongsTo(Package::class, 'package_id', 'id');
     }
 
     public function guests(): HasManyThrough
@@ -115,7 +115,7 @@ class Booking extends Model
 
     public function invoices(): HasMany
     {
-        return $this->hasMany(BookingInvoice::class);
+        return $this->hasMany(BookingInvoice::class, 'booking_id', 'id');
     }
 
     public function primaryGuest()
@@ -137,6 +137,11 @@ class Booking extends Model
     public function children()
     {
         return $this->bookingGuests()->where('is_adult', false);
+    }
+
+    public function getNumberOfGuestsAttribute()
+    {
+        return $this->bookingGuests()->count();
     }
 
     /**

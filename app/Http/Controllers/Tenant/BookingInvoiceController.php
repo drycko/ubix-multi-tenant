@@ -223,13 +223,29 @@ class BookingInvoiceController extends Controller
 
         // Eager load relationships
         $bookingInvoice->load(['booking.room.type', 'booking.package', 'booking.bookingGuests.guest']);
+
+        $paymentMethods = BookingInvoice::supportedGateways();
+        // get default payment method from settings else get from config
+        $defaultPaymentMethod = BookingInvoice::defaultPaymentGateway() ?? config('payment.default_gateway');
+        
+        if ($defaultPaymentMethod && array_key_exists($defaultPaymentMethod, $paymentMethods)) {
+            // move the default payment method to the top
+            $paymentMethod = [$defaultPaymentMethod => $paymentMethods[$defaultPaymentMethod]];
+            unset($paymentMethods[$defaultPaymentMethod]);
+            $paymentMethods = $paymentMethod + $paymentMethods;
+        } else {
+            // no default, use all supported methods
+            $paymentMethods = BookingInvoice::supportedGateways();
+        }
         
         $property = current_property();
         $currency = property_currency();
         // booking invoice tax breakdown
         $bookingInvoice->taxes = $bookingInvoice->tax_breakdown;
+        \Log::info('Default payment remaining balance: ' . $bookingInvoice->remaining_balance);
+        $payFastForm = $this->payfastGatewayService->buildPayfastForm($bookingInvoice);
 
-        return view('tenant.booking-invoices.print', compact('bookingInvoice', 'property', 'currency'));
+        return view('tenant.booking-invoices.print', compact('bookingInvoice', 'property', 'currency', 'paymentMethods', 'defaultPaymentMethod', 'payFastForm'));
     }
 
     /**
@@ -289,7 +305,7 @@ class BookingInvoiceController extends Controller
 
         $paymentMethods = BookingInvoice::supportedGateways();
         // get default payment method from settings else get from config
-        $defaultPaymentMethod = TenantSetting::getSetting('default_invoice_payment_method') ?? config('payment.default_gateway');
+        $defaultPaymentMethod = BookingInvoice::defaultPaymentGateway() ?? config('payment.default_gateway');
         
         if ($defaultPaymentMethod && array_key_exists($defaultPaymentMethod, $paymentMethods)) {
             // move the default payment method to the top

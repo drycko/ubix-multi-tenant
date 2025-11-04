@@ -229,6 +229,11 @@
             background-color: #10B981;
             color: white;
         }
+
+        .btn-danger {
+            background-color: #EF4444;
+            color: white;
+        }
         
         @media print {
             .print-actions {
@@ -288,7 +293,39 @@
                 <span class="status-badge status-{{ $bookingInvoice->status }}">
                     {{ ucfirst(str_replace('_', ' ', $bookingInvoice->status)) }}
                 </span>
+                @if ($bookingInvoice->total_paid > 0 && $bookingInvoice->status === 'partially_paid')
+                <br><div>
+                    <strong>Paid Amount:</strong> {{ $currency }} {{ number_format($bookingInvoice->total_paid, 2) }}
+                </div>
+                @endif
+                @if ($bookingInvoice->remaining_balance > 0 && in_array($bookingInvoice->status, ['pending', 'partially_paid']))
+                <br><div>
+                    <strong>Due Amount:</strong> {{ $currency }} {{ number_format($bookingInvoice->remaining_balance, 2) }}
+                </div>
+                @if ($defaultPaymentMethod === 'payfast')
+                <div style="margin-top: 8px;">
+                    {{-- one click initiate payment only send invoice ID --}}
+                    {!! $payFastForm !!}
+                </div>
+                @elseif ($defaultPaymentMethod === 'paygate')
+                <div style="margin-top: 8px;">
+                    <form action="{{ route('tenant.paygate.initiate', $bookingInvoice->id) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="invoice_id" value="{{ $bookingInvoice->id }}">
+                        <button type="submit" class="btn btn-danger">Pay Now with PayGate</button>
+                    </form>
+                </div>
+                @endif
+                @endif
             </div>
+            {{-- <div class="invoice-details">
+                <strong>Invoice #:</strong> {{ $bookingInvoice->invoice_number }}<br>
+                <strong>Date:</strong> {{ $bookingInvoice->created_at->format('F j, Y') }}<br>
+                <strong>Booking:</strong> {{ $bookingInvoice->booking->bcode }}<br>
+                <span class="status-badge status-{{ $bookingInvoice->status }}">
+                    {{ ucfirst(str_replace('_', ' ', $bookingInvoice->status)) }}
+                </span>
+            </div> --}}
         </div>
     </div>
 

@@ -339,6 +339,14 @@
                     {{-- one click initiate payment only send invoice ID --}}
                     {!! $payFastForm !!}
                 </div>
+                @elseif ($defaultPaymentMethod === 'paygate')
+                <div style="margin-top: 8px;">
+                    <form action="{{ route('tenant.paygate.initiate', $bookingInvoice->id) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="invoice_id" value="{{ $bookingInvoice->id }}">
+                        <button type="submit" class="btn btn-danger">Pay Now with PayGate</button>
+                    </form>
+                </div>
                 @endif
                 @endif
             </div>

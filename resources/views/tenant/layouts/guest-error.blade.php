@@ -1,17 +1,3 @@
-@php
-  $tenant_branding_path = asset('storage/branding');
-  $tenantLogoImage = \app\Models\Tenant\TenantSetting::getSetting('tenant_logo');
-  // address 
-  $tenantAddressStreet = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_street');
-  $tenantAddressStreet2 = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_street_2');
-  $tenantAddressCity = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_city');
-  $tenantAddressState = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_state');
-  $tenantAddressZip = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_zip');
-  $tenantAddressCountry = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_country');
-
-  $tenantLogo = $tenantLogoImage ? $tenant_branding_path . '/' . $tenantLogoImage : asset('assets/images/ubix-logo-small.png');
-  $tenantLogoSmall = $tenantLogoImage ? $tenant_branding_path . '/' . $tenantLogoImage : asset('assets/images/ubix-logo-small.png');
-@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>

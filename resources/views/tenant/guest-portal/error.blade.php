@@ -1,4 +1,4 @@
-@extends('tenant.layouts.guest')
+@extends('tenant.layouts.guest-error')
 
 @section('title', 'Error Page')
 

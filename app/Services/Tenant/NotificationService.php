@@ -2,14 +2,76 @@
 
 namespace App\Services\Tenant;
 
-use App\Mail\TenantGuestInvoiceEmail;
+use App\Mail\Tenant\TenantGuestInvoiceEmail;
+use App\Mail\Tenant\BookingInformtionEmail;
+use App\Mail\Tenant\PaymentReceiptEmail;
+use App\Mail\Tenant\NewBookingNotificationEmail;
+use App\Models\Tenant\Booking;
+use App\Models\Tenant\InvoicePayment;
 use App\Models\Tenant\BookingInvoice;
+use App\Models\Tenant\TenantSetting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 
 class NotificationService
 {
+  public function sendBookingInformationToGuest(Booking $booking): void
+  {
+    // build the email context
+    $context = [
+      'booking_id' => $booking->id,
+      'booking_code' => $booking->bcode,
+      'guest_id' => $booking->guests->first()->id ?? null,
+      'guest_email' => $booking->guests->first()->email ?? null,
+    ];
+    // if local environment, log email sending
+    if (app()->environment('local')) {
+      $this->logEmail('info', 'sending_booking_confirmation_email', $context);
+    }
+    // Implementation for sending booking confirmation raw email to guest through mailer Mail/BookingInformationEmail
+    Mail::to($context['guest_email'])->send(new BookingInformationEmail($booking, $booking->primary_guest));
+
+    // This is a placeholder for the actual email sending logic
+    Log::info("Sending booking confirmation email to guest for Booking ID: " . $booking->id);
+  }
+
+  public function sendNewBookingNotificationToAdmin(Booking $booking): void
+  {
+    // build the email context
+    $context = [
+      'booking_id' => $booking->id,
+      'booking_code' => $booking->bcode,
+      'guest_id' => $booking->guests->first()->id ?? null,
+      'guest_email' => $booking->guests->first()->email ?? null,
+    ];
+    // Implementation for sending new booking notification email to admin
+    $admin_email = TenantSetting::getSetting('tenant_admin_email') ?? config('mail.admin_address');
+    Mail::to($admin_email)->send(new NewBookingNotificationEmail($context));
+    // This is a placeholder for the actual email sending logic
+    Log::info("Sending new booking notification email to admin for Booking ID: " . $booking->id);
+  }
+
+  public function sendPaymentReceiptToGuest(InvoicePayment $payment): void
+  {
+    // log sending payment receipt email
+    $this->logEmail('info', 'sending_payment_receipt_email', [
+      'payment_id' => $payment->id,
+      'booking_id' => $payment->booking->id,
+      'guest_id' => $payment->booking->guests->first()->id ?? null,
+      'guest_email' => $payment->booking->guests->first()->email ?? null,
+    ]);
+    // Implementation for sending payment receipt email to guest
+    $guestEmail = $payment->booking->guests->first()->email ?? null;
+    $invoice = $payment->invoice;
+    $guest = $payment->booking->guests->first();
+    if ($guestEmail) {
+      Mail::to($guestEmail)->send(new PaymentReceiptEmail($payment, $invoice, $guest));
+    }
+    // This is a placeholder for the actual email sending logic
+    Log::info("Sending payment receipt email to guest for Payment ID: " . $payment->id);
+  }
+  
   public function sendInvoiceEmail(BookingInvoice $bookingInvoice, array $options = []): void
   {
     $recipientEmail = $options['recipient_email'] ?? null;
@@ -49,7 +111,6 @@ class NotificationService
     } catch (\Exception $e) {
       Log::error("Failed to send invoice email for Invoice ID: " . $bookingInvoice->id . ". Error: " . $e->getMessage());
     }
-
   }
 
   private function performSendInvoiceEmail(BookingInvoice $bookingInvoice): void

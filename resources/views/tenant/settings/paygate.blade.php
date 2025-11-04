@@ -1,6 +1,6 @@
 @extends('tenant.layouts.app')
 
-@section('title', 'PayFast Settings')
+@section('title', 'PayGate Settings')
 
 @section('content')
 <div class="app-content-header">
@@ -8,7 +8,7 @@
     <div class="row">
       <div class="col-sm-6">
         <h3 class="mb-0 text-muted">
-          <i class="fas fa-credit-card"></i> PayFast Settings
+          <i class="fas fa-credit-card"></i> PayGate Settings
         </h3>
       </div>
       <div class="col-sm-6">
@@ -45,7 +45,7 @@
     </div>
     @endif
 
-    <form action="{{ route('tenant.settings.payfast.update') }}" method="POST">
+    <form action="{{ route('tenant.settings.paygate.update') }}" method="POST">
       @csrf
       @method('POST')
       <div class="row justify-content-center">
@@ -53,24 +53,24 @@
           <div class="card card-warning card-outline">
             <div class="card-header">
               <h5 class="card-title mb-0">
-                <i class="fas fa-credit-card me-2"></i>PayFast Credentials
+                <i class="fas fa-credit-card me-2"></i>PayGate Credentials
               </h5>
             </div>
             <div class="card-body">
               <div class="mb-3">
-                <label for="merchant_id" class="form-label required">Merchant ID</label>
+                <label for="merchant_id" class="form-label required">Paygate ID <span class="text-danger">*</span></label>
                 <input type="text" class="form-control @error('merchant_id') is-invalid @enderror" id="merchant_id" name="merchant_id" value="{{ old('merchant_id', $settings['merchant_id']) }}" required>
                 @error('merchant_id')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
               </div>
               <div class="mb-3">
-                <label for="merchant_key" class="form-label required">Merchant Key</label>
-                <input type="text" class="form-control @error('merchant_key') is-invalid @enderror" id="merchant_key" name="merchant_key" value="{{ old('merchant_key', $settings['merchant_key']) }}" required autocomplete="new-password">
+                <label for="merchant_key" class="form-label required">Encryption Key <span class="text-danger">*</span></label>
+                <input type="text" class="form-control @error('merchant_key') is-invalid @enderror" id="merchant_key" name="merchant_key" value="{{ old('merchant_key', $settings['merchant_key']) }}" required>
                 @error('merchant_key')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
-                <div class="form-text">Your merchant key is stored securely.</div>
+                <div class="form-text">Your encryption key is stored securely.</div>
               </div>
               <div class="mb-3">
                 <label for="passphrase" class="form-label">Passphrase</label>
@@ -78,7 +78,7 @@
                 @error('passphrase')
                 <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
-                <div class="form-text">Leave blank if not required by your PayFast account.</div>
+                <div class="form-text">Leave blank if not required by your PayGate account.</div>
               </div>
               <div class="row mb-3">
                 <div class="col-md-6 mb-md-0">
@@ -101,7 +101,7 @@
                   @error('is_default')
                   <div class="invalid-feedback">{{ $message }}</div>
                   @enderror
-                  <div class="form-text">Select 'Yes' to make PayFast the default payment method.</div>
+                  <div class="form-text">Select 'Yes' to make PayGate the default payment method.</div>
                 </div>
               </div>
             </div>

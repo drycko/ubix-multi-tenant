@@ -94,6 +94,9 @@ Route::middleware([
     // landing page
     Route::get('/index', [GuestPortalController::class, 'index'])->name('tenant.guest-portal.index');
     Route::post('/index', [GuestPortalController::class, 'landingSearch'])->name('tenant.guest-portal.index.post');
+
+    // this exposes the error page for guest portal
+   Route::get('/error/{errorCode}', [GuestPortalController::class, 'showErrorPage'])->name('tenant.guest-portal.error');
     
     Route::prefix('/guest')->group(function () {
         Route::get('/booking', [GuestPortalController::class, 'showPackageBookingForm'])->name('tenant.guest-portal.booking');
@@ -106,8 +109,6 @@ Route::middleware([
         Route::post('/send-login-link', [GuestPortalController::class, 'sendLoginLink'])->name('tenant.guest-portal.send-login-link');
         Route::get('/magic-login/{guest}', [GuestPortalController::class, 'magicLogin'])->name('tenant.guest-portal.magic-login')->middleware('signed');
         Route::post('/logout', [GuestPortalController::class, 'logout'])->name('tenant.guest-portal.logout');
-
-        Route::get('/error', [GuestPortalController::class, 'showErrorPage'])->name('tenant.guest-portal.error');
 
         Route::prefix('/portal')->middleware('guest.portal')->group(function () {
             Route::get('/', [GuestPortalController::class, 'dashboard'])->name('tenant.guest-portal.dashboard');
@@ -122,15 +123,34 @@ Route::middleware([
         });
     });
 
+    // can we redirect page not found to 404 error page to custom
+    Route::fallback(function () {
+        // this expects 1 argument for error code
+        return redirect()->route('tenant.guest-portal.error', ['errorCode' => 404])->with('error', 'The page you are looking for does not exist.');
+    });
+
     // settings route group
     Route::prefix('/t/settings')->middleware('auth:tenant')->name('tenant.settings.')->group(function () {
         Route::get('/', [TenantSettingController::class, 'index'])->name('index');
         Route::get('/payfast', [TenantSettingController::class, 'editPayfast'])->name('payfast.edit');
         Route::post('/payfast', [TenantSettingController::class, 'updatePayfast'])->name('payfast.update');
+        // PayGate routes
+        Route::get('/paygate', [TenantSettingController::class, 'editPaygate'])->name('paygate.edit');
+        Route::post('/paygate', [TenantSettingController::class, 'updatePaygate'])->name('paygate.update');
     });
 
     // Protected routes with property context (prefixed 't' for tenant)
     Route::prefix('/t')->middleware(['auth:tenant', 'property.selector'])->group(function () {
+        // redirect to dashboard
+        Route::get('/', function () {
+            return redirect()->route('tenant.dashboard');
+        });
+        // error route
+        Route::get('/error', [DashboardController::class, 'error'])->name('tenant.error');
+        // can we redirect page not found to 404 error page to custom
+        Route::fallback(function () {
+            return redirect()->route('tenant.error')->with('error', 'The page you are looking for does not exist.');
+        });
         // Dashboard - accessible to all authenticated users
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('tenant.dashboard');
         Route::get('/stats', [DashboardController::class, 'stats'])->name('tenant.stats');
