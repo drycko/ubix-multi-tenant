@@ -129,82 +129,53 @@
             </h5>
           </div>
           <div class="card-body">
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Full Name:</strong>
-              </div>
-              <div class="col-sm-8">
-                {{ $user->name }}
-              </div>
-            </div>
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Email:</strong>
-              </div>
-              <div class="col-sm-8">
+            <dl class="row">
+              <dt class="col-sm-4">Full Name:</dt>
+              <dd class="col-sm-8">{{ $user->name }}</dd>
+
+              <dt class="col-sm-4">Email:</dt>
+              <dd class="col-sm-8">
                 <a href="mailto:{{ $user->email }}">{{ $user->email }}</a>
-              </div>
-            </div>
-            @if($user->phone)
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Phone:</strong>
-              </div>
-              <div class="col-sm-8">
+              </dd>
+
+              @if($user->phone)
+              <dt class="col-sm-4">Phone:</dt>
+              <dd class="col-sm-8">
                 <a href="tel:{{ $user->phone }}">{{ $user->phone }}</a>
-              </div>
-            </div>
-            @endif
-            @if($user->address)
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Address:</strong>
-              </div>
-              <div class="col-sm-8">
-                {{ $user->address }}
-              </div>
-            </div>
-            @endif
-            @if($user->position)
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Position:</strong>
-              </div>
-              <div class="col-sm-8">
-                {{ $user->position }}
-              </div>
-            </div>
-            @endif
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Account Status:</strong>
-              </div>
-              <div class="col-sm-8">
+              </dd>
+              @endif
+
+              @if($user->address)
+              <dt class="col-sm-4">Address:</dt>
+              <dd class="col-sm-8">{{ $user->address }}</dd>
+              @endif
+
+              @if($user->position)
+              <dt class="col-sm-4">Position:</dt>
+              <dd class="col-sm-8">{{ $user->position }}</dd>
+              @endif
+
+              <dt class="col-sm-4">Account Status:</dt>
+              <dd class="col-sm-8">
                 @if($user->is_active)
                   <span class="badge bg-success">Active</span>
                 @else
                   <span class="badge bg-danger">Inactive</span>
                 @endif
-              </div>
-            </div>
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Created:</strong>
-              </div>
-              <div class="col-sm-8">
+              </dd>
+
+              <dt class="col-sm-4">Created:</dt>
+              <dd class="col-sm-8">
                 {{ $user->created_at->format('M d, Y \a\t g:i A') }}
                 <small class="text-muted d-block">{{ $user->created_at->diffForHumans() }}</small>
-              </div>
-            </div>
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Last Updated:</strong>
-              </div>
-              <div class="col-sm-8">
+              </dd>
+
+              <dt class="col-sm-4">Last Updated:</dt>
+              <dd class="col-sm-8">
                 {{ $user->updated_at->format('M d, Y \a\t g:i A') }}
                 <small class="text-muted d-block">{{ $user->updated_at->diffForHumans() }}</small>
-              </div>
-            </div>
+              </dd>
+            </dl>
           </div>
         </div>
       </div>
@@ -218,23 +189,18 @@
             </h5>
           </div>
           <div class="card-body">
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Property:</strong>
-              </div>
-              <div class="col-sm-8">
+            <dl class="row">
+              <dt class="col-sm-4">Property:</dt>
+              <dd class="col-sm-8">
                 @if($user->property)
                   <span class="badge bg-info">{{ $user->property->name }}</span>
                 @else
                   <span class="text-muted">No Property Assigned</span>
                 @endif
-              </div>
-            </div>
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Role:</strong>
-              </div>
-              <div class="col-sm-8">
+              </dd>
+
+              <dt class="col-sm-4">Role:</dt>
+              <dd class="col-sm-8">
                 @php
                   $roleColors = [
                     'super-user' => 'danger',
@@ -252,13 +218,10 @@
                 <span class="badge bg-{{ $roleColor }}">
                   {{ ucfirst(str_replace('-', ' ', $user->role)) }}
                 </span>
-              </div>
-            </div>
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Permissions:</strong>
-              </div>
-              <div class="col-sm-8">
+              </dd>
+
+              <dt class="col-sm-4">Permissions:</dt>
+              <dd class="col-sm-8">
                 @php
                   $roleDescriptions = [
                     'super-user' => 'Complete system access across all properties',
@@ -274,28 +237,38 @@
                   $description = $roleDescriptions[$user->role] ?? 'Standard user access';
                 @endphp
                 <small class="text-muted">{{ $description }}</small>
-              </div>
-            </div>
-            @if($user->email_verified_at)
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Email Verified:</strong>
-              </div>
-              <div class="col-sm-8">
+              </dd>
+
+              @if($user->email_verified_at)
+              <dt class="col-sm-4">Email Verified:</dt>
+              <dd class="col-sm-8">
                 <span class="badge bg-success">Verified</span>
                 <small class="text-muted d-block">{{ $user->email_verified_at->format('M d, Y') }}</small>
-              </div>
-            </div>
-            @else
-            <div class="row mb-3">
-              <div class="col-sm-4">
-                <strong>Email Verified:</strong>
-              </div>
-              <div class="col-sm-8">
+              </dd>
+              @else
+              <dt class="col-sm-4">Email Verified:</dt>
+              <dd class="col-sm-8">
                 <span class="badge bg-warning">Pending</span>
-              </div>
+              </dd>
+              @endif
+            </dl>
+          </div>
+          <div class="card-footer">
+            <div class="btn-group" role="group">
+              
+              <a href="{{ route('tenant.users.edit', $user) }}" class="btn btn-warning">
+                <i class="fas fa-edit me-1"></i>Edit User
+              </a>
+              @if($user->id !== auth()->id())
+              <form action="{{ route('tenant.users.destroy', $user) }}" method="POST" class="d-inline">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this user?')">
+                  <i class="fas fa-trash me-1"></i>Delete User
+                </button>
+              </form>
+              @endif
             </div>
-            @endif
           </div>
         </div>
       </div>
@@ -332,7 +305,7 @@
             <div class="card ">
               <div class="card-body">
                 <i class="fas fa-clock fa-2x text-info mb-2"></i>
-                <h4 class="mb-0">{{ $user->created_at->diffInDays(now()) }}</h4>
+                <h4 class="mb-0">{{ round($user->created_at->diffInDays(now())) }}</h4>
                 <small class="text-muted">Days Since Joined</small>
               </div>
             </div>
@@ -354,5 +327,25 @@
   <!--end::Container-->
 </div>
 <!--end::App Content-->
-
+{{-- Send user welcome email modal --}}
+<div class="modal fade" id="sendWelcomeEmailModal" tabindex="-1" role="dialog" aria-labelledby="sendWelcomeEmailModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="sendWelcomeEmailModalLabel">Send Welcome Email</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to send a welcome email to {{ $user->email }}?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form action="{{ route('tenant.users.send-welcome-email', $user) }}" method="POST" class="d-inline">
+          @csrf
+          <button type="submit" class="btn btn-primary">Send Email</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 @endsection

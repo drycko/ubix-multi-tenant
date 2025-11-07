@@ -35,7 +35,7 @@ class RouteServiceProvider extends ServiceProvider
             // Central authentication routes (must be loaded first)
             Route::middleware('web')
                 ->domain(config('tenancy.central_domains')[0])
-                ->group(base_path('routes/central-auth.php'));
+                ->group(base_path('routes/auth.php'));
                 
             // Central routes (admin, tenant management)
             Route::middleware('web')

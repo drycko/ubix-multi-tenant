@@ -140,11 +140,13 @@ class RolesAndPermissionsSeeder extends Seeder
     protected function createPropertyAdminRole(): void
     {
         $role = Role::firstOrCreate(['name' => 'property-admin', 'guard_name' => 'tenant']);
-        $role->syncPermissions([
+        
+        $permissionNames = [
             'view bookings', 'create bookings', 'edit bookings', 'delete bookings',
             'checkin bookings', 'checkout bookings', 'cancel bookings',
-            'view rooms', 'create rooms', 'edit rooms', 'delete rooms', 'manage room types',
+            'view rooms', 'create rooms', 'edit rooms', 'delete rooms',
             'view room availability', 'manage room maintenance',
+            'view room types', 'create room types', 'edit room types', 'delete room types',
             'view guests', 'create guests', 'edit guests', 'delete guests', 'view guest history',
             'manage guest profiles',
             'view reports', 'export reports', 'view financial reports', 'view occupancy reports',
@@ -166,14 +168,22 @@ class RolesAndPermissionsSeeder extends Seeder
             'generate cleaning schedules', 'manage cleaning checklists',
             'view maintenance', 'create maintenance requests', 'edit maintenance requests', 'delete maintenance requests',
             'assign maintenance work', 'start maintenance work', 'complete maintenance work', 'cancel maintenance requests',
-            'view maintenance reports', 'manage maintenance categories', 'approve maintenance costs'
-        ]);
+            'view maintenance reports', 'manage maintenance categories', 'approve maintenance costs',
+            
+            // Settings
+            'manage settings', 'view settings'
+        ];
+        
+        // Only sync permissions that actually exist
+        $existingPermissions = Permission::whereIn('name', $permissionNames)->pluck('name')->toArray();
+        $role->syncPermissions($existingPermissions);
     }
 
     protected function createManagerRole(): void
     {
         $role = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'tenant']);
-        $role->syncPermissions([
+        
+        $permissionNames = [
             'view bookings', 'create bookings', 'edit bookings', 'checkin bookings',
             'checkout bookings', 'cancel bookings',
             'view rooms', 'view room availability',
@@ -186,13 +196,18 @@ class RolesAndPermissionsSeeder extends Seeder
             'view room status', 'update room status',
             'view cleaning schedules', 'generate cleaning schedules',
             'view maintenance', 'create maintenance requests', 'assign maintenance work'
-        ]);
+        ];
+        
+        // Only sync permissions that actually exist
+        $existingPermissions = Permission::whereIn('name', $permissionNames)->pluck('name')->toArray();
+        $role->syncPermissions($existingPermissions);
     }
 
     protected function createStaffRole(): void
     {
         $role = Role::firstOrCreate(['name' => 'staff', 'guard_name' => 'tenant']);
-        $role->syncPermissions([
+        
+        $permissionNames = [
             'view bookings', 'create bookings', 'checkin bookings', 'checkout bookings',
             'view rooms', 'view room availability',
             'view guests', 'create guests',
@@ -201,13 +216,18 @@ class RolesAndPermissionsSeeder extends Seeder
             // Basic housekeeping permissions for staff
             'view housekeeping', 'start housekeeping work', 'complete housekeeping work',
             'view room status', 'create maintenance requests'
-        ]);
+        ];
+        
+        // Only sync permissions that actually exist
+        $existingPermissions = Permission::whereIn('name', $permissionNames)->pluck('name')->toArray();
+        $role->syncPermissions($existingPermissions);
     }
 
     protected function createHousekeepingRole(): void
     {
         $role = Role::firstOrCreate(['name' => 'housekeeping', 'guard_name' => 'tenant']);
-        $role->syncPermissions([
+        
+        $permissionNames = [
             // Basic access
             'view bookings', 'view rooms', 'view room availability', 'view guests',
             
@@ -218,13 +238,18 @@ class RolesAndPermissionsSeeder extends Seeder
             
             // Maintenance reporting
             'create maintenance requests', 'view maintenance'
-        ]);
+        ];
+        
+        // Only sync permissions that actually exist
+        $existingPermissions = Permission::whereIn('name', $permissionNames)->pluck('name')->toArray();
+        $role->syncPermissions($existingPermissions);
     }
 
     protected function createMaintenanceRole(): void
     {
         $role = Role::firstOrCreate(['name' => 'maintenance', 'guard_name' => 'tenant']);
-        $role->syncPermissions([
+        
+        $permissionNames = [
             // Basic access
             'view bookings', 'view rooms', 'view room availability',
             
@@ -234,6 +259,10 @@ class RolesAndPermissionsSeeder extends Seeder
             
             // Room status updates for maintenance
             'view room status', 'update room status'
-        ]);
+        ];
+        
+        // Only sync permissions that actually exist
+        $existingPermissions = Permission::whereIn('name', $permissionNames)->pluck('name')->toArray();
+        $role->syncPermissions($existingPermissions);
     }
 }

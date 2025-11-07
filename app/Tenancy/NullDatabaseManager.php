@@ -34,4 +34,9 @@ class NullDatabaseManager implements TenantDatabaseManager
             'database' => $databaseName,
         ]);
     }
+
+    public function setConnection(string $connection): void
+    {
+        // Do nothing
+    }
 }

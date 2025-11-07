@@ -4,6 +4,7 @@ use App\Http\Controllers\Tenant\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Tenant\Auth\RegisteredUserController;
 use App\Http\Controllers\Tenant\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Tenant\Auth\NewPasswordController;
+use App\Http\Controllers\Tenant\Auth\ChangePasswordController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest:tenant')->group(function () {
@@ -33,6 +34,13 @@ Route::middleware('guest:tenant')->group(function () {
 });
 
 Route::middleware('auth:tenant')->group(function () {
+    // Change password routes (must be accessible even if password change is required)
+    Route::get('change-password', [ChangePasswordController::class, 'create'])
+        ->name('tenant.password.change');
+    
+    Route::post('change-password', [ChangePasswordController::class, 'store'])
+        ->name('tenant.password.update');
+    
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('tenant.logout');
 });

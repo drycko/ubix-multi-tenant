@@ -1,20 +1,25 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Deployment script for Laravel to cPanel
-echo "🚀 Starting Laravel deployment..."
-
-# Create timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 ZIP_NAME="deploy_${TIMESTAMP}.zip"
 
-# Create a COMPLETE zip including vendor and proper structure
+echo "Building assets..."
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+
+echo "Creating zip package: $ZIP_NAME"
 zip -r "$ZIP_NAME" . \
-    -x ".git/*" \
-       "node_modules/*" \
-       ".env" \
-       "deployment.zip" \
-       "docker-compose*" \
-       "Dockerfile"
+  -x ".git/*" \
+     "node_modules/*" \
+     "storage/debug/*" \
+     ".env" \
+     "deployment.zip" \
+     "docker-compose*" \
+     "Dockerfile"
+
+echo "Done: $ZIP_NAME"
        
 echo "✅ Package created: $ZIP_NAME"
 echo "📦 Size: $(du -h "$ZIP_NAME" | cut -f1)"

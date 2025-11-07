@@ -44,6 +44,9 @@ class User extends Authenticatable
         'role',
         'profile_photo_path',
         'is_active',
+        'must_change_password',
+        'password_changed_at',
+        'metadata',
     ];
 
     protected $hidden = [
@@ -54,6 +57,9 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
+        'must_change_password' => 'boolean',
+        'password_changed_at' => 'datetime',
+        'metadata' => 'array',
     ];
     protected $connection = 'tenant';
 
@@ -101,7 +107,7 @@ class User extends Authenticatable
         }
 
         // Handle different storage configurations
-        if (config('app.env') === 'production') {
+        if (config('app.env') === 'production' && config('filesystems.default') === 'gcs') {
             // For production with GCS or other cloud storage
             $gcsConfig = config('filesystems.disks.gcs');
             $bucket = $gcsConfig['bucket'] ?? null;

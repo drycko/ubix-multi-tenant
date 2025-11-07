@@ -2,6 +2,7 @@
 
 use App\Models\Tenant\Property;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 // Get the current tenant using Stancl Tenancy
 if (!function_exists('current_tenant')) {
@@ -354,5 +355,27 @@ if (!function_exists('format_price')) {
         $formattedPrice = number_format((float) $price, 2, '.', ',');
         
         return $showCurrency ? "{$symbol} {$formattedPrice}" : $formattedPrice;
+    }
+}
+
+// Configure an on‑the‑fly disk or factory that points to tenant root
+if (!function_exists('tenant_disk')) {
+    function tenant_disk($diskName = 'local')
+    {
+        $tenant = current_tenant();
+        if (!$tenant) {
+            throw new \Exception('No tenant context available for tenant_disk().');
+        }
+        
+        // Create a custom disk configuration for the tenant
+        $tenantDiskConfig = [
+            'driver' => $diskName,
+            'root' => storage_path("app/tenants/{$tenant->id}"),
+            'throw' => false,
+            'report' => false,
+        ];
+        
+        // Create a temporary disk instance
+        return Storage::build($tenantDiskConfig);
     }
 }

@@ -45,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'auth' => \App\Http\Middleware\Authenticate::class,
             'auth:sanctum' => \Laravel\Sanctum\Http\Middleware\Authenticate::class,
+            'must.change.password' => \App\Http\Middleware\CheckMustChangePassword::class,
             // other middleware aliases
         ]);
     })

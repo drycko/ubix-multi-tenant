@@ -43,6 +43,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/central/tenants/{tenant}/subscriptions', [TenantController::class, 'subscriptions'])->name('central.tenants.subscriptions');
     Route::post('/central/tenants/{tenant}/switch-to-premium', [TenantController::class, 'switchToPremium'])->name('central.tenants.switch-to-premium');
     Route::get('/central/tenants/{tenant}/login-as-tenant', [TenantController::class, 'loginAsTenant'])->name('central.tenants.login-as-tenant');
+    Route::get('/central/tenants/{tenant}/send-email', [TenantController::class, 'showSendEmailForm'])->name('central.tenants.show-send-email-form');
+    Route::post('/central/tenants/{tenant}/send-email', [TenantController::class, 'sendEmailToTenant'])->name('central.tenants.send-email');
     // Route::post('/central/tenants/{tenant}/cancel-subscription', [TenantController::class, 'cancelSubscription'])->name('central.tenants.cancel-subscription');
     Route::resource('tenants', TenantController::class);
 

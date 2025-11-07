@@ -54,6 +54,24 @@ class Tenant extends BaseTenant implements TenantWithDatabase
                 $tenant->setupDatabase($tenant->tenancy_db_name);
             }
         });
+
+        static::deleting(function (Tenant $tenant) {
+            // Delete subdomain from cPanel when tenant is deleted
+            if (app()->environment('production') && config('services.cpanel.api_token')) {
+                $cpanelService = app(\App\Services\CpanelService::class);
+                $primaryDomain = $tenant->domains()->where('is_primary', true)->first();
+                
+                if ($primaryDomain) {
+                    $result = $cpanelService->deleteSubdomain($primaryDomain->domain);
+                    
+                    if (!$result['success']) {
+                        \Log::error("Failed to delete subdomain from cPanel: " . $result['error']);
+                    } else {
+                        \Log::info("cPanel subdomain deleted: {$primaryDomain->domain}");
+                    }
+                }
+            }
+        });
     }
 
     /**
@@ -211,6 +229,24 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 			$unique_domain = $tenant_prefix . '-' . $i .'.'. $centralDomain;
 			$i++;
 		}
+		
+		// Create subdomain in cPanel (only in production)
+		if (app()->environment('production') && config('services.cpanel.api_token')) {
+			$cpanelService = app(\App\Services\CpanelService::class);
+			$result = $cpanelService->createSubdomain(
+				$tenant_prefix, 
+				config('services.cpanel.document_root')
+			);
+			
+			if (!$result['success']) {
+				\Log::error("Failed to create subdomain in cPanel: " . $result['error']);
+				// Optionally throw exception if subdomain creation is critical
+				// throw new \Exception("Failed to create subdomain: " . $result['error']);
+			} else {
+				\Log::info("cPanel subdomain created: {$unique_domain}");
+			}
+		}
+		
 		$tenant->domains()->create([
 			'domain' => $unique_domain,
 			'is_primary' => true,

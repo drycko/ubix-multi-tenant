@@ -27,6 +27,15 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $user = auth()->guard('tenant')->user();
+
+        // Check if user must change password
+        if ($user->must_change_password) {
+            return redirect()
+                ->route('tenant.password.change')
+                ->with('warning', 'You must change your password before continuing.');
+        }
+
         return redirect()->intended(RouteServiceProvider::TENANT_HOME);
     }
 

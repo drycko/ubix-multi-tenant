@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'cpanel' => [
+        'url' => env('CPANEL_URL', 'https://yourdomain.com:2083'),
+        'username' => env('CPANEL_USERNAME'),
+        'api_token' => env('CPANEL_API_TOKEN'),
+        'main_domain' => env('CPANEL_MAIN_DOMAIN', 'example.com'),
+        'document_root' => env('CPANEL_DOCUMENT_ROOT', 'ubixcentral.example.com/public'),
+    ],
+
 ];

@@ -140,7 +140,7 @@ Route::middleware([
     });
 
     // Protected routes with property context (prefixed 't' for tenant)
-    Route::prefix('/t')->middleware(['auth:tenant', 'property.selector'])->group(function () {
+    Route::prefix('/t')->middleware(['auth:tenant', 'must.change.password', 'property.selector'])->group(function () {
         // redirect to dashboard
         Route::get('/', function () {
             return redirect()->route('tenant.dashboard');

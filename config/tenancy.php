@@ -71,7 +71,7 @@ return [
         'managers' => [
             'sqlite' => Stancl\Tenancy\TenantDatabaseManagers\SQLiteDatabaseManager::class,
             'mysql' => Stancl\Tenancy\TenantDatabaseManagers\MySQLDatabaseManager::class,
-            // 'mysql' => App\Tenancy\NullDatabaseManager::class,
+            // 'mysql' => App\Tenancy\NullDatabaseManager::class, // uncomment if you don't want tenant db created automatically
             'pgsql' => Stancl\Tenancy\TenantDatabaseManagers\PostgreSQLDatabaseManager::class,
 
         /**
