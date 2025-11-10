@@ -100,6 +100,17 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     {
         try {
             \Log::info("Setting up tenant database: {$tenancy_db_name}");
+            // check if database exists in database_pool and is available
+            $dbPoolEntry = DatabasePool::where('database_name', $tenancy_db_name)->first();
+            if (!$dbPoolEntry || !$dbPoolEntry->is_available) {
+                throw new \Exception("Database {$tenancy_db_name} is not available in the pool.");
+            }
+
+            // check if database is already assigned to another tenant
+            $existingTenantDb = DB::table('tenant_databases')->where('name', $tenancy_db_name)->first();
+            if ($existingTenantDb) {
+                throw new \Exception("Database {$tenancy_db_name} is already assigned to another tenant.");
+            }
 
             // Assign the database in tenant_databases table if not exists
             $tenantDb = DB::table('tenant_databases')->where('tenant_id', $this->id)->first();
@@ -175,7 +186,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public static function getNextAvailableDatabase(): ?string
     {
         // Define your database naming pattern
-        $databasePrefix = 'nexusflo_ubix_';
+        $databasePrefix = 'ubixco_';
         
         // Check which databases exist and are not in use
         $existingDatabases = (new self)->getExistingDatabases();
@@ -201,7 +212,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             $databases = DB::select('SHOW DATABASES'); // i do not like it, the database maybe in use by another tenant
             // database must be empty or not in use by another tenant
 
-            $databases = array_filter($databases, fn($db) => str_starts_with($db->Database, 'nexusflo_ubix_'));
+            $databases = array_filter($databases, fn($db) => str_starts_with($db->Database, 'ubixco_'));
             return array_column($databases, 'Database');
         } catch (\Exception $e) {
             \Log::error('Error fetching databases: ' . $e->getMessage());
@@ -229,8 +240,8 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 			$unique_domain = $tenant_prefix . '-' . $i .'.'. $centralDomain;
 			$i++;
 		}
-		
-		// Create subdomain in cPanel (only in production)
+
+        // Create subdomain in cPanel (only in production)
 		if (app()->environment('production') && config('services.cpanel.api_token')) {
 			$cpanelService = app(\App\Services\CpanelService::class);
 			$result = $cpanelService->createSubdomain(
@@ -246,7 +257,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 				\Log::info("cPanel subdomain created: {$unique_domain}");
 			}
 		}
-		
+
 		$tenant->domains()->create([
 			'domain' => $unique_domain,
 			'is_primary' => true,
@@ -263,6 +274,15 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     {
         return $this->hasMany(Subscription::class);
     }
+
+    /**
+     * relationship with invoices
+     */
+    public function invoices()
+    {
+        return $this->hasMany(SubscriptionInvoice::class);
+    }
+
     /**
      * relationship with subscription plan through subscriptions
      */
@@ -277,5 +297,200 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public function currentSubscription()
     {
         return $this->hasOne(Subscription::class)->whereIn('status', ['active', 'trial']);
+    }
+
+    public function refunds()
+    {
+        return $this->hasMany(Refund::class);
+    }
+
+    /**
+     * relationship with tenant admin
+     */
+    public function admin()
+    {
+        return $this->hasOne(TenantAdmin::class, 'tenant_id', 'id');
+    }
+
+    /**
+     * Check if tenant has an active subscription.
+     */
+    public function hasActiveSubscription(): bool
+    {
+        return $this->subscriptions()
+            ->where('status', 'active')
+            ->where('end_date', '>=', now())
+            ->exists();
+    }
+
+    /**
+     * Get the tenant's current active subscription with plan details.
+     */
+    public function getActiveSubscription()
+    {
+        return $this->subscriptions()
+            ->where('status', 'active')
+            ->where('end_date', '>=', now())
+            ->with('plan')
+            ->first();
+    }
+
+    /**
+     * Check if tenant subscription is expired.
+     */
+    public function isSubscriptionExpired(): bool
+    {
+        $subscription = $this->getActiveSubscription();
+        
+        if (!$subscription) {
+            return true;
+        }
+
+        return $subscription->end_date < now();
+    }
+
+    /**
+     * Check if tenant subscription has unpaid invoices.
+     */
+    public function hasUnpaidInvoices(): bool
+    {
+        return $this->invoices()
+            ->whereIn('status', ['pending', 'overdue'])
+            ->exists();
+    }
+
+    /**
+     * Check if tenant can access a specific feature.
+     * 
+     * @param string $feature Feature name from plan's features array
+     * @return bool
+     */
+    public function canAccessFeature(string $feature): bool
+    {
+        $subscription = $this->getActiveSubscription();
+        
+        if (!$subscription || !$subscription->plan) {
+            return false;
+        }
+
+        $features = $subscription->plan->features ?? [];
+        
+        if (is_string($features)) {
+            $features = json_decode($features, true) ?? [];
+        }
+
+        return in_array($feature, $features);
+    }
+
+    /**
+     * Check if tenant is within a limitation for their plan.
+     * 
+     * @param string $limitation Limitation key (e.g., 'max_users', 'max_properties')
+     * @param int $currentCount Current usage count
+     * @return bool
+     */
+    public function isWithinLimit(string $limitation, int $currentCount): bool
+    {
+        $subscription = $this->getActiveSubscription();
+        
+        if (!$subscription || !$subscription->plan) {
+            return false;
+        }
+
+        $limitations = $subscription->plan->limitations ?? [];
+        
+        if (is_string($limitations)) {
+            $limitations = json_decode($limitations, true) ?? [];
+        }
+
+        if (!isset($limitations[$limitation])) {
+            return true;
+        }
+
+        $limit = $limitations[$limitation];
+        
+        if ($limit === -1 || $limit === null) {
+            return true;
+        }
+
+        return $currentCount < $limit;
+    }
+
+    /**
+     * Get remaining limit for a specific limitation.
+     * 
+     * @param string $limitation Limitation key
+     * @param int $currentCount Current usage count
+     * @return int|string Returns remaining count or 'unlimited'
+     */
+    public function getRemainingLimit(string $limitation, int $currentCount)
+    {
+        $subscription = $this->getActiveSubscription();
+        
+        if (!$subscription || !$subscription->plan) {
+            return 0;
+        }
+
+        $limitations = $subscription->plan->limitations ?? [];
+        
+        if (is_string($limitations)) {
+            $limitations = json_decode($limitations, true) ?? [];
+        }
+
+        if (!isset($limitations[$limitation])) {
+            return 'unlimited';
+        }
+
+        $limit = $limitations[$limitation];
+        
+        if ($limit === -1 || $limit === null) {
+            return 'unlimited';
+        }
+
+        return max(0, $limit - $currentCount);
+    }
+
+    /**
+     * Get subscription status message.
+     */
+    public function getSubscriptionStatusMessage(): string
+    {
+        if (!$this->hasActiveSubscription()) {
+            if ($this->hasUnpaidInvoices()) {
+                return 'Your subscription has unpaid invoices. Please settle your account to continue using the service.';
+            }
+            return 'Your subscription has expired. Please renew to continue using the service.';
+        }
+
+        $subscription = $this->getActiveSubscription();
+        $daysRemaining = now()->diffInDays($subscription->end_date, false);
+
+        if ($daysRemaining <= 7 && $daysRemaining > 0) {
+            return "Your subscription expires in {$daysRemaining} day(s). Please renew soon to avoid service interruption.";
+        }
+
+        return 'Your subscription is active.';
+    }
+
+    /**
+     * Check if tenant subscription is in grace period.
+     * 
+     * @param int $graceDays Number of grace days (default: 3)
+     * @return bool
+     */
+    public function isInGracePeriod(int $graceDays = 3): bool
+    {
+        $subscription = $this->subscriptions()
+            ->where('status', 'active')
+            ->latest('end_date')
+            ->first();
+
+        if (!$subscription) {
+            return false;
+        }
+
+        $daysSinceExpiry = $subscription->end_date->diffInDays(now(), false);
+        
+        return $daysSinceExpiry > 0 && $daysSinceExpiry <= $graceDays;
     }
 }

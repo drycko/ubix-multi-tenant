@@ -1,192 +1,367 @@
 @extends('central.layouts.app')
 
-@section('title', 'Show Tenant')
+@section('title', 'Tenant Details - ' . $tenant->name)
 
 @section('content')
 
 <!--begin::App Content Header-->
-<div class="app-content-header">
-	<!--begin::Container-->
-	<div class="container-fluid">
-		<!--begin::Row-->
-		<div class="row">
-			<div class="col-sm-6">
-			{{-- <h3 class="mb-0">Tenant Details</h3> --}}
-			</div>
-			<div class="col-sm-6">
-			<ol class="breadcrumb float-sm-end">
-				<li class="breadcrumb-item"><a href="{{ route('central.dashboard') }}">Home</a></li>
-				<li class="breadcrumb-item"><a href="{{ route('central.tenants.index') }}">All Tenants</a></li>
-				<li class="breadcrumb-item active" aria-current="page">Tenant Details</li>
-			</ol>
-			</div>
-		</div>
-	</div>
-</div>
+{{-- <div class="app-content-header">
+  <!--begin::Container-->
+  <div class="container-fluid">
+    <!--begin::Row-->
+    <div class="row">
+      <div class="col-sm-6">
+        <h3 class="mb-0">
+          <i class="fas fa-building"></i> Tenant Details
+        </h3>
+      </div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-end">
+          <li class="breadcrumb-item"><a href="{{ route('central.dashboard') }}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{{ route('central.tenants.index') }}">Tenants</a></li>
+          <li class="breadcrumb-item active" aria-current="page">{{ $tenant->name }}</li>
+        </ol>
+      </div>
+    </div>
+    <!--end::Row-->
+  </div>
+  <!--end::Container-->
+</div> --}}
 <!--end::App Content Header-->
 <!--begin::App Content-->
-<div class="app-content">
-	<!--begin::Container-->
-	<div class="container-fluid">
+<div class="app-content mt-3">
+  <!--begin::Container-->
+  <div class="container-fluid">
 
-		{{-- messages from redirect --}}
-		@if(session('success'))
-			<div class="alert alert-success">
-				{{ session('success') }}
-			</div>
-		@endif
-		@if(session('error'))
-			<div class="alert alert-danger">
-				{{ session('error') }}
-			</div>
-		@endif
+    {{-- Success/Error Messages --}}
+    @if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+      {{ session('success') }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
+    @if(session('error'))
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      {{ session('error') }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
 
-		@if($errors->any())
-			<div class="alert alert-danger">
-				<ul class="mb-0">
-				@foreach($errors->all() as $error)
-					<li>{{ $error }}</li>
-				@endforeach
-				</ul>
-			</div>
-		@endif
+    @if($errors->any())
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <ul class="mb-0">
+        @foreach($errors->all() as $error)
+        <li>{{ $error }}</li>
+        @endforeach
+      </ul>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
 
-		<!--begin::Main details card-->
-		<div class="card card-success card-outline mb-4">
-			<div class="card-header">
-				<h5 class="card-title">Tenant Details</h5>
-				<div class="card-tools float-end">
-					<a href="{{ route('central.tenants.edit', $tenant->id) }}" class="btn btn-sm btn-outline-success me-2">
-						<i class="fas fa-edit me-2"></i>Edit Tenant
-					</a>
-					<form action="{{ route('central.tenants.destroy', $tenant->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this tenant? This action cannot be undone.');">
-						@csrf
-						@method('DELETE')
-						<button type="submit" class="btn btn-sm btn-outline-danger">
-							<i class="fas fa-trash-alt me-2"></i>Delete Tenant
-						</button>
-					</form>
-				</div>
-			</div>
-			<div class="card-body row">
-				<div class="col-md-6 mb-4">
-					<h5>Overview</h5>
-					<hr>
-					<p><strong>ID:</strong> {{ $tenant->id }}</br>
-					<p><strong>Name:</strong> {{ $tenant->name }}</br>
-					<p><strong>Email:</strong> {{ $tenant->email }}</br>
-					<p><strong>Created At:</strong> {{ date('d M Y', strtotime($tenant->created_at)) }}</br>
-					<p><strong>Updated At:</strong> {{ date('d M Y', strtotime($tenant->updated_at)) }}</br>
-					<p><strong>Primary Domain:</strong> {{ $tenant->primary_domain }}</br>
-					<p><strong>Database:</strong> {{ $tenant->tenancy_db_name }}</br>
-				</div>
-				<div class="col-md-6 mb-4">
-					<h5>Current Subscription</h5>
-					<hr>
-					@if($tenant->current_plan)
-					<p><strong>Current Plan:</strong> {{ $tenant->current_plan ? $tenant->current_plan->plan->name : 'N/A' }}</br>
-					<p><strong>Plan Status:</strong> {{ $tenant->current_plan->status ?? 'N/A' }}</br>
-					<p><strong>Plan Expiry:</strong> {{ $tenant->current_plan->end_date ? date('d M Y', strtotime($tenant->current_plan->end_date)) : 'N/A' }}</br>
-					{{-- if this is a trial plan, show trial days left --}}
-					@if($tenant->current_plan && $tenant->current_plan->status === 'trial')
-						<p><strong>Trial Ends At:</strong> {{ $tenant->current_plan->trial_ends_at ? date('d M Y', strtotime($tenant->current_plan->trial_ends_at)) : 'N/A' }}</br>
-						<p><strong>Trial Days Left:</strong> {{ $tenant->current_plan->trial_days_left ?? 'N/A' }} days</br></br>
-						{{-- buttons to modals to cancel trial and switch to paid plan --}}
-						<a href="#" class="btn btn-sm btn-outline-success me-2" data-bs-toggle="modal" data-bs-target="#switchToPremiumModal">
-							<i class="fas fa-exchange-alt me-2"></i>Switch to Paid Plan
-						</a>
-						<a href="{{ route('central.subscriptions.show', $tenant->current_plan->id) }}" class="btn btn-sm btn-outline-primary me-2">
-							<i class="fas fa-eye me-2"></i>View Subscription
-						</a>
-					@endif
-					@else
-					<p>No active subscription plan.</p>
-					{{-- button to open modal to switch to premium plan --}}
-					<a href="#" class="btn btn-sm btn-outline-success me-2" data-bs-toggle="modal" data-bs-target="#switchToPremiumModal">
-						<i class="fas fa-exchange-alt me-2"></i>Switch to Paid Plan
-					</a>
-					@endif
-				</div>
-			</div>
-			<div class="card-footer">
+    <!-- Header Card with Actions -->
+    <div class="ghost-card mb-4">
+      <div class="ghost-card-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center">
+            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
+              <i class="fas fa-building fa-2x"></i>
+            </div>
+            <div>
+              <h5 class="card-title mb-0 text-muted">
+                {{ $tenant->name }}
+                @if($tenant->current_plan)
+                  @if($tenant->current_plan->status === 'active')
+                    <span class="badge bg-success ms-2">Active</span>
+                  @elseif($tenant->current_plan->status === 'trial')
+                    <span class="badge bg-info ms-2">Trial</span>
+                  @else
+                    <span class="badge bg-warning ms-2">{{ ucfirst($tenant->current_plan->status) }}</span>
+                  @endif
+                @else
+                  <span class="badge bg-secondary ms-2">No Plan</span>
+                @endif
+              </h5><br>
+              <small class="text-muted">{{ $tenant->email }}</small>
+            </div>
+          </div>
+          <div class="btn-group" role="group">
+            <a href="{{ route('central.tenants.edit', $tenant->id) }}?return_page={{ request('return_page', 1) }}" class="btn btn-warning">
+              <i class="fas fa-edit me-1"></i>Edit
+            </a>
+            <div class="btn-group" role="group">
+              <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-cog me-1"></i>Actions
+              </button>
+              <ul class="dropdown-menu">
+                <li>
+                  <a href="{{ route('central.tenants.login-as-tenant', $tenant->id) }}" class="dropdown-item" target="_blank">
+                    <i class="fas fa-user-secret me-2"></i>Test as Tenant
+                  </a>
+                </li>
+                <li>
+                  <a href="#" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#sendTenantEmailModal">
+                    <i class="fas fa-envelope me-2"></i>Send Welcome Email
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <form action="{{ route('central.tenants.destroy', $tenant->id) }}" method="POST" class="d-inline">
+                    @csrf
+                    @method('DELETE')
+                    <input type="hidden" name="return_page" value="{{ request('return_page', 1) }}">
+                    <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Are you sure you want to delete this tenant? This action cannot be undone.')">
+                      <i class="fas fa-trash me-2"></i>Delete Tenant
+                    </button>
+                  </form>
+                </li>
+              </ul>
+            </div>
+            <a href="{{ route('central.tenants.index', ['page' => request('return_page', 1)]) }}" class="btn btn-outline-secondary">
+              <i class="fas fa-arrow-left me-1"></i>Back to List
+            </a>
+          </div>
+        </div>
+      </div>
+			<div class="ghost-card-body bg-transparent">
+				    
 				<div class="row">
+					<!-- Tenant Information -->
 					<div class="col-md-6">
-						<a href="{{ route('central.tenants.index') }}" class="btn btn-sm btn-outline-secondary">
-							<i class="fas fa-arrow-left me-2"></i>Back to All Tenants
-						</a>
-					</div>
-					<div class="col-md-6">
-						<div class="float-end">
-							{{-- buttons to manage domains and subscriptions --}}
-							<a href="{{ route('central.tenants.login-as-tenant', $tenant->id) }}" class="btn btn-sm btn-warning me-2" target="_blank">
-								<i class="fas fa-user-secret me-2"></i> Test as Tenant
-							</a>
-							<a href="{{ route('central.tenants.domains', $tenant->id) }}" class="btn btn-sm btn-primary me-2">
-								<i class="fas fa-globe me-2"></i> Domains
-							</a>
-							<a href="{{ route('central.tenants.subscriptions', $tenant->id) }}" class="btn btn-sm btn-success">
-								<i class="fas fa-credit-card me-2"></i> Subscriptions
-							</a>
+						<div class="card card-info card-outline mb-4">
+							<div class="card-header">
+								<h5 class="card-title mb-0">
+									<i class="fas fa-info-circle me-2"></i>Tenant Information
+								</h5>
+							</div>
+							<div class="card-body">
+								<dl class="row">
+									<dt class="col-sm-4">Tenant ID:</dt>
+									<dd class="col-sm-8">
+										<code>{{ $tenant->id }}</code>
+									</dd>
+
+									<dt class="col-sm-4">Name:</dt>
+									<dd class="col-sm-8">{{ $tenant->name }}</dd>
+
+									<dt class="col-sm-4">Email:</dt>
+									<dd class="col-sm-8">
+										<a href="mailto:{{ $tenant->email }}">{{ $tenant->email }}</a>
+									</dd>
+
+									<dt class="col-sm-4">Primary Domain:</dt>
+									<dd class="col-sm-8">
+										<a href="http://{{ $tenant->primary_domain }}" target="_blank">
+											{{ $tenant->primary_domain }} <i class="fas fa-external-link-alt fa-xs"></i>
+										</a>
+									</dd>
+
+									<dt class="col-sm-4">Database:</dt>
+									<dd class="col-sm-8">
+										<code>{{ $tenant->tenancy_db_name }}</code>
+									</dd>
+
+									<dt class="col-sm-4">Created:</dt>
+									<dd class="col-sm-8">
+										{{ $tenant->created_at->format('M d, Y \a\t g:i A') }}
+										<small class="text-muted d-block">{{ $tenant->created_at->diffForHumans() }}</small>
+									</dd>
+
+									<dt class="col-sm-4">Last Updated:</dt>
+									<dd class="col-sm-8">
+										{{ $tenant->updated_at->format('M d, Y \a\t g:i A') }}
+										<small class="text-muted d-block">{{ $tenant->updated_at->diffForHumans() }}</small>
+									</dd>
+								</dl>
+							</div>
+							<div class="card-footer">
+								<a href="{{ route('central.tenants.domains', $tenant->id) }}" class="btn btn-sm btn-primary">
+									<i class="fas fa-globe me-1"></i>Manage Domains
+								</a>
+							</div>
 						</div>
 					</div>
-				</div>
 
+					<!-- Subscription Information -->
+					<div class="col-md-6">
+						<div class="card card-success card-outline mb-4">
+							<div class="card-header">
+								<h5 class="card-title mb-0">
+									<i class="fas fa-credit-card me-2"></i>Subscription Details
+								</h5>
+							</div>
+							<div class="card-body">
+								@if($tenant->current_plan)
+								<dl class="row">
+									<dt class="col-sm-4">Current Plan:</dt>
+									<dd class="col-sm-8">
+										<span class="badge bg-primary">{{ $tenant->current_plan->plan->name }}</span>
+									</dd>
+
+									<dt class="col-sm-4">Status:</dt>
+									<dd class="col-sm-8">
+										@if($tenant->current_plan->status === 'active')
+											<span class="badge bg-success">Active</span>
+										@elseif($tenant->current_plan->status === 'trial')
+											<span class="badge bg-info">Trial</span>
+										@elseif($tenant->current_plan->status === 'cancelled')
+											<span class="badge bg-danger">Cancelled</span>
+										@else
+											<span class="badge bg-warning">{{ ucfirst($tenant->current_plan->status) }}</span>
+										@endif
+									</dd>
+
+									@if($tenant->current_plan->status === 'trial')
+									<dt class="col-sm-4">Trial Ends:</dt>
+									<dd class="col-sm-8">
+										{{ $tenant->current_plan->trial_ends_at ? date('M d, Y', strtotime($tenant->current_plan->trial_ends_at)) : 'N/A' }}
+										@if($tenant->current_plan->trial_days_left)
+											<small class="text-muted d-block">{{ $tenant->current_plan->trial_days_left }} days left</small>
+										@endif
+									</dd>
+									@endif
+
+									<dt class="col-sm-4">Plan Expiry:</dt>
+									<dd class="col-sm-8">
+										{{ $tenant->current_plan->end_date ? date('M d, Y', strtotime($tenant->current_plan->end_date)) : 'N/A' }}
+									</dd>
+								</dl>
+								@else
+								<div class="alert alert-warning" role="alert">
+									<i class="fas fa-exclamation-triangle me-2"></i>
+									No active subscription plan.
+								</div>
+								@endif
+							</div>
+							<div class="card-footer">
+								<div class="btn-group" role="group">
+									<a href="#" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#switchToPremiumModal">
+										<i class="fas fa-exchange-alt me-1"></i>{{ $tenant->current_plan ? 'Change Plan' : 'Assign Plan' }}
+									</a>
+									@if($tenant->current_plan)
+									<a href="{{ route('central.subscriptions.show', $tenant->current_plan->id) }}" class="btn btn-sm btn-primary">
+										<i class="fas fa-eye me-1"></i>View Details
+									</a>
+									@endif
+									<a href="{{ route('central.tenants.subscriptions', $tenant->id) }}" class="btn btn-sm btn-info">
+										<i class="fas fa-list me-1"></i>All Subscriptions
+									</a>
+								</div>
+							</div>
+						</div>
+            {{-- tenant admin user --}}
+            <div class="card card-secondary card-outline mb-4">
+              <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="fas fa-user-cog me-2"></i>Tenant Admin User
+                </h5>
+              </div>
+              <div class="card-body">
+                @if($tenant->admin)
+                <dl class="row">
+                  <dt class="col-sm-4">Name:</dt>
+                  <dd class="col-sm-8">{{ $tenant->admin->name }}</dd>
+
+                  <dt class="col-sm-4">Email:</dt>
+                  <dd class="col-sm-8">
+                    <a href="mailto:{{ $tenant->admin->email }}">{{ $tenant->admin->email }}</a>
+                  </dd>
+
+                  <dt class="col-sm-4">Created At:</dt>
+                  <dd class="col-sm-8">
+                    {{ $tenant->admin->created_at->format('M d, Y \a\t g:i A') }}
+                    <small class="text-muted
+                      d-block">{{ $tenant->admin->created_at->diffForHumans() }}</small>
+                  </dd>
+                </dl>
+                @else
+                <div class="alert alert-warning" role="alert">
+                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  No admin user found for this tenant.
+                </div>
+                @endif
+              </div>
+            </div>
+					</div>
+				</div>
 			</div>
-		</div>
-		<!--end::Main details card-->
-	</div>
-	<!--end::Container-->
+    </div>
+
+  </div>
+  <!--end::Container-->
 </div>
 <!--end::App Content-->
 
-<!--start::Switch to Premium Plan Modal (we have to select the subscription plan)-->
-<div class="modal fade" id="switchToPremiumModal" tabindex="-1" aria-labelledby="switchToPremiumModalLabel" aria-hidden="true">
-	<div class="modal-dialog">
-		<form action="{{ route('central.tenants.switch-to-premium', $tenant->id) }}" method="POST">
-			@csrf
-			<div class="modal-content">
-				<div class="modal-header">
-					<h5 class="modal-title" id="switchToPremiumModalLabel">Switch to Premium Plan</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-				</div>
-				<div class="modal-body">
-					<p>Please select a subscription plan to switch to:</p>
-					{{-- dropdown to select subscription plan --}}
-					<select class="form-select" aria-label="Select Subscription Plan" name="plan_name" required>
-						<option value="" disabled selected>Select a plan</option>
-							@foreach($availablePlans as $plan)
-							{{-- make sure we have both yearly and monthly price in the plans as separate options --}}
-							<option value="{{ $plan->name }}" {{ old('plan_name') == $plan->name ? 'selected' : '' }}>{{ $plan->name }} - {{ $currency }} {{ $plan->monthly_price }} / month</option>
-							<option value="{{ $plan->name }}_yearly" {{ old('plan_name') == $plan->name.'_yearly' ? 'selected' : '' }}>{{ $plan->name }} - {{ $currency }} {{ $plan->yearly_price }} / year</option>
-							@endforeach
-					</select>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
-					<button type="submit" class="btn btn-sm btn-outline-success">Switch to Plan</button>
-				</div>
-			</div>
-		</form>
-	</div>
+{{-- Send Tenant Welcome Email Modal --}}
+<div class="modal fade" id="sendTenantEmailModal" tabindex="-1" aria-labelledby="sendTenantEmailModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="sendTenantEmailModalLabel">
+          <i class="fas fa-envelope me-2"></i>Send Welcome Email
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{{ route('central.tenants.send-email', $tenant->id) }}" method="POST">
+        @csrf
+        <div class="modal-body">
+          <p>Are you sure you want to send a welcome email to <strong>{{ $tenant->email }}</strong>?</p>
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            This will send login credentials and setup information to the tenant.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-paper-plane me-1"></i>Send Email
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
-<!--end::Switch to Premium Plan Modal-->
 
-<!--start::Cancel Current Subscription Modal-->
-{{-- <div class="modal fade" id="cancelSubscriptionModal" tabindex="-1" aria-labelledby="cancelSubscriptionModalLabel" aria-hidden="true">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="cancelSubscriptionModalLabel">Cancel Current Subscription</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body">
-				<p>Are you sure you want to cancel the current subscription for this tenant? This action cannot be undone.</p>
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-				<a href="#" class="btn btn-danger">Yes, Cancel Subscription</a>
-			</div>
-		</div>
-	</div>
-</div> --}}
+{{-- Switch to Premium Plan Modal --}}
+<div class="modal fade" id="switchToPremiumModal" tabindex="-1" aria-labelledby="switchToPremiumModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="switchToPremiumModalLabel">
+          <i class="fas fa-exchange-alt me-2"></i>{{ $tenant->current_plan ? 'Change Subscription Plan' : 'Assign Subscription Plan' }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{{ route('central.tenants.switch-to-premium', $tenant->id) }}" method="POST">
+        @csrf
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="plan_name" class="form-label">Select Subscription Plan <span class="text-danger">*</span></label>
+            <select class="form-select" id="plan_name" name="plan_name" required>
+              <option value="" disabled selected>Choose a plan...</option>
+              @foreach($availablePlans as $plan)
+              <optgroup label="{{ $plan->name }}">
+                <option value="{{ $plan->name }}" {{ old('plan_name') == $plan->name ? 'selected' : '' }}>
+                  Monthly - {{ $currency }} {{ number_format($plan->monthly_price, 2) }}/month
+                </option>
+                <option value="{{ $plan->name }}_yearly" {{ old('plan_name') == $plan->name.'_yearly' ? 'selected' : '' }}>
+                  Yearly - {{ $currency }} {{ number_format($plan->yearly_price, 2) }}/year 
+                  <span class="text-success">(Save {{ number_format((1 - ($plan->yearly_price / ($plan->monthly_price * 12))) * 100, 0) }}%)</span>
+                </option>
+              </optgroup>
+              @endforeach
+            </select>
+            <small class="form-text text-muted">Select a billing cycle for the subscription plan.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-check me-1"></i>{{ $tenant->current_plan ? 'Change Plan' : 'Assign Plan' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 @endsection

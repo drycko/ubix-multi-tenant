@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-{{-- redirect to central dashboard --}}
+{{-- redirect to central dashboard since we do not have a landing page --}}
 <script>
     window.location.href = "{{ route('central.dashboard') }}";
 </script>

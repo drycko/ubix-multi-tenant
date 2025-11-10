@@ -1,10 +1,11 @@
 <?php
-namespace App\Services;
+namespace App\Services\PaymentGateways;
 
-use App\Models\Tenant\TenantSetting;
-use App\Models\Tenant\BookingInvoice;
+use App\Models\CentralSetting;
+use App\Models\SubscriptionInvoice;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class PayfastGatewayService
 {
@@ -17,44 +18,52 @@ class PayfastGatewayService
   * @param bool $testingMode
   * @return string
   */
-  public function buildPayfastForm(BookingInvoice $bookingInvoice): string
+  public function buildPayfastForm(SubscriptionInvoice $subscriptionInvoice): string
   {
-    $tenantSettings = TenantSetting::getSettings([
+    $centralSettings = CentralSetting::getSettings([
       'payfast_merchant_id',
       'payfast_merchant_key',
       'payfast_passphrase',
       'payfast_is_test',
     ]);
-    
-    // $merchant_id = $tenantSettings['payfast_merchant_id'] ?? '';
-    // $merchant_key = TenantSetting::getEncryptedSetting('payfast_merchant_key');
-    // $passphrase = TenantSetting::getEncryptedSetting('payfast_passphrase');
-    $merchant_id = '10024789'; // temp hardcode for testing
-    $merchant_key = 'dtz5khr0cbz74'; // temp hardcode for testing
-    $passphrase = 'AnotidaL2022'; // temp hardcode for testing
-    $testingMode = $tenantSettings['payfast_is_test'] ?? true;
+
+    $merchant_id = $centralSettings['payfast_merchant_id'] ?? '';
+    $merchant_key = CentralSetting::getEncryptedSetting('payfast_merchant_key');
+    $passphrase = CentralSetting::getEncryptedSetting('payfast_passphrase');
+    // $merchant_id = '10024789'; // temp hardcode for testing
+    // $merchant_key = 'dtz5khr0cbz74'; // temp hardcode for testing
+    // $passphrase = 'AnotidaL2022'; // temp hardcode for testing
+    $testingMode = $centralSettings['payfast_is_test'] ?? true;
     // Construct variables
-    // $cartTotal = $bookingInvoice->remaining_amount; // This amount needs to be sourced from your application;
-    $primaryGuest = $bookingInvoice->booking->bookingGuests->where('is_primary', true)->first()?->guest;
+    // $cartTotal = $subscriptionInvoice->remaining_amount; // This amount needs to be sourced from your application;
+    $tenantAdmin = $subscriptionInvoice->tenant->admin;
+    $admin_first_last = explode(' ', $tenantAdmin->name, 2);
+    // get payment id from latest invoice payment or generate new
+    $lastPayment = $subscriptionInvoice->payments()->latest()->first();
+    if ($lastPayment) {
+      $paymentId = $lastPayment->payment_reference;
+    } else {
+      $paymentId = 'inv-' . $subscriptionInvoice->id . '-' . Str::random(6);
+    }
     // Set payment details
     $paymentDetails = [
-        'amount' => $bookingInvoice->remaining_balance,
-        'item_name' => 'Booking Invoice #' . $bookingInvoice->invoice_number,
-        'name_first' => $primaryGuest->first_name,
-        'name_last' => $primaryGuest->last_name,
-        'email_address' => $primaryGuest->email,
-        'cell_number' => $primaryGuest->phone,
-        'm_payment_id' => $bookingInvoice->id,
+        'amount' => $subscriptionInvoice->remaining_balance,
+        'item_name' => config('app.name') . ' Invoice #' . $subscriptionInvoice->invoice_number,
+        'name_first' => $admin_first_last[0],
+        'name_last' => $admin_first_last[1] ?? '',
+        'email_address' => $tenantAdmin->email ?? $subscriptionInvoice->tenant->email,
+        'cell_number' => $tenantAdmin->phone,
+        'm_payment_id' => $paymentId,
     ];
-    $cartTotal = $bookingInvoice->remaining_balance;
+    $cartTotal = $subscriptionInvoice->remaining_balance;
 
     $data = array(
         // Merchant details
         'merchant_id' => $merchant_id,
         'merchant_key' => $merchant_key,
-        'return_url' => route('tenant.payfast.return'),
-        'cancel_url' => route('tenant.payfast.cancel'),
-        'notify_url' => route('tenant.payfast.notify'),
+        'return_url' => route('central.payfast.return'),
+        'cancel_url' => route('central.payfast.cancel'),
+        'notify_url' => route('central.payfast.notify'),
         // Buyer details
         'name_first' => $paymentDetails['name_first'],
         'name_last'  => $paymentDetails['name_last'],
@@ -78,9 +87,9 @@ class PayfastGatewayService
     {
       $htmlForm .= '<input name="'.$name.'" type="hidden" value=\''.$value.'\' />';
     }
-    $htmlForm .= '<button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;">
-                  Pay with PayFast
-                  </button></form>';
+    $htmlForm .= '<button type="submit" class="btn btn-danger">
+      <i class="fas fa-credit-card me-2"></i>Pay with PayFast
+      </button></form>';
     return $htmlForm;
   }
     
@@ -90,24 +99,23 @@ class PayfastGatewayService
   public function initiatePayment(array $paymentDetails)
   {
     try {
-      $tenantSettings = TenantSetting::getSettings([
+      $centralSettings = CentralSetting::getSettings([
         'payfast_merchant_id',
         'payfast_merchant_key',
         'payfast_passphrase',
         'payfast_is_test',
       ]);
-      
-      $merchant_id = $tenantSettings['payfast_merchant_id'] ?? '';
-      $merchant_key = TenantSetting::getEncryptedSetting('payfast_merchant_key');
-      $passphrase = TenantSetting::getEncryptedSetting('payfast_passphrase');
-      $testingMode = $tenantSettings['payfast_is_test'] ?? true;
-      
+      $merchant_id = $centralSettings['payfast_merchant_id'] ?? '';
+      $merchant_key = CentralSetting::getEncryptedSetting('payfast_merchant_key');
+      $passphrase = CentralSetting::getEncryptedSetting('payfast_passphrase');
+      $testingMode = $centralSettings['payfast_is_test'] ?? true;
+
       $data = array(
         'merchant_id' => $merchant_id,
         'merchant_key' => $merchant_key,
-        'return_url' => route('tenant.payfast.return'),
-        'cancel_url' => route('tenant.payfast.cancel'),
-        'notify_url' => route('tenant.payfast.notify'),
+        'return_url' => route('central.payfast.return'),
+        'cancel_url' => route('central.payfast.cancel'),
+        'notify_url' => route('central.payfast.notify'),
         'name_first' => $paymentDetails['name_first'],
         'name_last' => $paymentDetails['name_last'],
         'email_address' => $paymentDetails['email_address'],
@@ -152,5 +160,29 @@ class PayfastGatewayService
         $getString .= '&passphrase='. urlencode( trim( $passPhrase ) );
     }
     return md5( $getString );
+  }
+
+  /**
+   * Validate PayFast IPN
+   */
+  public function validateIPN($data)
+  {
+    $centralSettings = CentralSetting::getSettings([
+      'payfast_merchant_id',
+      'payfast_merchant_key',
+      'payfast_passphrase',
+      'payfast_is_test',
+    ]);
+    $testingMode = $centralSettings['payfast_is_test'] ?? true;
+    // If in testing mode make use of either sandbox.payfast.co.za or www.payfast.co.za
+    $pfHost = $testingMode ? 'sandbox.payfast.co.za' : 'www.payfast.co.za';
+    $pfUrl = 'https://' . $pfHost . '/eng/query/validate';
+
+    // Post back to PayFast system to validate
+    $response = Http::asForm()->post($pfUrl, $data);
+    if ($response->body() === 'VALID') {
+      return true;
+    }
+    return false;
   }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Tenant;
 
 use App\Models\Tenant\PaymentCredential;
 use Illuminate\Support\Facades\Log;

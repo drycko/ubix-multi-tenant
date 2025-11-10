@@ -21,6 +21,7 @@ class RouteServiceProvider extends ServiceProvider
      */
     public const HOME = '/home';
     public const TENANT_HOME = '/guest';
+    public const PORTAL_HOME = '/p/dashboard';
 
     /**
      * Define your route model bindings, pattern filters, etc.
@@ -41,6 +42,11 @@ class RouteServiceProvider extends ServiceProvider
             Route::middleware('web')
                 ->domain(config('tenancy.central_domains')[0])
                 ->group(base_path('routes/web.php'));
+                
+            // Portal routes (tenant admin billing/subscription management)
+            Route::middleware('web')
+                ->domain(config('tenancy.central_domains')[0])
+                ->group(base_path('routes/portal.php'));
                 
             // API routes
             Route::prefix('api')

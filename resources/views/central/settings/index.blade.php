@@ -1,6 +1,6 @@
 @extends('central.layouts.app')
 
-@section('title', 'General Settings')
+@section('title', 'Settings')
 
 @section('content')
 <!--begin::App Content Header-->
@@ -10,12 +10,14 @@
     <!--begin::Row-->
     <div class="row">
       <div class="col-sm-6">
-      {{-- <h3 class="mb-0">General Settings</h3> --}}
+        <h4 class="mb-0 text-muted">
+          <i class="fas fa-cogs"></i> Settings
+        </h4>
       </div>
       <div class="col-sm-6">
         <ol class="breadcrumb float-sm-end">
           <li class="breadcrumb-item"><a href="{{ route('central.dashboard') }}">Home</a></li>
-          <li class="breadcrumb-item active" aria-current="page">General Settings</li>
+          <li class="breadcrumb-item active" aria-current="page">Settings</li>
         </ol>
       </div>
     </div>
@@ -27,59 +29,52 @@
 <div class="app-content">
   <!--begin::Container-->
   <div class="container-fluid">
-
-    {{-- messages from redirect --}}
-    @if(session('success'))
-      <div class="alert alert-success">
-        {{ session('success') }}
-      </div>
-    @endif
-    @if(session('error'))
-      <div class="alert alert-danger">
-        {{ session('error') }}
-      </div>
-    @endif
-
-    @if($errors->any())
-      <div class="alert alert-danger">
-        <ul class="mb-0">
-          @foreach($errors->all() as $error)
-            <li>{{ $error }}</li>
-          @endforeach
-        </ul>
-      </div>
-    @endif
-
-    <div class="card card-success card-outline mb-4">
-      <div class="card-header">
-        <h5 class="card-title">General Settings</h5>
-        <div class="card-tools float-end">
-          
-          
-          @can('manage settings')
-          <button type="submit" form="settingsForm" class="btn btn-sm btn-outline-success">
-            <i class="fas fa-save me-2"></i>Save Settings
-          </button>
-          @endcan
-        </div>
-      </div>
-      <div class="card-body">
-        <form id="settingsForm" action="{{ route('central.settings.update') }}" enctype="multipart/form-data" method="POST">
-          @csrf
-          @method('PUT')
-          <div class="row">
-            @foreach($settings as $key => $value)
-            {{-- logo must be a file upload --}}
-              <div class="col-md-6 mb-3">
-                <label for="{{ $key }}" class="form-label text-capitalize">{{ str_replace('_', ' ', $key) }}</label>
-                <input type="{{ str_contains($key, 'logo') ? 'file' : 'text' }}" class="form-control" id="{{ $key }}" name="{{ $key }}" value="{{ old($key, $value) }}">
-                @error($key)
-                  <div class="text-danger">{{ $message }}</div>
-                @enderror
-              </div>
-            @endforeach
+    <div class="row justify-content-center">
+      <div class="col-md-10">
+        <div class="card card-success card-outline">
+          <div class="card-header">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-cogs me-2"></i>Settings Modules
+            </h5>
           </div>
-        </form>
+          <div class="card-body">
+            <ul class="list-group list-group-flush">
+              {{-- General Settings --}}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>
+                  <i class="fas fa-sliders-h me-2 text-primary"></i>General Settings
+                </span>
+                <a href="{{ route('central.settings.general') }}" class="btn btn-sm btn-primary">
+                  <i class="fas fa-edit me-1"></i>Edit
+                </a>
+              </li>
+
+              {{-- Payment Gateways --}}
+              <li class="list-group-item">
+                <h6 class="mb-3 text-muted">
+                  <i class="fas fa-credit-card me-2"></i>Payment Gateways
+                </h6>
+                <div class="row">
+                  @foreach ($paymentGateways as $gateway => $settings)
+                  <div class="col-md-6 mb-2">
+                    <div class="d-flex justify-content-between align-items-center p-3 border rounded">
+                      <span>
+                        <i class="fas fa-money-check-alt me-2 text-success"></i>{{ ucfirst($gateway) }}
+                        @if ($settings['is_default'])
+                        <span class="badge bg-primary ms-2">Default</span>
+                        @endif
+                      </span>
+                      <a href="{{ route('central.settings.' . $gateway . '.edit') }}" class="btn btn-sm btn-success">
+                        <i class="fas fa-edit me-1"></i>Configure
+                      </a>
+                    </div>
+                  </div>
+                  @endforeach
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   </div>

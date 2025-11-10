@@ -2,8 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Tenant\Tax;
-use App\Models\Tenant\Property;
+use App\Models\Tax;
 
 class TaxCalculationService
 {
@@ -11,16 +10,13 @@ class TaxCalculationService
      * Calculate tax for an invoice amount.
      *
      * @param float $baseAmount The base amount before tax
-     * @param int|null $propertyId Property ID (defaults to current property)
      * @return array Tax calculation details
      */
-    public function calculateTaxForInvoice(float $baseAmount, ?int $propertyId = null): array
+    public function calculateTaxForInvoice(float $baseAmount): array
     {
-        $propertyId = $propertyId ?? selected_property_id();
         
         // Get the first active tax by display order
-        $tax = Tax::where('property_id', $propertyId)
-            ->where('is_active', true)
+        $tax = Tax::where('is_active', true)
             ->orderBy('display_order', 'asc')
             ->first();
 
@@ -80,44 +76,37 @@ class TaxCalculationService
      * Calculate tax for a booking based on daily rate and nights.
      *
      * @param float $dailyRate
-     * @param int $nights
-     * @param int|null $propertyId
+     * @param int $qty
      * @return array
      */
-    public function calculateTaxForBooking(float $dailyRate, int $nights, ?int $propertyId = null): array
+    public function calculateTaxForBooking(float $dailyRate, int $qty): array
     {
-        $baseAmount = $dailyRate * $nights;
-        return $this->calculateTaxForInvoice($baseAmount, $propertyId);
+        $baseAmount = $dailyRate * $qty;
+        return $this->calculateTaxForInvoice($baseAmount);
     }
 
     /**
-     * Get active taxes for a property.
+     * Get active taxes.
      *
-     * @param int|null $propertyId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function getActiveTaxes(?int $propertyId = null)
+    public function getActiveTaxes()
     {
-        $propertyId = $propertyId ?? selected_property_id();
         
-        return Tax::where('property_id', $propertyId)
-            ->where('is_active', true)
+        return Tax::where('is_active', true)
             ->orderBy('display_order', 'asc')
             ->get();
     }
 
     /**
-     * Get the primary tax (first by display order) for a property.
+     * Get the primary tax (first by display order).
      *
-     * @param int|null $propertyId
      * @return Tax|null
      */
-    public function getPrimaryTax(?int $propertyId = null): ?Tax
+    public function getPrimaryTax(): ?Tax
     {
-        $propertyId = $propertyId ?? selected_property_id();
         
-        return Tax::where('property_id', $propertyId)
-            ->where('is_active', true)
+        return Tax::where('is_active', true)
             ->orderBy('display_order', 'asc')
             ->first();
     }

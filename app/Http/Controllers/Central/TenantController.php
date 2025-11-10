@@ -9,18 +9,74 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\DatabasePool;
 use App\Models\SubscriptionInvoice;
+use App\Services\TaxCalculationService;
 
 
 class TenantController extends Controller
 {
     use LogsAdminActivity;
-    public function index()
+
+    public function __construct()
+    {
+        // use the central database connection from here because I am in the central app
+        config(['database.connections.tenant' => config('database.connections.central')]);
+        $this->middleware('auth:web');
+        $this->middleware('permission:view tenants')->only(['index', 'show']);
+        $this->middleware('permission:manage tenants')->except(['index', 'show']);
+        
+        $this->taxCalculationService = new TaxCalculationService();
+    }
+    
+    public function index(Request $request)
     {
         // use the central database connection from here because I am in the central app
         config(['database.connections.tenant' => config('database.connections.central')]);
         
+        // Build query with filters
+        $query = Tenant::with('domains');
+
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                  ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.name')) LIKE ?", ["%{$search}%"])
+                  ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.email')) LIKE ?", ["%{$search}%"])
+                  ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.contact_person')) LIKE ?", ["%{$search}%"]);
+            });
+        }
+
+        // Status filter
+        if ($request->filled('status')) {
+            if ($request->status === 'active') {
+                $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.is_active')) = '1'");
+            } elseif ($request->status === 'inactive') {
+                $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.is_active')) = '0'");
+            }
+        }
+
+        // Plan filter
+        if ($request->filled('plan')) {
+            $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.plan')) = ?", [$request->plan]);
+        }
+
+        // Date range filter
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Sort
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $query->orderBy($sortBy, $sortOrder);
+
+        // Paginate with query string appended
+        $tenants = $query->paginate(10)->appends($request->except('page'));
+        
         // relationship with domains is provided by HasDomains trait in Tenant model so why eager loading is giving Call to undefined relationship [domains] on model [Stancl\Tenancy\Database\Models\Tenant].? 
-        $tenants = Tenant::with('domains')->paginate(10); // Paginate the tenants, 10 per page
         // set tenant->database
         foreach ($tenants as $tenant) {
             $tenant->database = $tenant->tenancy_db_name; // in case tenancy decide to rename these attributes in future
@@ -56,7 +112,11 @@ class TenantController extends Controller
             }
 
         }
-        return view('central.tenants.index', compact('tenants'));
+        
+        // Get unique plans for filter dropdown
+        $plans = SubscriptionPlan::where('is_active', true)->pluck('name')->unique();
+        
+        return view('central.tenants.index', compact('tenants', 'plans'));
     }
 
     public function create()
@@ -69,7 +129,7 @@ class TenantController extends Controller
         // subscription plans from database table
         $plans = SubscriptionPlan::where('is_active', true)->get();
         // get available database names from database_pool table that are not assigned to any tenant yet
-        $availableDbs = DB::table('database_pool')->whereNull('assigned_to_tenant')->pluck('database_name')->toArray();
+        $availableDbs = DB::table('database_pool')->where('is_available', true)->whereNull('assigned_to_tenant')->pluck('database_name')->toArray();
         // get app currency from config
         $currency = config('app.currency', 'USD');
 
@@ -85,14 +145,15 @@ class TenantController extends Controller
             \Log::info('Creating tenant: ' . $request->name . ' with domain: ' . $request->domain . ' and database: ' . ($request->database ?? 'none'));
 
             // start transaction
-            // DB::beginTransaction();
+            DB::beginTransaction();
             
             // validate name and domain only
             $validate = $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|max:255',
                 'domain' => 'required|string|max:255|unique:domains,domain',
-                'database' => 'nullable|string|max:100|unique:tenants,tenancy_db_name',
+                'database' => 'nullable|string|max:100', // unique is handled in the model
+                'contact_person' => 'required|string|max:255',
                 'phone' => 'nullable|string|max:20',
                 'address' => 'nullable|string|max:500',
                 'timezone' => 'required|string|max:100',
@@ -156,6 +217,8 @@ class TenantController extends Controller
                 'tenancy_db_name' => $availableDb, // assign next available pre-created database (production only)
                 'email' => $validate['email'],
                 'phone' => $validate['phone'] ?? '',
+                'contact_person' => $validate['contact_person'] ?? null,
+                'primary_domain' => $request->domain,
                 'logo' => null,
                 'address' => $validate['address'] ?? null,
                 'timezone' => $validate['timezone'] ?? 'UTC',
@@ -189,19 +252,48 @@ class TenantController extends Controller
                     }
                     $planPrice = $tenant->billing_cycle === 'yearly' ? $defaultPlan->yearly_price : $defaultPlan->monthly_price;
                     $tenant->subscriptions()->create([
-                            'tenant_id' => $tenant->id,
-                            'subscription_plan_id' => $defaultPlan->id,
-                            'price' => $planPrice,
-                            'billing_cycle' => $tenant->billing_cycle,
-                            'start_date' => now(),
-                            'end_date' => $endDate,
-                            'status' => $trial_ends_at_formatted && $trial_ends_at_formatted > now() ? 'trial' : 'active',
-                            'trial_ends_at' => $trial_ends_at_formatted && $trial_ends_at_formatted > now() ? $trial_ends_at_formatted : null,
+                        'tenant_id' => $tenant->id,
+                        'subscription_plan_id' => $defaultPlan->id,
+                        'price' => $planPrice,
+                        'billing_cycle' => $tenant->billing_cycle,
+                        'start_date' => now(),
+                        'end_date' => $endDate,
+                        'status' => $trial_ends_at_formatted && $trial_ends_at_formatted > now() ? 'trial' : 'active',
+                        'trial_ends_at' => $trial_ends_at_formatted && $trial_ends_at_formatted > now() ? $trial_ends_at_formatted : null,
                     ]);
                 }
             }
+            // Create tenant admin account for portal access
+            $tempPassword = \Str::random(12);
+            $tenantAdmin = \App\Models\TenantAdmin::create([
+                'tenant_id' => $tenant->id,
+                'name' => $tenant->contact_person,
+                'email' => $tenant->email,
+                'password' => \Hash::make($tempPassword),
+                'phone' => $tenant->phone,
+                'can_manage_billing' => true,
+                'can_manage_users' => true,
+                'can_manage_settings' => true,
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ]);
+            // update tenant and store the tenant_admin_id and temp password in data column
+            $tenant->data = array_merge($tenant->data ?? [], [
+                'tenant_admin_id' => $tenantAdmin->id,
+                'tenant_admin_temp_password' => $tempPassword,
+            ]);
+
+            \Log::info("Tenant admin created for tenant {$tenant->name} with email {$tenantAdmin->email}");
+
             // commit transaction
-            // DB::commit();
+            DB::commit();
+
+            // send an email to site admin about new tenant created
+            \Mail::to(config('app.admin_email'))->send(new \App\Mail\TenantCreatedAdminEmail($tenant));
+            \Mail::to(config('app.developer_email'))->send(new \App\Mail\TenantCreatedAdminEmail($tenant));
+            // send an email to tenant admin with login details (implement later)
+            // TODO: Create TenantAdminCredentialsEmail with portal login credentials
+            // \Mail::to($tenant->email)->send(new \App\Mail\TenantAdminCredentialsEmail($tenantAdmin, $tempPassword));
 
             $this->logAdminActivity(
                 "create",
@@ -214,7 +306,7 @@ class TenantController extends Controller
             return redirect()->route('tenants.index')
                 ->with('success', "Tenant {$request->name} created successfully! Access: {$request->domain}");
         } catch (\Exception $e) {
-            // DB::rollBack();
+            DB::rollBack();
             \Log::error('Error creating tenant: ' . $e->getMessage());
             return back()->withErrors(['error' => 'Error creating tenant: ' . $e->getMessage()])->withInput();
         }
@@ -222,6 +314,11 @@ class TenantController extends Controller
 
     public function show(Tenant $tenant)
     {
+        // Store the return page in session for pagination preservation
+        if (request()->has('return_page')) {
+            session(['tenants_page' => request('return_page')]);
+        }
+        
         // use the central database connection from here because I am in the central app
         config(['database.connections.tenant' => config('database.connections.central')]);
         
@@ -230,7 +327,7 @@ class TenantController extends Controller
         // subscription plans for the tenant from database table
         $subscriptions = $tenant->subscriptions()->with('plan')->get();
         // get available database names from database_pool table that are not assigned to any tenant yet
-        $availableDbs = DB::table('database_pool')->whereNull('assigned_to_tenant')->pluck('database_name')->toArray();
+        $availableDbs = DB::table('database_pool')->where('is_available', true)->whereNull('assigned_to_tenant')->pluck('database_name')->toArray();
         // get app currency from config
         $currency = config('app.currency', 'USD');
 
@@ -271,15 +368,20 @@ class TenantController extends Controller
 
     public function edit(Tenant $tenant)
     {
+        // Store the return page in session for pagination preservation
+        if (request()->has('return_page')) {
+            session(['tenants_page' => request('return_page')]);
+        }
+        
         // use the central database connection from here because I am in the central app
         config(['database.connections.tenant' => config('database.connections.central')]);
 
-        $centralDomain = config('tenancy.central_domains')[0] ?? 'ubixcentral.local';
+        $centralDomain = config('tenancy.central_domains')[0] ?? 'nexusflow.ubix.co.za';
         
         // subscription plans from database table
         $plans = SubscriptionPlan::where('is_active', true)->get();
         // get available database names from database_pool table that are not assigned to any tenant yet
-        $availableDbs = DB::table('database_pool')->whereNull('assigned_to_tenant')->pluck('database_name')->toArray();
+        $availableDbs = DB::table('database_pool')->where('is_available', true)->whereNull('assigned_to_tenant')->pluck('database_name')->toArray();
         // current tenant primary domain
         $tenant->primary_domain = $tenant->domains->where('is_primary', true)->pluck('domain')->first();
         // set tenant->plan to null if the plan does not exist in subscriptions table or subscription_plans table
@@ -303,11 +405,15 @@ class TenantController extends Controller
         // use the central database connection from here because I am in the central app
         config(['database.connections.tenant' => config('database.connections.central')]);
 
+        // Store return page for redirect
+        $returnPage = $request->input('return_page', session('tenants_page', 1));
+        
         $validate = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'domain' => 'required|string|max:255',
             'database' => 'nullable|string|max:100',
+            'contact_person' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:500',
             'timezone' => 'required|string|max:100',
@@ -347,6 +453,8 @@ class TenantController extends Controller
             'tenancy_db_name' => $request->database,
             'email' => $validate['email'],
             'phone' => $validate['phone'] ?? '',
+            'contact_person' => $validate['contact_person'] ?? null,
+            'primary_domain' => $request->domain,
             'address' => $validate['address'] ?? null,
             'timezone' => $validate['timezone'] ?? 'UTC',
             'currency' => $validate['currency'] ?? 'ZAR',
@@ -408,14 +516,39 @@ class TenantController extends Controller
             }
         }
 
-        $this->logAdminActivity(
-            "update",
-            "tenants",
-            $tenant->id,
-            "Updated tenant '{$tenant->name}' details"
-        );
+            $this->logAdminActivity(
+                "update",
+                "tenants",
+                $tenant->id,
+                "Updated tenant '{$tenant->name}' details"
+            );
         
-        return redirect()->route('tenants.index')->with('success', 'Tenant updated successfully.');
+        return redirect()->route('tenants.index', ['page' => $returnPage])
+            ->with('success', 'Tenant updated successfully.');
+    }    public function showSendEmailForm(Tenant $tenant)
+    {
+        // use the central database connection from here because I am in the central app
+        config(['database.connections.tenant' => config('database.connections.central')]);
+
+        return view('central.tenants.send-welcome-email', compact('tenant'));
+    }
+
+    public function sendEmailToTenant(Tenant $tenant)
+    {
+        // use the central database connection from here because I am in the central app
+        config(['database.connections.tenant' => config('database.connections.central')]);
+
+        try {
+            \Mail::to($tenant->email)->send(new \App\Mail\NewTenantWelcomeEmail($tenant));
+            // testing send to developer email
+            \Mail::to(config('app.developer_email'))->send(new \App\Mail\NewTenantWelcomeEmail($tenant));
+            return redirect()->route('central.tenants.show', $tenant)->with('success', 'Tenant credentials email sent successfully to ' . $tenant->email);
+            // log email sent
+            
+        } catch (\Exception $e) {
+            \Log::error('Error sending tenant credentials email: ' . $e->getMessage());
+            return redirect()->route('central.tenants.show', $tenant)->withErrors(['error' => 'Error sending tenant credentials email: ' . $e->getMessage()]);
+        }
     }
 
     public function domains(Tenant $tenant)
@@ -482,21 +615,45 @@ class TenantController extends Controller
                 ]);
 
                 // Create a subscription invoice linked to the new subscription
-                SubscriptionInvoice::create([
+                // Calculate tax for the booking
+                $taxCalculation = $this->taxCalculationService->calculateTaxForInvoice($plan_amount);
+                
+                // Create invoice
+                $newInvoice = SubscriptionInvoice::create([
                     'tenant_id' => $tenant->id,
                     'subscription_id' => $newSubscription->id,
                     'invoice_number' => SubscriptionInvoice::generateInvoiceNumber(),
                     'invoice_date' => now(),
                     'due_date' => now()->addDays(7),
-                    'amount' => $plan_amount,
+                    'amount' => $taxCalculation['total_amount'],
+                    'subtotal_amount' => $taxCalculation['subtotal_amount'],
+                    'tax_amount' => $taxCalculation['tax_amount'],
+                    'tax_rate' => $taxCalculation['tax_rate'],
+                    'tax_name' => $taxCalculation['tax_name'],
+                    'tax_type' => $taxCalculation['tax_type'],
+                    'tax_inclusive' => $taxCalculation['tax_inclusive'],
+                    'tax_id' => $taxCalculation['tax_id'],
                     'status' => 'pending',
                     'notes' => 'Invoice for switching to ' . $premiumPlan->name . ' plan.',
                 ]);
+                // SubscriptionInvoice::create([
+                //     'tenant_id' => $tenant->id,
+                //     'subscription_id' => $newSubscription->id,
+                //     'invoice_number' => SubscriptionInvoice::generateInvoiceNumber(),
+                //     'invoice_date' => now(),
+                //     'due_date' => now()->addDays(7),
+                //     'amount' => $plan_amount,
+                //     'status' => 'pending',
+                //     'notes' => 'Invoice for switching to ' . $premiumPlan->name . ' plan.',
+                // ]);
 
                 // Do NOT update tenant plan fields until payment is confirmed
                 // This should be handled in a payment confirmation callback/webhook
                 DB::commit();
-                return redirect()->route('central.tenants.subscriptions', $tenant)->with('success', 'Tenant switched to ' . $premiumPlan->name . ' ' . ucfirst($billing_cycle) . ' plan. Awaiting payment confirmation.');
+                // redirecting to show invoice
+                return redirect()->route('central.invoices.show', $newInvoice->id)
+                    ->with('success', 'Tenant switch to ' . $premiumPlan->name . ' ' . ucfirst($billing_cycle) . ' plan initiated. Please process payment for invoice #' . $newInvoice->invoice_number . '.');
+                // return redirect()->route('central.tenants.subscriptions', $tenant)->with('success', 'Tenant switched to ' . $premiumPlan->name . ' ' . ucfirst($billing_cycle) . ' plan. Awaiting payment confirmation.');
             } else {
                 DB::rollBack();
                 return redirect()->route('central.tenants.show', $tenant)->withErrors(['plan' => 'Premium plan does not exist.']);
@@ -581,20 +738,46 @@ class TenantController extends Controller
 
     public function destroy(Tenant $tenant)
     {   
-        // use the central database connection from here because I am in the central app
-        config(['database.connections.tenant' => config('database.connections.central')]);
-        
-        $tenantName = $tenant->name;
-        $tenant->delete();
-        
-        $this->logAdminActivity(
-            "delete",
-            "tenants",
-            $tenant->id,
-            "Deleted tenant '{$tenantName}'"
-        );
-        $this->createAdminNotification("Tenant '{$tenantName}' was deleted");
-        
-        return redirect()->route('tenants.index')->with('success', 'Tenant deleted successfully.');
+        try {
+            // Get return page before deleting
+            $returnPage = request()->input('return_page', session('tenants_page', 1));
+            
+            // use the central database connection from here because I am in the central app
+            config(['database.connections.tenant' => config('database.connections.central')]);
+            
+            // start transaction
+            DB::beginTransaction();
+            // remove database from tenant_databases table
+            DB::table('tenant_databases')->where('name', $tenant->tenancy_db_name)->delete();
+            // mark database as unassigned in database_pool table
+            $dbPool = DatabasePool::where('database_name', $tenant->tenancy_db_name)->first();
+            if ($dbPool) {
+                $dbPool->assigned_to_tenant = null;
+                $dbPool->save();
+            }
+            // delete tenant using tenancy package method
+            $tenantName = $tenant->name;
+            $tenant->delete();
+
+            // commit transaction
+            DB::commit();
+
+            $this->logAdminActivity(
+                "delete",
+                "tenants",
+                $tenant->id,
+                "Deleted tenant '{$tenantName}'"
+            );
+            $this->createAdminNotification("Tenant '{$tenantName}' was deleted");
+
+            return redirect()->route('tenants.index', ['page' => $returnPage])
+                ->with('success', 'Tenant deleted successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error deleting tenant: ' . $e->getMessage());
+            return redirect()->route('tenants.index', ['page' => $returnPage])
+                ->withErrors(['error' => 'Error deleting tenant: ' . $e->getMessage()]);
+        }
+
     }
 }

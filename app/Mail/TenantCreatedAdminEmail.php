@@ -22,11 +22,10 @@ class TenantCreatedAdminEmail extends Mailable
   public function build()
   {
     return $this->subject('New Tenant Created: ' . $this->tenant->name)
-    ->markdown('emails.tenant-created-admin')
+    ->markdown('emails.central.tenant-created-admin')
     ->with([
       'tenant' => $this->tenant,
       'adminEmail' => $this->adminEmail,
     ]);
   }
 }
-// give me an email template in markdown for this class

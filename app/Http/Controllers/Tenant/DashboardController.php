@@ -92,7 +92,7 @@ class DashboardController extends Controller
     ];
     
     // Bookings Over Time (last 30 days, by created_at)
-    $propertyId = current_property()->id;
+     $propertyId = selected_property_id();
     $bookingsCreated = Booking::where('bookings.property_id', $propertyId)
     ->whereDate('created_at', '>=', now()->subDays(29)->toDateString())
     ->selectRaw('DATE(created_at) as date, COUNT(*) as count')

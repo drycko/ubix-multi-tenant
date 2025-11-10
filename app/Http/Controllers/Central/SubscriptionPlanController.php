@@ -10,6 +10,19 @@ use Illuminate\Http\Request;
 class SubscriptionPlanController extends Controller
 {
     use LogsAdminActivity;
+  
+    public function __construct()
+    {
+        // use the central database connection from here because I am in the central app
+        config(['database.connections.tenant' => config('database.connections.central')]);
+        $this->middleware('auth:web');
+        // TODO: Add permission middleware when central permissions are implemented
+        $this->middleware('permission:view subscription plans')->only(['index', 'show']);
+        $this->middleware('permission:manage subscription plans')->only(['destroy']);
+        $this->middleware('permission:view trashed data')->only(['trashed']);
+        $this->middleware('permission:restore trashed data')->only(['restore', 'restoreAll']);
+        $this->middleware('permission:force delete trashed data')->only(['forceDelete', 'forceDeleteAll']);
+    }
 
     /**
      * Display a listing of the resource.

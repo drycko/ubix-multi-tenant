@@ -12,7 +12,7 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('bookings:delete-pending')->everyTenMinutes(); // Adjust as needed
+        // Schedules are now defined in routes/console.php (Laravel 11+)
     }
 
     /**

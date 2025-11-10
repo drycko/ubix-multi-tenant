@@ -13,7 +13,7 @@ use App\Models\Tenant\BookingInvoice;
 use App\Models\Tenant\Package;
 use App\Models\Tenant\RoomType;
 use App\Traits\LogsTenantUserActivity;
-use App\Services\TaxCalculationService;
+use App\Services\Tenant\TaxCalculationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 
@@ -27,6 +27,7 @@ class BookingController extends Controller
         $this->middleware(['auth:tenant', 'permission:create bookings'])->only(['create', 'store']);
         $this->middleware(['auth:tenant', 'permission:edit bookings'])->only(['edit', 'update']);
         $this->middleware(['auth:tenant', 'permission:delete bookings'])->only(['destroy']);
+        $this->taxCalculationService = new TaxCalculationService();
     }
     /**
      * Display a listing of the bookings. This is better optimized for large datasets.

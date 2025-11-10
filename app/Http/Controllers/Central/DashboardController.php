@@ -7,13 +7,26 @@ use App\Models\SubscriptionPlan;
 use App\Models\Subscription;
 use App\Models\SubscriptionInvoice;
 use Illuminate\Http\Request;
+use App\Traits\LogsAdminActivity;
+
 
 class DashboardController extends Controller
 {
-    public function index()
+    use LogsAdminActivity;
+  
+    public function __construct()
     {
         // use the central database connection from here because I am in the central app
         config(['database.connections.tenant' => config('database.connections.central')]);
+        $this->middleware('auth:web');
+        // TODO: Add permission middleware when central permissions are implemented
+        $this->middleware('permission:view dashboard')->only(['index', 'show']);
+        $this->middleware('permission:view analytics')->only(['stats']);
+        $this->middleware('permission:view central knowledge base')->only(['knowledgeBase']);
+    }
+    
+    public function index()
+    {
 
         // get all tenants
         $tenants = Tenant::all();
@@ -55,8 +68,6 @@ class DashboardController extends Controller
 
     public function stats()
     {
-        // use the central database connection from here because I am in the central app
-        config(['database.connections.tenant' => config('database.connections.central')]);
         
         // Example stats data
         $stats = [
@@ -72,8 +83,6 @@ class DashboardController extends Controller
      */
     public function knowledgeBase()
     {
-        // use the central database connection from here because I am in the central app
-        config(['database.connections.tenant' => config('database.connections.central')]);
         $knowledgeBasePath = base_path('CENTRAL_KNOWLEDGE_BASE.md');
         
         if (!file_exists($knowledgeBasePath)) {

@@ -266,40 +266,35 @@
             data-accordion="false"
             id="navigation"
           >
-          {{-- tenant name in upper case --}}
-            <li class="nav-header"><strong>{{ strtoupper(current_tenant()->name) }}</strong></li>
-            <li class="nav-item"> <!-- route [admin.rooms.index] not defined. resources/views/layouts/app.blade.php:28 -->
+          {{-- Dashboard --}}
+            <li class="nav-header"><strong>DASHBOARD</strong></li>
+            <li class="nav-item">
               <a class="nav-link {{ Request::is('dashboard') ? 'active' : '' }}" href="{{ route('tenant.dashboard') }}">
                 <i class="nav-icon bi bi-speedometer"></i>
                 <p>Home</p>
               </a>
             </li>
-            {{-- stats --}}
             <li class="nav-item">
-              <a class="nav-link {{ Request::is('stats*') ? 'active' : '' }}" href="{{ route('tenant.stats') }}">
+              <a class="nav-link {{ Request::is('stats*') ? 'active' : '' }}" href="{{ route('tenant.stats.index') }}">
                 <i class="nav-icon bi bi-graph-up"></i>
-                <p>Stats</p>
+                <p>Statistics</p>
               </a>
             </li>
-            {{-- end stats --}}
-            <li class="nav-item {{ Request::is('bookings*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('bookings*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-calendar"></i>
-                <p>Bookings
+
+            {{-- Bookings & Packages --}}
+            <li class="nav-header">BOOKINGS</li>
+            <li class="nav-item {{ Request::is('bookings*') || Request::is('room-packages*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('bookings*') || Request::is('room-packages*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-calendar-check"></i>
+                <p>Reservations
                   <i class="nav-arrow bi bi-chevron-right"></i>
                 </p>
               </a>
               <ul class="nav nav-treeview">
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('bookings') ? 'active' : '' }}" href="{{ route('tenant.bookings.index') }}">
+                  <a class="nav-link {{ Request::is('bookings') || Request::is('bookings/index') ? 'active' : '' }}" href="{{ route('tenant.bookings.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>All Bookings</p>
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('bookings/create') ? 'active' : '' }}" href="{{ route('tenant.bookings.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Booking</p>
+                    <p>Bookings</p>
                   </a>
                 </li>
                 <li class="nav-item">
@@ -308,131 +303,76 @@
                     <p>Import Bookings</p>
                   </a>
                 </li>
-              </ul>
-            </li>
-            <li hidden class="nav-item">
-              <a class="nav-link {{ Request::is('booking-invoices*') ? 'active' : '' }}" href="{{ route('tenant.booking-invoices.index') }}">
-                <i class="nav-icon bi bi-file-earmark-text"></i> Booking Invoices
-              </a>
-            </li>
-            {{-- room packages --}}
-            <li class="nav-item {{ Request::is('room-packages*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('room-packages*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-box"></i>
-                <p>Booking Packages
-                  <i class="nav-arrow bi bi-chevron-right"></i>
-                </p>
-              </a>
-              <ul class="nav nav-treeview">
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('room-packages') ? 'active' : '' }}" href="{{ route('tenant.room-packages.index') }}">
+                  <a class="nav-link {{ Request::is('room-packages*') ? 'active' : '' }}" href="{{ route('tenant.room-packages.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>All Booking Packages</p>
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('room-packages/create') ? 'active' : '' }}" href="{{ route('tenant.room-packages.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Booking Package</p>
+                    <p>Packages</p>
                   </a>
                 </li>
               </ul>
             </li>
-            {{-- guests --}}
+
+            {{-- Guests --}}
             <li class="nav-header">GUEST MANAGEMENT</li>
-            <li class="nav-item {{ Request::is('guests*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('guests*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-person"></i>
+            <li class="nav-item {{ Request::is('guests*') || Request::is('guest-clubs*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('guests*') || Request::is('guest-clubs*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-people"></i>
                 <p>Guests
                   <i class="nav-arrow bi bi-chevron-right"></i>
                 </p>
               </a>
               <ul class="nav nav-treeview">
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('guests') ? 'active' : '' }}" href="{{ route('tenant.guests.index') }}">
+                  <a class="nav-link {{ Request::is('guests') || Request::is('guests/index') ? 'active' : '' }}" href="{{ route('tenant.guests.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
                     <p>All Guests</p>
                   </a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('guests/create') ? 'active' : '' }}" href="{{ route('tenant.guests.create') }}">
+                  <a class="nav-link {{ Request::is('guest-clubs*') ? 'active' : '' }}" href="{{ route('tenant.guest-clubs.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Guest</p>
+                    <p>Guest Clubs</p>
                   </a>
                 </li>
               </ul>
             </li>
 
-            <li class="nav-item {{ Request::is('guest-clubs*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('guest-clubs*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-person-bounding-box"></i>
-                <p>Guest Clubs
-                  <i class="nav-arrow bi bi-chevron-right"></i>
-                </p>
-              </a>
-              <ul class="nav nav-treeview">
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('guest-clubs') ? 'active' : '' }}" href="{{ route('tenant.guest-clubs.index') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>All Guest Clubs</p>
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('guest-clubs/create') ? 'active' : '' }}" href="{{ route('tenant.guest-clubs.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Guest Club</p>
-                  </a>
-                </li>
-              </ul>
-            </li>
-            {{-- end guests --}}
-
-            {{-- room management --}}
+            {{-- Room Management --}}
             <li class="nav-header">ROOM MANAGEMENT</li>
-            <li class="nav-item {{ Request::is('rooms*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('rooms*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-house"></i>
-                <p>Rooms
+            <li class="nav-item {{ Request::is('rooms*') || Request::is('room-types*') || Request::is('room-amenities*') || Request::is('room-rates*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('rooms*') || Request::is('room-types*') || Request::is('room-amenities*') || Request::is('room-rates*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-house-door"></i>
+                <p>Rooms & Configuration
                   <i class="nav-arrow bi bi-chevron-right"></i>
                 </p>
               </a>
               <ul class="nav nav-treeview">
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('rooms') ? 'active' : '' }}" href="{{ route('tenant.rooms.index') }}">
+                  <a class="nav-link {{ Request::is('rooms') || Request::is('rooms/index') ? 'active' : '' }}" href="{{ route('tenant.rooms.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>All Rooms</p>
+                    <p>Rooms</p>
                   </a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('rooms/create') ? 'active' : '' }}" href="{{ route('tenant.rooms.create') }}">
+                  <a class="nav-link {{ Request::is('room-types*') ? 'active' : '' }}" href="{{ route('tenant.room-types.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Room</p>
+                    <p>Room Types</p>
                   </a>
                 </li>
-              </ul>
-            </li>
-            @can('view room rates')
-            <li class="nav-item {{ Request::is('room-rates*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('room-rates*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-tags"></i>
-                <p>Room Rates
-                  <i class="nav-arrow bi bi-chevron-right"></i>
-                </p>
-              </a>
-              <ul class="nav nav-treeview">
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('room-rates') ? 'active' : '' }}" href="{{ route('tenant.room-rates.index') }}">
+                  <a class="nav-link {{ Request::is('room-amenities*') ? 'active' : '' }}" href="{{ route('tenant.room-amenities.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>All Room Rates</p>
+                    <p>Room Amenities</p>
+                  </a>
+                </li>
+                @can('view room rates')
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('room-rates') || Request::is('room-rates/index') ? 'active' : '' }}" href="{{ route('tenant.room-rates.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Room Rates</p>
                   </a>
                 </li>
                 @can('create room rates')
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('room-rates/create') ? 'active' : '' }}" href="{{ route('tenant.room-rates.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Room Rate</p>
-                  </a>
-                </li>
                 <li class="nav-item">
                   <a class="nav-link {{ Request::is('room-rates/import') ? 'active' : '' }}" href="{{ route('tenant.room-rates.import') }}">
                     <i class="bi bi-circle nav-icon"></i>
@@ -440,231 +380,109 @@
                   </a>
                 </li>
                 @endcan
-              </ul>
-            </li>
-            @endcan
-            {{-- room types --}}
-            <li class="nav-item {{ Request::is('room-types*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('room-types*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-tags"></i>
-                <p>Room Types
-                  <i class="nav-arrow bi bi-chevron-right"></i>
-                </p>
-              </a>
-              <ul class="nav nav-treeview">
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('room-types') ? 'active' : '' }}" href="{{ route('tenant.room-types.index') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>All Room Types</p>
-                  </a>
-                </li>
-                @can('create room types')
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('room-types/create') ? 'active' : '' }}" href="{{ route('tenant.room-types.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Room Type</p>
-                  </a>
-                </li>
-                @endcan
-                </li>
-              </ul>
-            </li>
-            {{-- room amenities --}}
-            <li class="nav-item {{ Request::is('room-amenities*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('room-amenities*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-ui-checks"></i>
-                <p>Room Amenities
-                  <i class="nav-arrow bi bi-chevron-right"></i>
-                </p>
-              </a>
-              <ul class="nav nav-treeview">
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('room-amenities') ? 'active' : '' }}" href="{{ route('tenant.room-amenities.index') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>All Room Amenities</p>
-                  </a>
-                </li>
-                @can('create room amenities')
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('room-amenities/create') ? 'active' : '' }}" href="{{ route('tenant.room-amenities.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Room Amenity</p>
-                  </a>
-                </li>
                 @endcan
               </ul>
             </li>
-            {{-- end room management --}}
 
-            {{-- housekeeping --}}
-            <li class="nav-header">HOUSEKEEPING</li>
             @can('view housekeeping')
-            <li class="nav-item {{ Request::is('housekeeping*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('housekeeping*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-house-check"></i>
-                <p>Housekeeping
+            {{-- Housekeeping & Operations --}}
+            <li class="nav-header">OPERATIONS</li>
+            <li class="nav-item {{ Request::is('housekeeping*') || Request::is('room-status*') || Request::is('maintenance*') || Request::is('cleaning-schedule*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('housekeeping*') || Request::is('room-status*') || Request::is('maintenance*') || Request::is('cleaning-schedule*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-gear-wide-connected"></i>
+                <p>Housekeeping & Maintenance
                   <i class="nav-arrow bi bi-chevron-right"></i>
                 </p>
               </a>
               <ul class="nav nav-treeview">
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('housekeeping') ? 'active' : '' }}" href="{{ route('tenant.housekeeping.index') }}">
+                  <a class="nav-link {{ Request::is('housekeeping') || Request::is('housekeeping/index') ? 'active' : '' }}" href="{{ route('tenant.housekeeping.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>Dashboard</p>
+                    <p>Housekeeping</p>
                   </a>
                 </li>
-                @can('create housekeeping tasks')
+                @can('view room status')
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('housekeeping/create') ? 'active' : '' }}" href="{{ route('tenant.housekeeping.create') }}">
+                  <a class="nav-link {{ Request::is('room-status*') ? 'active' : '' }}" href="{{ route('tenant.room-status.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>Create Task</p>
+                    <p>Room Status</p>
                   </a>
                 </li>
                 @endcan
-              </ul>
-            </li>
-            @endcan
-
-            {{-- room status --}}
-            @can('view room status')
-            <li class="nav-item {{ Request::is('room-status*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('room-status*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-list-check"></i>
-                <p>Room Status
-                  <i class="nav-arrow bi bi-chevron-right"></i>
-                </p>
-              </a>
-              <ul class="nav nav-treeview">
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('room-status') ? 'active' : '' }}" href="{{ route('tenant.room-status.index') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>All Rooms</p>
-                  </a>
-                </li>
-              </ul>
-            </li>
-            @endcan
-
-            @can('view maintenance')
-            <li class="nav-item {{ Request::is('maintenance*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('maintenance*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-tools"></i>
-                <p>Maintenance
-                  <i class="nav-arrow bi bi-chevron-right"></i>
-                </p>
-              </a>
-              <ul class="nav nav-treeview">
+                @can('view maintenance')
                 <li class="nav-item">
                   <a class="nav-link {{ Request::is('maintenance/dashboard') ? 'active' : '' }}" href="{{ route('tenant.maintenance.dashboard') }}">
-                    <i class="bi bi-speedometer2 nav-icon"></i>
-                    <p>Dashboard</p>
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Maintenance Dashboard</p>
                   </a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link {{ Request::is('maintenance') && !Request::is('maintenance/*') ? 'active' : '' }}" href="{{ route('tenant.maintenance.index') }}">
-                    <i class="bi bi-list-ul nav-icon"></i>
-                    <p>All Requests</p>
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Maintenance Requests</p>
                   </a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link {{ Request::is('maintenance/tasks') ? 'active' : '' }}" href="{{ route('tenant.maintenance.tasks') }}">
-                    <i class="bi bi-list-task nav-icon"></i>
-                    <p>Manage Tasks</p>
-                  </a>
-                </li>
-                @can('create maintenance requests')
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('maintenance/create') ? 'active' : '' }}" href="{{ route('tenant.maintenance.create') }}">
-                    <i class="bi bi-plus-circle nav-icon"></i>
-                    <p>Create Request</p>
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Maintenance Tasks</p>
                   </a>
                 </li>
                 @endcan
-              </ul>
-            </li>
-            @endcan
-
-            @can('view cleaning schedules')
-            <li class="nav-item {{ Request::is('cleaning-schedule*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('cleaning-schedule*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-calendar-check"></i>
-                <p>Cleaning Schedule
-                  <i class="nav-arrow bi bi-chevron-right"></i>
-                </p>
-              </a>
-              <ul class="nav nav-treeview">
+                @can('view cleaning schedules')
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('cleaning-schedule') ? 'active' : '' }}" href="{{ route('tenant.cleaning-schedule.index') }}">
+                  <a class="nav-link {{ Request::is('cleaning-schedule') || Request::is('cleaning-schedule/index') ? 'active' : '' }}" href="{{ route('tenant.cleaning-schedule.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>Schedule Overview</p>
+                    <p>Cleaning Schedule</p>
                   </a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link {{ Request::is('cleaning-schedule/calendar') ? 'active' : '' }}" href="{{ route('tenant.cleaning-schedule.calendar') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>Schedule Calendar</p>
-                  </a>
-                </li>
-                @can('create cleaning schedules')
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('cleaning-schedule/create') ? 'active' : '' }}" href="{{ route('tenant.cleaning-schedule.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>Create Checklist</p>
+                    <p>Cleaning Calendar</p>
                   </a>
                 </li>
                 @endcan
               </ul>
             </li>
             @endcan
-            {{-- end housekeeping --}}
 
-            {{-- financials --}}
+            {{-- Financials --}}
             <li class="nav-header">FINANCIALS</li>
-            {{-- invoices --}}
-            @can('view invoices')
-            <li class="nav-item">
-              <a class="nav-link {{ Request::is('booking-invoices*') ? 'active' : '' }}" href="{{ route('tenant.booking-invoices.index') }}">
-                <i class="nav-icon bi bi-receipt"></i>
-                <p>Invoices</p>
-              </a>
-            </li>
-            @endcan
-            @can('view refunds')
-            <li class="nav-item">
-              <a class="nav-link {{ Request::is('refunds*') ? 'active' : '' }}" href="{{ route('tenant.refunds.index') }}">
-                <i class="nav-icon bi bi-arrow-counterclockwise"></i>
-                <p>Refunds</p>
-              </a>
-            </li>
-            @endcan
-            {{-- Tax Management --}}
-            <li class="nav-item {{ Request::is('taxes*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('taxes*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-percent"></i>
-                <p>Tax Management
+            <li class="nav-item {{ Request::is('booking-invoices*') || Request::is('refunds*') || Request::is('taxes*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('booking-invoices*') || Request::is('refunds*') || Request::is('taxes*') ? 'active' : '' }}" href="#">
+                <i class="nav-icon bi bi-currency-dollar"></i>
+                <p>Financial Management
                   <i class="nav-arrow bi bi-chevron-right"></i>
                 </p>
               </a>
               <ul class="nav nav-treeview">
+                @can('view invoices')
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('taxes') ? 'active' : '' }}" href="{{ route('tenant.taxes.index') }}">
+                  <a class="nav-link {{ Request::is('booking-invoices*') ? 'active' : '' }}" href="{{ route('tenant.booking-invoices.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>All Taxes</p>
-                  </a>
-                </li>
-                @can('manage taxes')
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('taxes/create') ? 'active' : '' }}" href="{{ route('tenant.taxes.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Tax</p>
+                    <p>Invoices</p>
                   </a>
                 </li>
                 @endcan
+                @can('view refunds')
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('refunds*') ? 'active' : '' }}" href="{{ route('tenant.refunds.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Refunds</p>
+                  </a>
+                </li>
+                @endcan
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('taxes*') ? 'active' : '' }}" href="{{ route('tenant.taxes.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Tax Management</p>
+                  </a>
+                </li>
               </ul>
             </li>
-            {{-- end tax management --}}
 
-            {{-- reports --}}
+            {{-- Reports --}}
             <li class="nav-header">REPORTS</li>
             <li class="nav-item {{ Request::is('reports*') ? 'menu-open' : '' }}">
               <a class="nav-link {{ Request::is('reports*') ? 'active' : '' }}" href="#">
@@ -694,87 +512,47 @@
                 </li>
               </ul>
             </li>
+
+            {{-- System & Settings --}}
             <li class="nav-header">SYSTEM</li>
-            {{-- Properties --}}
             @can('manage properties')
-            <li class="nav-item {{ Request::is('properties*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('properties*') ? 'active' : '' }}" href="#">
+            <li class="nav-item">
+              <a class="nav-link {{ Request::is('properties*') ? 'active' : '' }}" href="{{ route('tenant.properties.index') }}">
                 <i class="nav-icon bi bi-building"></i>
-                <p>Properties
-                  <i class="nav-arrow bi bi-chevron-right"></i>
-                </p>
+                <p>Properties</p>
               </a>
-              <ul class="nav nav-treeview">
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('properties') ? 'active' : '' }}" href="{{ route('tenant.properties.index') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>All Properties</p>
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('properties/create') ? 'active' : '' }}" href="{{ route('tenant.properties.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Property</p>
-                  </a>
-                </li>
-              </ul>
             </li>
             @endcan
-            {{-- Tenant settings only for super admins --}}
+
             @if (is_super_user())
-            {{-- users management --}}
-            <li class="nav-item {{ Request::is('users*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('users*') ? 'active' : '' }}" href="#">
+            <li class="nav-item {{ Request::is('users*') || Request::is('roles*') || Request::is('permissions*') ? 'menu-open' : '' }}">
+              <a class="nav-link {{ Request::is('users*') || Request::is('roles*') || Request::is('permissions*') ? 'active' : '' }}" href="#">
                 <i class="nav-icon bi bi-people"></i>
-                <p>Users
+                <p>User Management
                   <i class="nav-arrow bi bi-chevron-right"></i>
                 </p>
               </a>
               <ul class="nav nav-treeview">
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('users') ? 'active' : '' }}" href="{{ route('tenant.users.index') }}">
+                  <a class="nav-link {{ Request::is('users') || Request::is('users/index') ? 'active' : '' }}" href="{{ route('tenant.users.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>All Users</p>
+                    <p>Users</p>
                   </a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link {{ Request::is('users/create') ? 'active' : '' }}" href="{{ route('tenant.users.create') }}">
+                  <a class="nav-link {{ Request::is('roles') || Request::is('roles/index') ? 'active' : '' }}" href="{{ route('tenant.roles.index') }}">
                     <i class="bi bi-circle nav-icon"></i>
-                    <p>Add User</p>
+                    <p>Roles</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('permissions*') ? 'active' : '' }}" href="{{ route('tenant.permissions.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Permissions</p>
                   </a>
                 </li>
               </ul>
             </li>
-            {{-- roles and permissions --}}
-            <li class="nav-item {{ Request::is('roles*') || Request::is('permissions*') ? 'menu-open' : '' }}">
-              <a class="nav-link {{ Request::is('roles*') || Request::is('permissions*') ? 'active' : '' }}" href="#">
-                <i class="nav-icon bi bi-shield-lock"></i>
-                <p>Roles & Permissions
-                  <i class="nav-arrow bi bi-chevron-right"></i>
-                </p>
-              </a>
-              <ul class="nav nav-treeview">
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('roles') ? 'active' : '' }}" href="{{ route('tenant.roles.index') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>All Roles</p>
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('roles/create') ? 'active' : '' }}" href="{{ route('tenant.roles.create') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>Add Role</p>
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link {{ Request::is('permissions') ? 'active' : '' }}" href="{{ route('tenant.permissions.index') }}">
-                    <i class="bi bi-circle nav-icon"></i>
-                    <p>All Permissions</p>
-                  </a>
-                </li>
-              </ul>
-            </li>
-            {{-- end users management --}}
             @endif
           </ul>
           <!--end::Sidebar Menu-->

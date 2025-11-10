@@ -46,6 +46,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth' => \App\Http\Middleware\Authenticate::class,
             'auth:sanctum' => \Laravel\Sanctum\Http\Middleware\Authenticate::class,
             'must.change.password' => \App\Http\Middleware\CheckMustChangePassword::class,
+            'subscription.check' => \App\Http\Middleware\CheckSubscriptionStatus::class,
+            'resource.limit' => \App\Http\Middleware\CheckResourceLimit::class,
             // other middleware aliases
         ]);
     })

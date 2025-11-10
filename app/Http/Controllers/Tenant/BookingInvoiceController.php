@@ -8,7 +8,7 @@ use App\Models\Tenant\InvoicePayment;
 use App\Models\Tenant\TenantSetting;
 use App\Traits\LogsTenantUserActivity;
 use App\Services\Tenant\NotificationService;
-use App\Services\PayfastGatewayService;
+use App\Services\Tenant\PayfastGatewayService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 

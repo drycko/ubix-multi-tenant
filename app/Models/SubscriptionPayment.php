@@ -34,6 +34,11 @@ class SubscriptionPayment extends Model
         return $this->belongsTo(SubscriptionInvoice::class, 'invoice_id');
     }
 
+    public function refund(): BelongsTo
+    {
+        return $this->hasOne(Refund::class, 'payment_id');
+    }
+
     public function isSuccessful(): bool
     {
         return $this->status === 'completed';

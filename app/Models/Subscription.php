@@ -53,6 +53,24 @@ class Subscription extends Model
         $this->status = 'canceled';
         $this->end_date = now();
         $this->save();
+        // cancel all outstanding invoices
+        $this->invoices()->whereIn('status', ['pending', 'partially_paid'])->each(function ($invoice) {
+            $invoice->status = 'canceled';
+            $invoice->save();
+            // cancel all payments associated with the invoice
+            $invoice->payments()->each(function ($payment) {
+                $payment->status = 'canceled';
+                $payment->save();
+            });
+            
+            $this->logAdminActivity(
+                "update",
+                "subscription_invoices",
+                $invoice->id,
+                "Canceled invoice #{$invoice->invoice_number} associated with subscription #{$invoice->subscription_id}"
+            );
+            $this->createAdminNotification("Invoice #{$invoice->invoice_number} was canceled");
+        });
     }
 
     public function renew($newEndDate)

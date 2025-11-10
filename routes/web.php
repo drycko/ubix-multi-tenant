@@ -6,6 +6,7 @@ use App\Http\Controllers\Central\SubscriptionController;
 use App\Http\Controllers\Central\SubscriptionPlanController;
 use App\Http\Controllers\Central\SubscriptionInvoiceController;
 use App\Http\Controllers\Central\CentralSettingController;
+use App\Http\Controllers\Central\TaxController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -16,16 +17,25 @@ Route::get('/', function () {
 // require __DIR__.'/auth.php';
 require __DIR__.'/central-auth.php';
 
+// we will create a landing page for unauthenticated users 
 // home route redirect to central dashboard
 Route::get('/home', function() {
     return redirect()->route('central.dashboard');
 })->middleware(['auth'])->name('home');
 
-// base home route redirect to central dashboard
 Route::get('/', function() {
     return redirect()->route('central.dashboard');
 })->middleware(['auth'])->name('home');
 
+// tenant admin routes are in routes/portal.php
+require __DIR__.'/portal.php';
+
+// landing page for unauthenticated users
+Route::get('/', function() {
+    return view('home');
+})->name('landing');
+
+// authenticated routes for central admin
 Route::middleware(['auth'])->group(function () {
     Route::get('/central', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/central/dashboard', [DashboardController::class, 'index'])->name('central.dashboard');
@@ -86,14 +96,39 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/central/plans/{id}', [SubscriptionPlanController::class, 'destroy'])->name('central.plans.destroy');
 
     // settings
-    Route::get('central/settings', [CentralSettingController::class, 'index'])->name('central.settings');
-    Route::put('central/settings', [CentralSettingController::class, 'update'])->name('central.settings.update');
+    // Route::get('central/settings', [CentralSettingController::class, 'index'])->name('central.settings');
+    // Route::put('central/settings', [CentralSettingController::class, 'update'])->name('central.settings.update');
+
+    // settings route group
+    Route::prefix('central/settings')->group(function () {
+        Route::get('/', [CentralSettingController::class, 'index'])->name('central.settings.index');
+        // general settings
+        Route::get('/general', [CentralSettingController::class, 'general'])->name('central.settings.general');
+        Route::put('/general', [CentralSettingController::class, 'updateGeneral'])->name('central.settings.general.update');
+
+        // payment gateway settings
+        Route::get('/payfast', [CentralSettingController::class, 'editPayfast'])->name('central.settings.payfast.edit');
+        Route::post('/payfast', [CentralSettingController::class, 'updatePayfast'])->name('central.settings.payfast.update');
+        // PayGate routes
+        Route::get('/paygate', [CentralSettingController::class, 'editPaygate'])->name('central.settings.paygate.edit');
+        Route::post('/paygate', [CentralSettingController::class, 'updatePaygate'])->name('central.settings.paygate.update');
+    });
+
+    // taxes
+    Route::prefix('central/taxes')->group(function () {
+        Route::get('/', [TaxController::class, 'index'])->name('central.taxes.index');
+        Route::get('/create', [TaxController::class, 'create'])->name('central.taxes.create');
+        Route::post('/', [TaxController::class, 'store'])->name('central.taxes.store');
+        Route::get('/{tax}', [TaxController::class, 'show'])->name('central.taxes.show');
+        Route::get('/{tax}/edit', [TaxController::class, 'edit'])->name('central.taxes.edit');
+        Route::put('/{tax}', [TaxController::class, 'update'])->name('central.taxes.update');
+        Route::delete('/{tax}', [TaxController::class, 'destroy'])->name('central.taxes.destroy');
+        Route::patch('/{tax}/toggle-status', [TaxController::class, 'toggleStatus'])->name('central.taxes.toggle-status');
+    });
 
     // users
-    Route::get('/central/users', [DashboardController::class, 'users'])->name('central.users.index');
-    Route::get('/central/users/create', [DashboardController::class, 'createUser'])->name('central.users.create');
-    Route::post('/central/users', [DashboardController::class, 'storeUser'])->name('central.users.store');
-    Route::get('/central/users/{user}/edit', [DashboardController::class, 'editUser'])->name('central.users.edit');
-    Route::put('/central/users/{user}', [DashboardController::class, 'updateUser'])->name('central.users.update');
-    Route::delete('/central/users/{user}', [DashboardController::class, 'destroyUser'])->name('central.users.destroy');
+    require __DIR__.'/central-users.php';
+
+    // roles and permissions routes
+    require __DIR__.'/central-roles-permissions.php';
 });

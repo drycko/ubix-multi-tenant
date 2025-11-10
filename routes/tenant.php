@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Tenant\DashboardController;
+use App\Http\Controllers\Tenant\StatsController;
 use App\Http\Controllers\Tenant\BookingController;
 use App\Http\Controllers\Tenant\RoomController;
 use App\Http\Controllers\Tenant\RoomRateController;
@@ -32,6 +33,7 @@ use App\Http\Controllers\Tenant\TenantSettingController;
 use App\Http\Controllers\Tenant\GuestPortalController;
 use App\Http\Controllers\Tenant\SelfCheckInController;
 use App\Http\Controllers\Tenant\GuestRequestController;
+use App\Http\Controllers\Tenant\DigitalKeyController;
 
 // tenancy controllers
 use App\Http\Controllers\Tenant\TenantUserActivityController;
@@ -140,7 +142,7 @@ Route::middleware([
     });
 
     // Protected routes with property context (prefixed 't' for tenant)
-    Route::prefix('/t')->middleware(['auth:tenant', 'must.change.password', 'property.selector'])->group(function () {
+    Route::prefix('/t')->middleware(['auth:tenant', 'must.change.password', 'property.selector', 'subscription.check'])->group(function () {
         // redirect to dashboard
         Route::get('/', function () {
             return redirect()->route('tenant.dashboard');
@@ -153,8 +155,12 @@ Route::middleware([
         });
         // Dashboard - accessible to all authenticated users
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('tenant.dashboard');
-        Route::get('/stats', [DashboardController::class, 'stats'])->name('tenant.stats');
         Route::get('/knowledge-base', [DashboardController::class, 'knowledgeBase'])->name('tenant.knowledge-base');
+
+        // Statistics & Analytics
+        Route::get('/stats', [StatsController::class, 'index'])->name('tenant.stats.index');
+        Route::get('/stats/print', [StatsController::class, 'print'])->name('tenant.stats.print');
+        Route::get('/stats/download', [StatsController::class, 'download'])->name('tenant.stats.download');
 
         // User Activities - user-specific, no property restriction
         Route::get('activities', [TenantUserActivityController::class, 'index'])->name('tenant.activities.index');
@@ -202,9 +208,19 @@ Route::middleware([
                 'edit' => 'tenant.bookings.edit',
                 'update' => 'tenant.bookings.update',
                 'destroy' => 'tenant.bookings.destroy',
-            ]);
+            ])->only(['index', 'show', 'edit', 'update', 'destroy']);
 
-            Route::post('/bookings/package', [BookingController::class, 'storeWithPackage'])->name('tenant.bookings.store.package');
+            // Booking creation routes with resource limit check
+            Route::get('bookings/create', [BookingController::class, 'create'])
+                ->middleware('resource.limit:bookings')
+                ->name('tenant.bookings.create');
+            Route::post('bookings', [BookingController::class, 'store'])
+                ->middleware('resource.limit:bookings')
+                ->name('tenant.bookings.store');
+
+            Route::post('/bookings/package', [BookingController::class, 'storeWithPackage'])
+                ->middleware('resource.limit:bookings')
+                ->name('tenant.bookings.store.package');
             Route::post('/bookings/{booking}/clone', [BookingController::class, 'clone'])->name('tenant.bookings.clone');
             Route::post('/bookings/{booking}/toggle-status', [BookingController::class, 'toggleStatus'])->name('tenant.bookings.toggle-status');
 
@@ -370,8 +386,8 @@ Route::middleware([
 
         // users management - super-user only routes (no property.access middleware)
         Route::get('users', [UserController::class, 'index'])->name('tenant.users.index');
-        Route::get('users/create', [UserController::class, 'create'])->name('tenant.users.create');
-        Route::post('users', [UserController::class, 'store'])->name('tenant.users.store');
+        Route::get('users/create', [UserController::class, 'create'])->middleware('resource.limit:users')->name('tenant.users.create');
+        Route::post('users', [UserController::class, 'store'])->middleware('resource.limit:users')->name('tenant.users.store');
 
         Route::get('users/{user}', [UserController::class, 'show'])->name('tenant.users.show');
         Route::get('users/{user}/edit', [UserController::class, 'edit'])->name('tenant.users.edit');
@@ -431,8 +447,8 @@ Route::middleware([
 
         // Properties management - super-user only routes (no property.access middleware)
         Route::get('properties', [PropertyController::class, 'index'])->name('tenant.properties.index');
-        Route::get('properties/create', [PropertyController::class, 'create'])->name('tenant.properties.create');
-        Route::post('properties', [PropertyController::class, 'store'])->name('tenant.properties.store');
+        Route::get('properties/create', [PropertyController::class, 'create'])->middleware('resource.limit:properties')->name('tenant.properties.create');
+        Route::post('properties', [PropertyController::class, 'store'])->middleware('resource.limit:properties')->name('tenant.properties.store');
         Route::get('properties/{property}', [PropertyController::class, 'show'])->name('tenant.properties.show');
         Route::get('properties/{property}/edit', [PropertyController::class, 'edit'])->name('tenant.properties.edit');
         Route::put('properties/{property}', [PropertyController::class, 'update'])->name('tenant.properties.update');

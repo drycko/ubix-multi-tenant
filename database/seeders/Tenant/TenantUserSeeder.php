@@ -25,15 +25,17 @@ class TenantUserSeeder extends Seeder
         if ($tenant) {
             // Create company admin user if not exists (I am getting integrity constraint violation here, how do I avoid that? I am already using firstOrCreate? Is it because of the email unique constraint?)
             // super user email get from tenant email or create from tenant domain
-            $superUserEmail = $tenant->email ?? 'admin@' . $tenant->domains->where('is_primary', true)->first()->domain;
+            $superUserEmail = $tenant->admin->email ?? $tenant->email ?? 'admin@' . $tenant->domains->where('is_primary', true)->first()->domain;
+            $contactPerson = $tenant->contact_person ?? 'Company Admin';
+            $tempPassword = $tenant->data->tenant_admin_temp_password ?? 'password@123';
             // check if user already exists
             $superUser = User::updateOrCreate(
                 ['email' => $superUserEmail],
                 [
-                    'name' => 'Company Admin',
-                    'password' => bcrypt('password'),
+                    'name' => $contactPerson,
+                    'password' => bcrypt($tempPassword),
                     'property_id' => null, // Super user not tied to a specific property
-                    'phone' => '+27 11 123 4567',
+                    'phone' => '0',
                     'position' => 'Administrator',
                     'role' => 'super-user',
                     'is_active' => true,
@@ -61,9 +63,9 @@ class TenantUserSeeder extends Seeder
                     ['email' => 'housekeeping@' . $tenant->domains->where('is_primary', true)->first()->domain],
                     [
                         'name' => 'Property Staff',
-                        'password' => bcrypt('password'),
+                        'password' => bcrypt('password@123'),
                         'property_id' => $property->id,
-                        'phone' => '+27 11 123 4567',
+                        'phone' => '0',
                         'position' => 'housekeeping',
                         'role' => 'housekeeping',
                         'is_active' => true,

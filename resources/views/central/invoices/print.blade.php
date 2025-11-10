@@ -274,10 +274,45 @@
                     </tr>
                 </tbody>
                 <tfoot class="bg-light">
+                    @if($invoice->tax_amount > 0)
+                    <tr>
+                        <td class="text-end">Subtotal:</td>
+                        <td class="text-end">{{ format_price($invoice->subtotal_amount) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-end">
+                            Tax ({{ $invoice->tax_name }}
+                            @if($invoice->tax_type === 'percentage')
+                                - {{ number_format($invoice->tax_rate, 2) }}%
+                            @else
+                                - Fixed Amount
+                            @endif
+                            @if($invoice->tax_inclusive)
+                                <span style="color: #0d6efd;"> - Inclusive</span>
+                            @endif
+                            ):
+                        </td>
+                        <td class="text-end">{{ format_price($invoice->tax_amount) }}</td>
+                    </tr>
+                    @endif
                     <tr>
                         <td class="text-end text-uppercase fw-semibold">Total</td>
                         <td class="text-end fw-bold">{{ format_price($invoice->amount) }}</td>
                     </tr>
+                    @if($invoice->payments && $invoice->payments->where('status', 'completed')->count() > 0)
+                    @php
+                        $totalPaid = $invoice->payments->where('status', 'completed')->sum('amount');
+                        $balance = $invoice->amount - $totalPaid;
+                    @endphp
+                    <tr>
+                        <td class="text-end">Amount Paid:</td>
+                        <td class="text-end" style="color: #198754;">{{ format_price($totalPaid) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-end fw-semibold">Balance Due:</td>
+                        <td class="text-end fw-bold" style="color: {{ $balance > 0 ? '#dc3545' : '#198754' }};">{{ format_price($balance) }}</td>
+                    </tr>
+                    @endif
                 </tfoot>
             </table>
         </div>

@@ -29,10 +29,37 @@ body {
   box-shadow: 0 4px 16px rgba(0,0,0,0.15);
 }
 
+.sidebar-menu .nav-link p {
+  font-size: 0.85rem;
+}
+
 .chart-container {
   background: #fff;
   border-radius: 8px;
   padding: 10px;
+}
+
+/* ghost card style */
+.ghost-card {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.ghost-card .ghost-card-header {
+  background-color: transparent !important;
+  border: 1px solid rgba(0, 0, 0, 0.125) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 0.2rem 1rem rgba(0, 0, 0, 0.175) !important;
+  /* margin: -1rem -1rem 1rem -1rem !important; */
+  padding: 1rem !important;
+  margin-bottom: 1rem !important;
+  /* border-bottom: none !important; */
+}
+
+.ghost-card .ghost-card-body {
+  background-color: transparent !important;
+  /* border: 1px solid rgba(0, 0, 0, 0.125) !important; */
 }
 
 /* Gradient backgrounds */
