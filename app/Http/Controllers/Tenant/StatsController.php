@@ -53,15 +53,21 @@ class StatsController extends Controller
         } else {
             // Regular user or super user with property selected - filter by property
             $propertyId = $selectedPropertyId;
-            $bookingsQuery = Booking::where('property_id', $propertyId);
-            $roomsQuery = Room::where('property_id', $propertyId);
-            $guestsQuery = Guest::where('property_id', $propertyId);
+
+            // Qualify table columns to avoid ambiguity when joins are added later
+            $bookingsQuery = Booking::where('bookings.property_id', $propertyId);
+            $roomsQuery = Room::where('rooms.property_id', $propertyId);
+            $guestsQuery = Guest::where('guests.property_id', $propertyId);
+
             $paymentsQuery = InvoicePayment::whereHas('bookingInvoice.booking', function($q) use ($propertyId) {
-                $q->where('property_id', $propertyId);
+                // inside relation, bookings table is referenced; qualify to be explicit
+                $q->where('bookings.property_id', $propertyId);
             });
+
             $invoicesQuery = BookingInvoice::whereHas('booking', function($q) use ($propertyId) {
-                $q->where('property_id', $propertyId);
+                $q->where('bookings.property_id', $propertyId);
             });
+
             $properties = Property::where('id', $propertyId)->get();
             $viewingAllProperties = false;
         }
@@ -104,15 +110,16 @@ class StatsController extends Controller
         $guestSources = $this->getGuestSources($bookingsQuery, $startDate, $endDate);
 
         // Occupancy rate calculation
-        $occupancyRate = $stats['total_rooms'] > 0 
-            ? round(($stats['active_bookings'] / $stats['total_rooms']) * 100, 1) 
+        $occupancyRate = $stats['total_rooms'] > 0
+            ? round(($stats['active_bookings'] / $stats['total_rooms']) * 100, 1)
             : 0;
 
         // Average booking duration
         $avgBookingDuration = (clone $bookingsQuery)
             ->whereNotNull('nights')
-            ->where('created_at', '>=', $startDate)
-            ->where('created_at', '<=', $endDate)
+            // qualify created_at to avoid ambiguity if joins are added later
+            ->where('bookings.created_at', '>=', $startDate)
+            ->where('bookings.created_at', '<=', $endDate)
             ->avg('nights') ?? 0;
 
         // Top performing room types by revenue
@@ -128,7 +135,7 @@ class StatsController extends Controller
             $propertyStats = [
                 'name' => $property->name,
                 'total_rooms' => $property->rooms()->count(),
-                'available_rooms' => $property->rooms()->where('status', 'available')->count(),
+                'available_rooms' => $property->rooms()->where('is_enabled', true)->count(),
                 'maintenance_rooms' => $property->rooms()->where('status', 'maintenance')->count(),
                 'occupied_rooms' => $property->rooms()->where('status', 'occupied')->count(),
             ];
@@ -216,9 +223,9 @@ class StatsController extends Controller
 
         // Generate PDF using DomPDF
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('tenant.stats.print', $data);
-        
+
         $filename = 'statistics-report-' . $data['startDate']->format('Y-m-d') . '-to-' . $data['endDate']->format('Y-m-d') . '.pdf';
-        
+
         return $pdf->download($filename);
     }
 
@@ -341,15 +348,16 @@ class StatsController extends Controller
             $properties = Property::all();
             $viewingAllProperties = true;
         } else {
-            $propertyId = $selectedPropertyId;
-            $bookingsQuery = Booking::where('booking.property_id', $propertyId);
-            $roomsQuery = Room::where('property_id', $propertyId);
-            $guestsQuery = Guest::where('property_id', $propertyId);
+            $propertyId = $selected_property_id() ?? $selectedPropertyId;
+            // Ensure bookings uses qualified column name
+            $bookingsQuery = Booking::where('bookings.property_id', $propertyId);
+            $roomsQuery = Room::where('rooms.property_id', $propertyId);
+            $guestsQuery = Guest::where('guests.property_id', $propertyId);
             $paymentsQuery = InvoicePayment::whereHas('bookingInvoice.booking', function($q) use ($propertyId) {
-                $q->where('property_id', $propertyId);
+                $q->where('bookings.property_id', $propertyId);
             });
             $invoicesQuery = BookingInvoice::whereHas('booking', function($q) use ($propertyId) {
-                $q->where('property_id', $propertyId);
+                $q->where('bookings.property_id', $propertyId);
             });
             $properties = Property::where('id', $propertyId)->get();
             $viewingAllProperties = false;
@@ -382,14 +390,14 @@ class StatsController extends Controller
         $revenueOverTime = $this->getRevenueOverTime($paymentsQuery, $startDate, $endDate);
         $guestSources = $this->getGuestSources($bookingsQuery, $startDate, $endDate);
 
-        $occupancyRate = $stats['total_rooms'] > 0 
-            ? round(($stats['active_bookings'] / $stats['total_rooms']) * 100, 1) 
+        $occupancyRate = $stats['total_rooms'] > 0
+            ? round(($stats['active_bookings'] / $stats['total_rooms']) * 100, 1)
             : 0;
 
         $avgBookingDuration = (clone $bookingsQuery)
             ->whereNotNull('nights')
-            ->where('created_at', '>=', $startDate)
-            ->where('created_at', '<=', $endDate)
+            ->where('bookings.created_at', '>=', $startDate)
+            ->where('bookings.created_at', '<=', $endDate)
             ->avg('nights') ?? 0;
 
         $topRoomTypes = $this->getTopRoomTypes($bookingsQuery, $startDate, $endDate);
@@ -399,7 +407,7 @@ class StatsController extends Controller
         if (!$viewingAllProperties && $properties->count() > 0) {
             $property = $properties->first();
             $totalRooms = $property->rooms()->count();
-            
+
             // Get rooms currently occupied (with active bookings)
             $occupiedRooms = $property->rooms()
                 ->whereHas('bookings', function($q) {
@@ -408,14 +416,14 @@ class StatsController extends Controller
                       ->where('departure_date', '>=', now());
                 })
                 ->count();
-            
+
             // Get rooms under maintenance (from room statuses)
             $maintenanceRooms = $property->rooms()
                 ->whereHas('currentStatus', function($q) {
                     $q->whereIn('status', ['maintenance', 'out_of_order']);
                 })
                 ->count();
-            
+
             // Calculate available rooms
             $availableRooms = $property->rooms()
                 ->where('is_enabled', true)
@@ -428,7 +436,7 @@ class StatsController extends Controller
                     $q->whereIn('status', ['maintenance', 'out_of_order']);
                 })
                 ->count();
-            
+
             $propertyStats = [
                 'name' => $property->name,
                 'total_rooms' => $totalRooms,
@@ -463,8 +471,8 @@ class StatsController extends Controller
     private function getBookingsOverTime($bookingsQuery, $startDate, $endDate)
     {
         $bookings = (clone $bookingsQuery)
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->whereBetween('bookings.created_at', [$startDate, $endDate])
+            ->selectRaw('DATE(bookings.created_at) as date, COUNT(*) as count')
             ->groupBy('date')
             ->orderBy('date')
             ->get();
@@ -477,10 +485,10 @@ class StatsController extends Controller
         while ($currentDate->lte($endDate)) {
             $dateStr = $currentDate->format('Y-m-d');
             $labels[] = $dateStr;
-            
+
             $booking = $bookings->firstWhere('date', $dateStr);
             $data[] = $booking ? $booking->count : 0;
-            
+
             $currentDate->addDay();
         }
 
@@ -493,8 +501,8 @@ class StatsController extends Controller
     private function getBookingsByArrivalDate($bookingsQuery, $startDate, $endDate)
     {
         $bookings = (clone $bookingsQuery)
-            ->whereBetween('arrival_date', [$startDate, $endDate])
-            ->selectRaw('DATE(arrival_date) as date, COUNT(*) as count')
+            ->whereBetween('bookings.arrival_date', [$startDate, $endDate])
+            ->selectRaw('DATE(bookings.arrival_date) as date, COUNT(*) as count')
             ->groupBy('date')
             ->orderBy('date')
             ->get();
@@ -506,10 +514,10 @@ class StatsController extends Controller
         while ($currentDate->lte($endDate)) {
             $dateStr = $currentDate->format('Y-m-d');
             $labels[] = $dateStr;
-            
+
             $booking = $bookings->firstWhere('date', $dateStr);
             $data[] = $booking ? $booking->count : 0;
-            
+
             $currentDate->addDay();
         }
 
@@ -521,6 +529,7 @@ class StatsController extends Controller
      */
     private function getBookingsByRoomType($bookingsQuery, $startDate, $endDate)
     {
+        // bookingsQuery is qualified on bookings.property_id where needed, so joins won't make property_id ambiguous
         $bookings = (clone $bookingsQuery)
             ->whereBetween('bookings.created_at', [$startDate, $endDate])
             ->join('rooms', 'bookings.room_id', '=', 'rooms.id')
@@ -556,10 +565,10 @@ class StatsController extends Controller
         while ($currentDate->lte($endDate)) {
             $dateStr = $currentDate->format('Y-m-d');
             $labels[] = $dateStr;
-            
+
             $payment = $payments->firstWhere('date', $dateStr);
             $data[] = $payment ? (float)$payment->total : 0;
-            
+
             $currentDate->addDay();
         }
 
@@ -621,11 +630,11 @@ class StatsController extends Controller
         $previousMonthEnd = Carbon::now()->subMonth()->endOfMonth();
 
         $currentMonthBookings = (clone $bookingsQuery)
-            ->whereBetween('created_at', [$currentMonthStart, $currentMonthEnd])
+            ->whereBetween('bookings.created_at', [$currentMonthStart, $currentMonthEnd])
             ->count();
 
         $previousMonthBookings = (clone $bookingsQuery)
-            ->whereBetween('created_at', [$previousMonthStart, $previousMonthEnd])
+            ->whereBetween('bookings.created_at', [$previousMonthStart, $previousMonthEnd])
             ->count();
 
         $currentMonthRevenue = (clone $paymentsQuery)
@@ -638,7 +647,7 @@ class StatsController extends Controller
             ->whereBetween('payment_date', [$previousMonthStart, $previousMonthEnd])
             ->sum('amount');
 
-        $bookingsChange = $previousMonthBookings > 0 
+        $bookingsChange = $previousMonthBookings > 0
             ? round((($currentMonthBookings - $previousMonthBookings) / $previousMonthBookings) * 100, 1)
             : 0;
 
