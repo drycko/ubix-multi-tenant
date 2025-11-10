@@ -163,7 +163,7 @@
                         <p>Total Revenue</p>
                     </div>
                     <i class="bi bi-cash-stack small-box-icon" style="font-size:2.5rem; opacity:0.5;"></i>
-                    <a href="{{ route('tenant.payments.index') }}" class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
+                    <a href="#" class="small-box-footer link-light link-underline-opacity-0 link-underline-opacity-50-hover">
                         View Details <i class="bi bi-link-45deg"></i>
                     </a>
                 </div>

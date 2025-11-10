@@ -132,26 +132,68 @@ class StatsController extends Controller
         $propertyStats = null;
         if (!$viewingAllProperties && $properties->count() > 0) {
             $property = $properties->first();
+            $totalRooms = $property->rooms()->count();
+            
+            // Get rooms currently occupied (with active bookings)
+            $occupiedRooms = $property->rooms()
+                ->whereHas('bookings', function($q) {
+                    $q->whereIn('status', ['confirmed', 'checked_in'])
+                      ->where('arrival_date', '<=', now())
+                      ->where('departure_date', '>=', now());
+                })
+                ->count();
+            
+            // Get rooms under maintenance (from room statuses)
+            $maintenanceRooms = $property->rooms()
+                ->whereHas('currentStatus', function($q) {
+                    $q->whereIn('status', ['maintenance', 'out_of_order']);
+                })
+                ->count();
+            
+            // Calculate available rooms
+            $availableRooms = $property->rooms()
+                ->where('is_enabled', true)
+                ->whereDoesntHave('bookings', function($q) {
+                    $q->whereIn('status', ['confirmed', 'checked_in'])
+                      ->where('arrival_date', '<=', now())
+                      ->where('departure_date', '>=', now());
+                })
+                ->whereDoesntHave('currentStatus', function($q) {
+                    $q->whereIn('status', ['maintenance', 'out_of_order']);
+                })
+                ->count();
+            
             $propertyStats = [
                 'name' => $property->name,
-                'total_rooms' => $property->rooms()->count(),
-                'available_rooms' => $property->rooms()->where('is_enabled', true)->count(),
-                'maintenance_rooms' => $property->rooms()->where('status', 'maintenance')->count(),
-                'occupied_rooms' => $property->rooms()->where('status', 'occupied')->count(),
+                'total_rooms' => $totalRooms,
+                'available_rooms' => $availableRooms,
+                'maintenance_rooms' => $maintenanceRooms,
+                'occupied_rooms' => $occupiedRooms,
             ];
         }
+        // $propertyStats = null;
+        // if (!$viewingAllProperties && $properties->count() > 0) {
+        //     $property = $properties->first();
+        //     $propertyStats = [
+        //         'name' => $property->name,
+        //         'total_rooms' => $property->rooms()->count(),
+        //         'available_rooms' => $property->rooms()->where('is_enabled', true)->count(),
+        //         'maintenance_rooms' => $property->rooms()->where('status', 'maintenance')->count(),
+        //         'occupied_rooms' => $property->rooms()->where('status', 'occupied')->count(),
+        //     ];
+        // }
 
         // Log activity
-        $this->logTenantUserActivity(
-            'viewed',
-            'Statistics',
-            null,
-            'Viewed statistics and analytics' . ($viewingAllProperties ? ' (All Properties)' : ' for property: ' . $properties->first()->name),
-            [
-                'date_range' => ['start' => $startDate->format('Y-m-d'), 'end' => $endDate->format('Y-m-d')],
-                'property_view' => $viewingAllProperties ? 'all' : 'single',
-            ]
-        );
+        // $this->logTenantUserActivity(
+        //     'viewed',
+        //     'Statistics',
+        //     null,
+        //     'Viewed statistics and analytics' . ($viewingAllProperties ? ' (All Properties)' : ' for property: ' . $properties->first()->name),
+        //     [
+        //         'date_range' => ['start' => $startDate->format('Y-m-d'), 'end' => $endDate->format('Y-m-d')],
+        //         'property_view' => $viewingAllProperties ? 'all' : 'single',
+        //     ]
+        // );
 
         return view('tenant.stats.index', compact(
             'stats',
@@ -184,13 +226,13 @@ class StatsController extends Controller
         $data = $this->getStatsData($request);
 
         // Log activity
-        $this->logTenantUserActivity(
-            'printed',
-            'Statistics',
-            null,
-            'Printed statistics report',
-            ['date_range' => ['start' => $data['startDate']->format('Y-m-d'), 'end' => $data['endDate']->format('Y-m-d')]]
-        );
+        // $this->logTenantUserActivity(
+        //     'printed',
+        //     'Statistics',
+        //     null,
+        //     'Printed statistics report',
+        //     ['date_range' => ['start' => $data['startDate']->format('Y-m-d'), 'end' => $data['endDate']->format('Y-m-d')]]
+        // );
 
         return view('tenant.stats.print', $data);
     }
@@ -348,7 +390,7 @@ class StatsController extends Controller
             $properties = Property::all();
             $viewingAllProperties = true;
         } else {
-            $propertyId = $selected_property_id() ?? $selectedPropertyId;
+            $propertyId = $selected_property_id ?? $selectedPropertyId;
             // Ensure bookings uses qualified column name
             $bookingsQuery = Booking::where('bookings.property_id', $propertyId);
             $roomsQuery = Room::where('rooms.property_id', $propertyId);
