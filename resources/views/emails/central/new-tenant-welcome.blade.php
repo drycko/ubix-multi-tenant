@@ -21,10 +21,10 @@ Thank you for joining {{ config('app.name') }} — we’re excited to have you o
 **Plan:** {{ ucfirst($tenant->plan) }}
 @endif
 
-@if(!empty($tenant->data['tenant_admin_id']) && !empty($tenant->data['tenant_admin_temp_password']))
+@if(!empty($tenant->admin) && !empty($tempPassword))
 **Temporary login (one-time):**  
 Email: {{ $tenant->admin->email ?? $tenant->email ?? '—' }}  
-Password: `{{ $tenant->tenant_admin_temp_password }}`  
+Password: `{{ $tempPassword }}`  
 (You will be prompted to set a new password on first login.)
 @endif
 @endcomponent

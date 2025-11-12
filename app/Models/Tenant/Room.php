@@ -58,6 +58,11 @@ class Room extends Model
         return $this->hasMany(Booking::class);
     }
 
+    public function digitalKeys(): HasMany
+    {
+        return $this->hasMany(DigitalKey::class, 'room_id', 'id');
+    }
+
     public function images(): HasMany
     {
         return $this->hasMany(RoomImage::class);

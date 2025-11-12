@@ -18,9 +18,9 @@ return [
      * Only relevant if you're using the domain or subdomain identification middleware.
      */
     'central_domains' => [
-        // 'nexusflow.co.za', // for project nexusflow.co.za in production
-        // 'www.nexusflow.co.za', // for project www.nexusflow.co.za in production
-        'ubixcentral.local',
+        'nexusflow.ubix.co.za', // production central domain
+        'www.nexusflow.ubix.co.za', // www variant
+        'ubixcentral.local', // local development
         'localhost', // for local development
         '127.0.0.1', // for local development
     ],

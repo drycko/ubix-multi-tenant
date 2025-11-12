@@ -27,12 +27,19 @@ return Application::configure(basePath: dirname(__DIR__))
             // 'property.access', // Add the PropertyAccessMiddleware to API routes
             // 'identify.property', // Add the IdentifyPropertyMiddleware to API routes
         ]);
-        $middleware->web([
-            // other middlewares
+        $middleware->web(prepend: [
+            // \App\Http\Middleware\ConfigureTenantSession::class, // DISABLED - was causing session recreation
+            \App\Http\Middleware\RefreshPermissionCache::class, // Refresh permission cache per request
         ]);
         
         $middleware->priority([
+            // \App\Http\Middleware\ConfigureTenantSession::class, // DISABLED
             \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+            \App\Http\Middleware\RefreshPermissionCache::class, // After session is started
             // other middlewares
         ]);
 
@@ -44,6 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'auth' => \App\Http\Middleware\Authenticate::class,
+            'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
             'auth:sanctum' => \Laravel\Sanctum\Http\Middleware\Authenticate::class,
             'must.change.password' => \App\Http\Middleware\CheckMustChangePassword::class,
             'subscription.check' => \App\Http\Middleware\CheckSubscriptionStatus::class,
@@ -52,5 +60,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Handle Tenant Not Found exceptions - redirect to central domain
+        $exceptions->render(function (\Stancl\Tenancy\Exceptions\TenantCouldNotBeIdentifiedOnDomainException $e) {
+            return redirect('https://ubix.co.za/?error=tenant_not_found');
+        });
     })->create();

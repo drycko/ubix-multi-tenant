@@ -79,10 +79,18 @@ class TenancyServiceProvider extends ServiceProvider
 
             Events\BootstrappingTenancy::class => [],
             Events\TenancyBootstrapped::class => [
-                // we will add spatie here
+                // Clear Spatie permission cache when tenancy is bootstrapped
+                function () {
+                    app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+                },
             ],
             Events\RevertingToCentralContext::class => [],
-            Events\RevertedToCentralContext::class => [],
+            Events\RevertedToCentralContext::class => [
+                // Clear Spatie permission cache when reverting to central context
+                function () {
+                    app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+                },
+            ],
 
             // Resource syncing
             Events\SyncedResourceSaved::class => [

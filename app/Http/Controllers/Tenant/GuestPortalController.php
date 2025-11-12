@@ -19,6 +19,7 @@ use App\Traits\LogsTenantUserActivity;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 
+
 class GuestPortalController extends Controller
 {
   use LogsTenantUserActivity;
@@ -33,14 +34,92 @@ class GuestPortalController extends Controller
   {
       return session('guest_id') ? Guest::find(session('guest_id')) : null;
   }
-  // Show guest portal dashboard
+  
+  // Show guest portal dashboard with comprehensive booking management
   public function dashboard(Request $request)
   {
-    // Show available rooms, bookings, and guest actions
     $guest = $this->getGuest();
-    $bookings = $guest ? $guest->bookings : [];
-    $clubs = $guest ? $guest->clubs : [];
-    return view('tenant.guest-portal.dashboard', compact('guest', 'bookings', 'clubs'));
+    
+    if (!$guest) {
+      return redirect()->route('tenant.guest-portal.login');
+    }
+
+    // Get all bookings with related data
+    $allBookings = Booking::whereHas('guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->with(['room.type', 'property', 'invoices.invoicePayments', 'guests'])
+      ->orderBy('created_at', 'desc')
+      ->get();
+
+    // Categorize bookings
+    $upcomingBookings = $allBookings->filter(function($booking) {
+      return $booking->status === 'confirmed' && 
+             $booking->arrival_date > now();
+    });
+
+    $currentBookings = $allBookings->filter(function($booking) {
+      return $booking->status === 'checked_in';
+    });
+
+    $pastBookings = $allBookings->filter(function($booking) {
+      return in_array($booking->status, ['checked_out', 'completed']);
+    });
+
+    // Quick stats
+    $stats = [
+      'total_bookings' => $allBookings->count(),
+      'upcoming' => $upcomingBookings->count(),
+      'current' => $currentBookings->count(),
+      'past' => $pastBookings->count(),
+      'pending_payments' => 0,
+      'total_spent' => 0,
+    ];
+
+    // Calculate financial stats
+    foreach ($allBookings as $booking) {
+      foreach ($booking->invoices as $invoice) {
+        $stats['total_spent'] += $invoice->total_paid;
+        if ($invoice->remaining_balance > 0) {
+          $stats['pending_payments'] += $invoice->remaining_balance;
+        }
+      }
+    }
+
+    // Get pending invoices
+    $pendingInvoices = \App\Models\Tenant\BookingInvoice::whereHas('booking.guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->whereIn('status', ['pending', 'partially_paid', 'overdue'])
+      ->with('booking.room', 'booking.property')
+      ->orderBy('created_at', 'desc')
+      ->take(5)
+      ->get();
+
+    // Get recent feedback
+    $recentFeedback = GuestFeedback::where('guest_id', $guest->id)
+      ->with('booking.room')
+      ->orderBy('submitted_at', 'desc')
+      ->take(3)
+      ->get();
+
+    // Get active digital keys
+    $activeKeys = DigitalKey::where('guest_id', $guest->id)
+      ->where('active', true)
+      ->where('expires_at', '>', now())
+      ->with('room', 'booking')
+      ->get();
+
+    return view('tenant.guest-portal.dashboard', compact(
+      'guest', 
+      'upcomingBookings', 
+      'currentBookings', 
+      'pastBookings',
+      'stats',
+      'pendingInvoices',
+      'recentFeedback',
+      'activeKeys'
+    ));
   }
   
   // landing page
@@ -222,13 +301,9 @@ class GuestPortalController extends Controller
       
       $validated = $request->validate([
         'room_id' => 'required|exists:rooms,id',
-        // 'guest_id' => 'required|exists:guests,id',
         'arrival_date' => 'required|date|after_or_equal:today',
         'departure_date' => 'required|date|after:arrival_date',
-        // 'adults' => 'required|integer|min:1',
         'children' => 'sometimes|integer|min:0',
-        // 'daily_rate' => 'nullable|numeric|min:0',
-        // 'special_requests' => 'sometimes|string|max:500',
         'source' => 'sometimes|in:website,walk_in,phone,agent,legacy,inhouse',
         'is_shared' => 'sometimes|boolean',
         'package_id' => 'sometimes|exists:packages,id',
@@ -582,7 +657,12 @@ class GuestPortalController extends Controller
   // Show login form
   public function showLoginForm()
   {
-    return view('tenant.guest-portal.login');
+    // if already logged in, redirect to dashboard
+    $guest = $this->getGuest();
+    if ($guest) {
+      return redirect()->route('tenant.guest-portal.dashboard');
+    }
+    return view('tenant.guest-portal.login', compact('guest'));
   }
 
   public function sendLoginLink(Request $request)
@@ -618,6 +698,351 @@ class GuestPortalController extends Controller
     // Authenticate as this guest
     session(['guest_id' => $guest->id]);
     return redirect()->route('tenant.guest-portal.dashboard');
+  }
+
+  // Show all bookings for the guest
+  public function myBookings(Request $request)
+  {
+    $guest = $this->getGuest();
+    
+    if (!$guest) {
+      return redirect()->route('tenant.guest-portal.login');
+    }
+
+    $filter = $request->get('filter', 'all'); // all, upcoming, current, past
+
+    $query = Booking::whereHas('guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->with(['room.type', 'property', 'invoices', 'guests']);
+
+    // Apply filters
+    switch ($filter) {
+      case 'upcoming':
+        $query->where('status', 'confirmed')
+              ->where('arrival_date', '>', now());
+        break;
+      case 'current':
+        $query->where('status', 'checked_in');
+        break;
+      case 'past':
+        $query->whereIn('status', ['checked_out', 'completed']);
+        break;
+      case 'cancelled':
+        $query->where('status', 'cancelled');
+        break;
+    }
+
+    $bookings = $query->orderBy('created_at', 'desc')->paginate(10);
+
+    return view('tenant.guest-portal.bookings', compact('guest', 'bookings', 'filter'));
+  }
+
+  // Show individual booking details
+  public function showBooking($id)
+  {
+    $guest = $this->getGuest();
+    
+    if (!$guest) {
+      return redirect()->route('tenant.guest-portal.login');
+    }
+
+    $booking = Booking::whereHas('guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->with([
+        'room.type', 
+        'property', 
+        'invoices.invoicePayments',
+        'bookingGuests.guest',
+        'package',
+        'digitalKeys' => function($q) {
+          $q->where('active', true);
+        }
+      ])
+      ->findOrFail($id);
+
+    // Check if guest can leave review (checked out and no existing feedback)
+    $canReview = $booking->status === 'checked_out' && 
+                 !GuestFeedback::where('booking_id', $booking->id)
+                               ->where('guest_id', $guest->id)
+                               ->exists();
+
+    // Check if can check-in (confirmed and arrival date is today or past)
+    $canCheckIn = $booking->status === 'confirmed' && 
+                  $booking->arrival_date <= now()->format('Y-m-d');
+
+    // Check if can check-out (checked in)
+    $canCheckOut = $booking->status === 'checked_in';
+
+    return view('tenant.guest-portal.booking-detail', compact(
+      'guest', 
+      'booking', 
+      'canReview', 
+      'canCheckIn', 
+      'canCheckOut'
+    ));
+  }
+
+  // Cancel a booking
+  public function cancelBooking($id)
+  {
+    $guest = $this->getGuest();
+    
+    if (!$guest) {
+      return redirect()->route('tenant.guest-portal.login');
+    }
+
+    $booking = Booking::whereHas('guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->findOrFail($id);
+
+    // Only allow cancellation if booking is pending or confirmed and arrival is in future
+    if (!in_array($booking->status, ['pending', 'confirmed']) || 
+        $booking->arrival_date <= now()->format('Y-m-d')) {
+      return back()->with('error', 'This booking cannot be cancelled.');
+    }
+
+    $booking->status = 'cancelled';
+    $booking->save();
+
+    // Update invoices to cancelled
+    foreach ($booking->invoices as $invoice) {
+      if ($invoice->status !== 'paid') {
+        $invoice->status = 'cancelled';
+        $invoice->save();
+      }
+    }
+
+    // Log activity
+    $this->logActivity(
+      'booking_cancelled',
+      "Guest {$guest->full_name} cancelled booking {$booking->bcode}",
+      $booking
+    );
+
+    // Send notification
+    $this->notificationService->sendNotification(
+      'booking_cancelled',
+      $booking,
+      ['guest' => $guest]
+    );
+
+    return redirect()
+      ->route('tenant.guest-portal.bookings')
+      ->with('success', 'Booking cancelled successfully.');
+  }
+
+  // Download booking information as PDF
+  public function downloadBookingInfo($id)
+  {
+    $guest = $this->getGuest();
+    
+    if (!$guest) {
+      return redirect()->route('tenant.guest-portal.login');
+    }
+
+    $booking = \App\Models\Tenant\Booking::whereHas('guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->with(['room.type', 'package', 'bookingGuests.guest', 'property'])
+      ->findOrFail($id);
+
+    // Prepare data for PDF
+    $property = current_property();
+    $currency = property_currency();
+
+    // Generate PDF from Blade view
+    $pdf = \PDF::loadView('tenant.bookings.room-info-pdf', compact('booking', 'property', 'currency'));
+    
+    return $pdf->download("booking-{$booking->bcode}.pdf");
+  }
+
+  // Show all invoices for the guest
+  public function myInvoices(Request $request)
+  {
+    $guest = $this->getGuest();
+    
+    if (!$guest) {
+      return redirect()->route('tenant.guest-portal.login');
+    }
+
+    $status = $request->get('status', 'all'); // all, pending, paid, overdue
+
+    $query = \App\Models\Tenant\BookingInvoice::whereHas('booking.guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->with(['booking.room', 'booking.property', 'invoicePayments']);
+
+    // Apply status filter
+    if ($status !== 'all') {
+      $query->where('status', $status);
+    }
+
+    $invoices = $query->orderBy('created_at', 'desc')->paginate(10);
+
+    return view('tenant.guest-portal.invoices', compact('guest', 'invoices', 'status'));
+  }
+
+  // View individual invoice
+  public function viewInvoice($id)
+  {
+    $guest = $this->getGuest();
+    
+    if (!$guest) {
+      return redirect()->route('tenant.guest-portal.login');
+    }
+
+    $bookingInvoice = \App\Models\Tenant\BookingInvoice::whereHas('booking.guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->with([
+        'booking.room.type',
+        'booking.package',
+        'booking.bookingGuests.guest',
+        'booking.property',
+        'tax'
+      ])
+      ->findOrFail($id);
+
+    // Prepare data similar to BookingInvoiceController::publicView
+    $property = current_property();
+    $currency = property_currency();
+    $bookingInvoice->taxes = $bookingInvoice->tax_breakdown;
+
+    $paymentMethods = \App\Models\Tenant\BookingInvoice::supportedGateways();
+    $defaultPaymentMethod = \App\Models\Tenant\BookingInvoice::defaultPaymentGateway() ?? config('payment.default_gateway');
+    
+    if ($defaultPaymentMethod && array_key_exists($defaultPaymentMethod, $paymentMethods)) {
+        $paymentMethod = [$defaultPaymentMethod => $paymentMethods[$defaultPaymentMethod]];
+        unset($paymentMethods[$defaultPaymentMethod]);
+        $paymentMethods = $paymentMethod + $paymentMethods;
+    } else {
+        $paymentMethods = \App\Models\Tenant\BookingInvoice::supportedGateways();
+    }
+    
+    // Generate PayFast form if needed
+    $payFastForm = app(\App\Services\Tenant\PayfastGatewayService::class)->buildPayfastForm($bookingInvoice);
+
+    return view('tenant.booking-invoices.public-view', compact('bookingInvoice', 'property', 'currency', 'defaultPaymentMethod', 'payFastForm'));
+  }
+
+  // Download invoice as PDF
+  public function downloadInvoice($id)
+  {
+    $guest = $this->getGuest();
+    
+    if (!$guest) {
+      return redirect()->route('tenant.guest-portal.login');
+    }
+
+    $bookingInvoice = \App\Models\Tenant\BookingInvoice::whereHas('booking.guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->with([
+        'booking.room.type',
+        'booking.package',
+        'booking.bookingGuests.guest',
+        'booking.property',
+        'tax'
+      ])
+      ->findOrFail($id);
+
+    // Prepare data for PDF
+    $property = current_property();
+    $currency = property_currency();
+    $bookingInvoice->taxes = $bookingInvoice->tax_breakdown;
+
+    $pdf = \PDF::loadView('tenant.booking-invoices.pdf', compact('bookingInvoice', 'property', 'currency'));
+    
+    return $pdf->download("invoice-{$bookingInvoice->invoice_number}.pdf");
+  }
+
+  // Show review form
+  public function showReviewForm($id)
+  {
+    $guest = $this->getGuest();
+    
+    if (!$guest) {
+      return redirect()->route('tenant.guest-portal.login');
+    }
+
+    $booking = Booking::whereHas('guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->with(['room.type', 'property'])
+      ->findOrFail($id);
+
+    // Only allow review if checked out and no existing feedback
+    if ($booking->status !== 'checked_out') {
+      return back()->with('error', 'You can only review after checkout.');
+    }
+
+    $existingReview = GuestFeedback::where('booking_id', $booking->id)
+                                   ->where('guest_id', $guest->id)
+                                   ->first();
+
+    if ($existingReview) {
+      return back()->with('error', 'You have already reviewed this booking.');
+    }
+
+    return view('tenant.guest-portal.review', compact('guest', 'booking'));
+  }
+
+  // Submit review
+  public function submitReview(Request $request, $id)
+  {
+    $guest = $this->getGuest();
+    
+    if (!$guest) {
+      return redirect()->route('tenant.guest-portal.login');
+    }
+
+    $request->validate([
+      'rating' => 'required|integer|min:1|max:5',
+      'feedback' => 'required|string|max:1000',
+    ]);
+
+    $booking = Booking::whereHas('guests', function($q) use ($guest) {
+        $q->where('guest_id', $guest->id);
+      })
+      ->findOrFail($id);
+
+    // Only allow review if checked out
+    if ($booking->status !== 'checked_out') {
+      return back()->with('error', 'You can only review after checkout.');
+    }
+
+    // Check if already reviewed
+    $existingReview = GuestFeedback::where('booking_id', $booking->id)
+                                   ->where('guest_id', $guest->id)
+                                   ->first();
+
+    if ($existingReview) {
+      return back()->with('error', 'You have already reviewed this booking.');
+    }
+
+    // Create feedback
+    GuestFeedback::create([
+      'booking_id' => $booking->id,
+      'guest_id' => $guest->id,
+      'rating' => $request->rating,
+      'feedback' => $request->feedback,
+      'status' => 'pending',
+      'submitted_at' => now(),
+    ]);
+
+    // Log activity
+    $this->logActivity(
+      'review_submitted',
+      "Guest {$guest->full_name} submitted review for booking {$booking->bcode}",
+      $booking
+    );
+
+    return redirect()
+      ->route('tenant.guest-portal.bookings.show', $booking->id)
+      ->with('success', 'Thank you for your review!');
   }
 
   public function logout()

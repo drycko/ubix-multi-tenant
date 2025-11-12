@@ -33,8 +33,9 @@ class CheckSubscriptionStatus
                     ], 403);
                 }
 
-                return redirect()->route('portal.dashboard')
-                    ->with('error', $tenant->getSubscriptionStatusMessage());
+                // Redirect to tenant error page with subscription message
+                return redirect()->route('tenant.error')
+                    ->with('error', $tenant->getSubscriptionStatusMessage() . ' Please contact your administrator or visit the billing portal.');
             }
 
             // In grace period - show warning
@@ -69,7 +70,13 @@ class CheckSubscriptionStatus
         if ($subscription) {
             $daysRemaining = now()->diffInDays($subscription->end_date, false);
             
-            if ($daysRemaining > 0 && $daysRemaining <= 7) {
+            // Check if on trial
+            if ($tenant->isOnTrial()) {
+                $trialDays = $tenant->getTrialDaysRemaining();
+                if ($trialDays !== null && $trialDays <= 7) {
+                    session()->flash('info', "Your trial expires in {$trialDays} day(s). Please subscribe to continue using the service after the trial period.");
+                }
+            } elseif ($daysRemaining > 0 && $daysRemaining <= 7) {
                 session()->flash('info', "Your subscription expires in {$daysRemaining} day(s). Please renew soon.");
             }
         }

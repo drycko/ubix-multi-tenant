@@ -10,7 +10,7 @@
     <!--begin::Row-->
     <div class="row">
       <div class="col-sm-6">
-        <h3 class="mb-0">
+        <h3 class="mb-0 text-muted">
           <i class="fas fa-user"></i> User Details
         </h3>
       </div>
@@ -68,14 +68,14 @@
             <img src="{{ $user->profile_photo_url }}" alt="{{ $user->name }}" 
                  class="rounded-circle me-3" width="60" height="60">
             <div>
-              <h5 class="card-title mb-0">
+              <h5 class="card-title mb-0 text-muted">
                 {{ $user->name }}
                 @if($user->is_active)
                   <span class="badge bg-success ms-2">Active</span>
                 @else
                   <span class="badge bg-danger ms-2">Inactive</span>
                 @endif
-              </h5>
+              </h5><br>
               <small class="text-muted">{{ $user->email }}</small>
             </div>
           </div>
@@ -83,12 +83,18 @@
             <a href="{{ route('tenant.users.edit', $user) }}" class="btn btn-warning">
               <i class="fas fa-edit me-1"></i>Edit
             </a>
-            @if($user->id !== auth()->id())
             <div class="btn-group" role="group">
               <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-cog me-1"></i>Actions
               </button>
               <ul class="dropdown-menu">
+                <li>
+                  <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#sendWelcomeEmailModal">
+                    <i class="fas fa-envelope me-2"></i>Resend Welcome Email
+                  </button>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                @if($user->id !== auth()->id())
                 <li>
                   <form action="{{ route('tenant.users.toggle-status', $user) }}" method="POST" class="d-inline">
                     @csrf
@@ -108,214 +114,216 @@
                     </button>
                   </form>
                 </li>
+                @endif
               </ul>
             </div>
-            @endif
             <a href="{{ route('tenant.users.index') }}" class="btn btn-outline-secondary">
               <i class="fas fa-arrow-left me-1"></i>Back to List
             </a>
           </div>
         </div>
       </div>
-    </div>
-    
-    <div class="row">
-      <!-- User Information -->
-      <div class="col-md-6">
-        <div class="card card-info card-outline mb-4">
-          <div class="card-header">
-            <h5 class="card-title mb-0">
-              <i class="fas fa-user me-2"></i>Personal Information
-            </h5>
-          </div>
-          <div class="card-body">
-            <dl class="row">
-              <dt class="col-sm-4">Full Name:</dt>
-              <dd class="col-sm-8">{{ $user->name }}</dd>
-
-              <dt class="col-sm-4">Email:</dt>
-              <dd class="col-sm-8">
-                <a href="mailto:{{ $user->email }}">{{ $user->email }}</a>
-              </dd>
-
-              @if($user->phone)
-              <dt class="col-sm-4">Phone:</dt>
-              <dd class="col-sm-8">
-                <a href="tel:{{ $user->phone }}">{{ $user->phone }}</a>
-              </dd>
-              @endif
-
-              @if($user->address)
-              <dt class="col-sm-4">Address:</dt>
-              <dd class="col-sm-8">{{ $user->address }}</dd>
-              @endif
-
-              @if($user->position)
-              <dt class="col-sm-4">Position:</dt>
-              <dd class="col-sm-8">{{ $user->position }}</dd>
-              @endif
-
-              <dt class="col-sm-4">Account Status:</dt>
-              <dd class="col-sm-8">
-                @if($user->is_active)
-                  <span class="badge bg-success">Active</span>
-                @else
-                  <span class="badge bg-danger">Inactive</span>
-                @endif
-              </dd>
-
-              <dt class="col-sm-4">Created:</dt>
-              <dd class="col-sm-8">
-                {{ $user->created_at->format('M d, Y \a\t g:i A') }}
-                <small class="text-muted d-block">{{ $user->created_at->diffForHumans() }}</small>
-              </dd>
-
-              <dt class="col-sm-4">Last Updated:</dt>
-              <dd class="col-sm-8">
-                {{ $user->updated_at->format('M d, Y \a\t g:i A') }}
-                <small class="text-muted d-block">{{ $user->updated_at->diffForHumans() }}</small>
-              </dd>
-            </dl>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Access & Role Information -->
-      <div class="col-md-6">
-        <div class="card card-warning card-outline mb-4">
-          <div class="card-header">
-            <h5 class="card-title mb-0">
-              <i class="fas fa-key me-2"></i>Access & Permissions
-            </h5>
-          </div>
-          <div class="card-body">
-            <dl class="row">
-              <dt class="col-sm-4">Property:</dt>
-              <dd class="col-sm-8">
-                @if($user->property)
-                  <span class="badge bg-info">{{ $user->property->name }}</span>
-                @else
-                  <span class="text-muted">No Property Assigned</span>
-                @endif
-              </dd>
-
-              <dt class="col-sm-4">Role:</dt>
-              <dd class="col-sm-8">
-                @php
-                  $roleColors = [
-                    'super-user' => 'danger',
-                    'super-manager' => 'warning',
-                    'property-admin' => 'primary',
-                    'manager' => 'success',
-                    'receptionist' => 'info',
-                    'housekeeping' => 'secondary',
-                    'accountant' => 'dark',
-                    'support' => 'light',
-                    'guest' => 'outline-secondary'
-                  ];
-                  $roleColor = $roleColors[$user->role] ?? 'secondary';
-                @endphp
-                <span class="badge bg-{{ $roleColor }}">
-                  {{ ucfirst(str_replace('-', ' ', $user->role)) }}
-                </span>
-              </dd>
-
-              <dt class="col-sm-4">Permissions:</dt>
-              <dd class="col-sm-8">
-                @php
-                  $roleDescriptions = [
-                    'super-user' => 'Complete system access across all properties',
-                    'super-manager' => 'Multi-property management capabilities',
-                    'property-admin' => 'Full access to assigned property',
-                    'manager' => 'Property operations and staff management',
-                    'receptionist' => 'Guest services and booking management',
-                    'housekeeping' => 'Room maintenance and cleaning schedules',
-                    'accountant' => 'Financial records and reporting',
-                    'support' => 'Customer support and basic operations',
-                    'guest' => 'Limited guest portal access'
-                  ];
-                  $description = $roleDescriptions[$user->role] ?? 'Standard user access';
-                @endphp
-                <small class="text-muted">{{ $description }}</small>
-              </dd>
-
-              @if($user->email_verified_at)
-              <dt class="col-sm-4">Email Verified:</dt>
-              <dd class="col-sm-8">
-                <span class="badge bg-success">Verified</span>
-                <small class="text-muted d-block">{{ $user->email_verified_at->format('M d, Y') }}</small>
-              </dd>
-              @else
-              <dt class="col-sm-4">Email Verified:</dt>
-              <dd class="col-sm-8">
-                <span class="badge bg-warning">Pending</span>
-              </dd>
-              @endif
-            </dl>
-          </div>
-          <div class="card-footer">
-            <div class="btn-group" role="group">
-              
-              <a href="{{ route('tenant.users.edit', $user) }}" class="btn btn-warning">
-                <i class="fas fa-edit me-1"></i>Edit User
-              </a>
-              @if($user->id !== auth()->id())
-              <form action="{{ route('tenant.users.destroy', $user) }}" method="POST" class="d-inline">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this user?')">
-                  <i class="fas fa-trash me-1"></i>Delete User
-                </button>
-              </form>
-              @endif
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Activity Summary -->
-    <div class="card card-success card-outline mb-4">
-      <div class="card-header">
-        <h5 class="card-title mb-0">
-          <i class="fas fa-chart-line me-2"></i>Activity Summary
-        </h5>
-      </div>
       <div class="card-body">
-        <div class="row text-center">
-          <div class="col-md-3">
-            <div class="card ">
+        {{-- <p class="mb-0">Detailed information and activity summary for user <strong>{{ $user->name }}</strong>.</p> --}}
+        <div class="row">
+          <!-- User Information -->
+          <div class="col-md-6">
+            <div class="card card-info card-outline mb-4">
+              <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="fas fa-user me-2"></i>Personal Information
+                </h5>
+              </div>
               <div class="card-body">
-                <i class="fas fa-calendar-check fa-2x text-primary mb-2"></i>
-                <h4 class="mb-0">{{ $user->bookingsCount() ?? 0 }}</h4>
-                <small class="text-muted">Bookings Created</small>
+                <dl class="row">
+                  <dt class="col-sm-4">Full Name:</dt>
+                  <dd class="col-sm-8">{{ $user->name }}</dd>
+
+                  <dt class="col-sm-4">Email:</dt>
+                  <dd class="col-sm-8">
+                    <a href="mailto:{{ $user->email }}">{{ $user->email }}</a>
+                  </dd>
+
+                  @if($user->phone)
+                  <dt class="col-sm-4">Phone:</dt>
+                  <dd class="col-sm-8">
+                    <a href="tel:{{ $user->phone }}">{{ $user->phone }}</a>
+                  </dd>
+                  @endif
+
+                  @if($user->address)
+                  <dt class="col-sm-4">Address:</dt>
+                  <dd class="col-sm-8">{{ $user->address }}</dd>
+                  @endif
+
+                  @if($user->position)
+                  <dt class="col-sm-4">Position:</dt>
+                  <dd class="col-sm-8">{{ $user->position }}</dd>
+                  @endif
+
+                  <dt class="col-sm-4">Account Status:</dt>
+                  <dd class="col-sm-8">
+                    @if($user->is_active)
+                      <span class="badge bg-success">Active</span>
+                    @else
+                      <span class="badge bg-danger">Inactive</span>
+                    @endif
+                  </dd>
+
+                  <dt class="col-sm-4">Created:</dt>
+                  <dd class="col-sm-8">
+                    {{ $user->created_at->format('M d, Y \a\t g:i A') }}
+                    <small class="text-muted d-block">{{ $user->created_at->diffForHumans() }}</small>
+                  </dd>
+
+                  <dt class="col-sm-4">Last Updated:</dt>
+                  <dd class="col-sm-8">
+                    {{ $user->updated_at->format('M d, Y \a\t g:i A') }}
+                    <small class="text-muted d-block">{{ $user->updated_at->diffForHumans() }}</small>
+                  </dd>
+                </dl>
               </div>
             </div>
           </div>
-          <div class="col-md-3">
-            <div class="card ">
+          
+          <!-- Access & Role Information -->
+          <div class="col-md-6">
+            <div class="card card-warning card-outline mb-4">
+              <div class="card-header">
+                <h5 class="card-title mb-0">
+                  <i class="fas fa-key me-2"></i>Access & Permissions
+                </h5>
+              </div>
               <div class="card-body">
-                <i class="fas fa-exchange-alt fa-2x text-warning mb-2"></i>
-                <h4 class="mb-0">{{ $user->activityLogs->count() ?? 0 }}</h4>
-                <small class="text-muted">Activity Logs</small>
+                <dl class="row">
+                  <dt class="col-sm-4">Property:</dt>
+                  <dd class="col-sm-8">
+                    @if($user->property)
+                      <span class="badge bg-info">{{ $user->property->name }}</span>
+                    @else
+                      <span class="text-muted">No Property Assigned</span>
+                    @endif
+                  </dd>
+
+                  <dt class="col-sm-4">Role:</dt>
+                  <dd class="col-sm-8">
+                    @php
+                      $roleColors = [
+                        'super-user' => 'danger',
+                        'super-manager' => 'warning',
+                        'property-admin' => 'primary',
+                        'manager' => 'success',
+                        'receptionist' => 'info',
+                        'housekeeping' => 'secondary',
+                        'accountant' => 'dark',
+                        'support' => 'light',
+                        'guest' => 'outline-secondary'
+                      ];
+                      $roleColor = $roleColors[$user->role] ?? 'secondary';
+                    @endphp
+                    <span class="badge bg-{{ $roleColor }}">
+                      {{ ucfirst(str_replace('-', ' ', $user->role)) }}
+                    </span>
+                  </dd>
+
+                  <dt class="col-sm-4">Permissions:</dt>
+                  <dd class="col-sm-8">
+                    @php
+                      $roleDescriptions = [
+                        'super-user' => 'Complete system access across all properties',
+                        'super-manager' => 'Multi-property management capabilities',
+                        'property-admin' => 'Full access to assigned property',
+                        'manager' => 'Property operations and staff management',
+                        'receptionist' => 'Guest services and booking management',
+                        'housekeeping' => 'Room maintenance and cleaning schedules',
+                        'accountant' => 'Financial records and reporting',
+                        'support' => 'Customer support and basic operations',
+                        'guest' => 'Limited guest portal access'
+                      ];
+                      $description = $roleDescriptions[$user->role] ?? 'Standard user access';
+                    @endphp
+                    <small class="text-muted">{{ $description }}</small>
+                  </dd>
+
+                  @if($user->email_verified_at)
+                  <dt class="col-sm-4">Email Verified:</dt>
+                  <dd class="col-sm-8">
+                    <span class="badge bg-success">Verified</span>
+                    <small class="text-muted d-block">{{ $user->email_verified_at->format('M d, Y') }}</small>
+                  </dd>
+                  @else
+                  <dt class="col-sm-4">Email Verified:</dt>
+                  <dd class="col-sm-8">
+                    <span class="badge bg-warning">Pending</span>
+                  </dd>
+                  @endif
+                </dl>
+              </div>
+              <div class="card-footer">
+                <div class="btn-group" role="group">
+                  
+                  <a href="{{ route('tenant.users.edit', $user) }}" class="btn btn-warning">
+                    <i class="fas fa-edit me-1"></i>Edit User
+                  </a>
+                  @if($user->id !== auth()->id())
+                  <form action="{{ route('tenant.users.destroy', $user) }}" method="POST" class="d-inline">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this user?')">
+                      <i class="fas fa-trash me-1"></i>Delete User
+                    </button>
+                  </form>
+                  @endif
+                </div>
               </div>
             </div>
           </div>
-          <div class="col-md-3">
-            <div class="card ">
-              <div class="card-body">
-                <i class="fas fa-clock fa-2x text-info mb-2"></i>
-                <h4 class="mb-0">{{ round($user->created_at->diffInDays(now())) }}</h4>
-                <small class="text-muted">Days Since Joined</small>
-              </div>
-            </div>
+        </div>
+
+        <!-- Activity Summary -->
+        <div class="card card-success card-outline mb-4">
+          <div class="card-header">
+            <h5 class="card-title mb-0">
+              <i class="fas fa-chart-line me-2"></i>Activity Summary
+            </h5>
           </div>
-          <div class="col-md-3">
-            <div class="card ">
-              <div class="card-body">
-                <i class="fas fa-sign-in-alt fa-2x text-success mb-2"></i>
-                <h4 class="mb-0">-</h4>
-                <small class="text-muted">Last Login</small>
+          <div class="card-body">
+            <div class="row text-center">
+              <div class="col-md-3">
+                <div class="card ">
+                  <div class="card-body">
+                    <i class="fas fa-calendar-check fa-2x text-primary mb-2"></i>
+                    <h4 class="mb-0">{{ $user->bookingsCount() ?? 0 }}</h4>
+                    <small class="text-muted">Bookings Created</small>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="card ">
+                  <div class="card-body">
+                    <i class="fas fa-exchange-alt fa-2x text-warning mb-2"></i>
+                    <h4 class="mb-0">{{ $user->activityLogs->count() ?? 0 }}</h4>
+                    <small class="text-muted">Activity Logs</small>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="card ">
+                  <div class="card-body">
+                    <i class="fas fa-clock fa-2x text-info mb-2"></i>
+                    <h4 class="mb-0">{{ round($user->created_at->diffInDays(now())) }}</h4>
+                    <small class="text-muted">Days Since Joined</small>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="card ">
+                  <div class="card-body">
+                    <i class="fas fa-sign-in-alt fa-2x text-success mb-2"></i>
+                    <h4 class="mb-0">-</h4>
+                    <small class="text-muted">Last Login</small>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -340,7 +348,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <form action="{{ route('tenant.users.send-welcome-email', $user) }}" method="POST" class="d-inline">
+        <form action="{{ route('tenant.users.resend-welcome-email', $user) }}" method="POST" class="d-inline">
           @csrf
           <button type="submit" class="btn btn-primary">Send Email</button>
         </form>

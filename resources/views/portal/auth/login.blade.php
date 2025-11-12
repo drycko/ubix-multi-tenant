@@ -154,7 +154,7 @@
         
         <div class="text-center text-muted small">
           <p class="mb-1">Need help? Contact your administrator</p>
-          <a href="{{ route('home') }}" class="text-decoration-none">
+          <a href="https://ubix.co.za" class="text-decoration-none">
             <i class="fas fa-arrow-left me-1"></i> Back to main site
           </a>
         </div>

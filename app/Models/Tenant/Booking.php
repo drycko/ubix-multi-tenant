@@ -95,6 +95,11 @@ class Booking extends Model
         return $this->belongsTo(Package::class, 'package_id', 'id');
     }
 
+    public function digitalKeys(): HasMany
+    {
+        return $this->hasMany(DigitalKey::class, 'booking_id', 'id');
+    }
+
     public function guests(): HasManyThrough
     {
         return $this->hasManyThrough(Guest::class, BookingGuest::class, 'booking_id', 'id', 'id', 'guest_id');

@@ -21,7 +21,7 @@ class ChangePasswordController extends Controller
             return redirect()->route('tenant.dashboard');
         }
         
-        return view('tenant.auth.change-password');
+        return view('tenant.auth.passwords.change');
     }
 
     /**

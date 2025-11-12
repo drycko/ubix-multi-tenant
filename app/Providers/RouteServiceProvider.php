@@ -20,7 +20,7 @@ class RouteServiceProvider extends ServiceProvider
      * @var string
      */
     public const HOME = '/home';
-    public const TENANT_HOME = '/guest';
+    public const TENANT_HOME = '/t/dashboard';
     public const PORTAL_HOME = '/p/dashboard';
 
     /**

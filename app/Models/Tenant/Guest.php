@@ -57,6 +57,11 @@ class Guest extends Model
         return $this->hasMany(BookingGuest::class);
     }
 
+    public function digitalKeys(): HasMany
+    {
+        return $this->hasMany(DigitalKey::class, 'guest_id', 'id');
+    }
+
     public function guestClubMembers(): HasMany
     {
         return $this->hasMany(GuestClubMember::class);

@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use App\Services\PaygateGatewayService;
+use App\Services\Tenant\PaygateGatewayService;
 use App\Services\GatewayCredentials\TenantCredentialFactory;
 use App\Services\Tenant\NotificationService;
 use App\Traits\LogsTenantUserActivity;

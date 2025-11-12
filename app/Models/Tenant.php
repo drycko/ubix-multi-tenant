@@ -226,7 +226,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
      */
     protected function setupTenantDomain($tenant): void
     {
-        $centralDomain = config('tenancy.central_domains')[0] ?? 'ubixcentral.local';
+        $centralDomain = config('app.base_domain') ?? config('tenancy.central_domains')[0] ?? 'ubixcentral.local';
 
         \Log::debug('Setting up tenant domain...');
 
@@ -318,7 +318,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public function hasActiveSubscription(): bool
     {
         return $this->subscriptions()
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'trial'])
             ->where('end_date', '>=', now())
             ->exists();
     }
@@ -329,7 +329,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public function getActiveSubscription()
     {
         return $this->subscriptions()
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'trial'])
             ->where('end_date', '>=', now())
             ->with('plan')
             ->first();
@@ -357,6 +357,36 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         return $this->invoices()
             ->whereIn('status', ['pending', 'overdue'])
             ->exists();
+    }
+
+    /**
+     * Check if tenant is on a trial subscription.
+     */
+    public function isOnTrial(): bool
+    {
+        return $this->subscriptions()
+            ->where('status', 'trial')
+            ->where('end_date', '>=', now())
+            ->exists();
+    }
+
+    /**
+     * Get trial days remaining.
+     * 
+     * @return int|null Days remaining in trial, or null if not on trial
+     */
+    public function getTrialDaysRemaining(): ?int
+    {
+        $trialSubscription = $this->subscriptions()
+            ->where('status', 'trial')
+            ->where('end_date', '>=', now())
+            ->first();
+
+        if (!$trialSubscription) {
+            return null;
+        }
+
+        return (int) now()->diffInDays($trialSubscription->end_date, false);
     }
 
     /**
@@ -464,6 +494,17 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 
         $subscription = $this->getActiveSubscription();
         $daysRemaining = now()->diffInDays($subscription->end_date, false);
+
+        // Check if on trial
+        if ($this->isOnTrial()) {
+            $trialDays = $this->getTrialDaysRemaining();
+            if ($trialDays !== null) {
+                if ($trialDays <= 7 && $trialDays > 0) {
+                    return "Your trial expires in {$trialDays} day(s). Please subscribe to continue using the service.";
+                }
+                return "You are on a trial subscription.";
+            }
+        }
 
         if ($daysRemaining <= 7 && $daysRemaining > 0) {
             return "Your subscription expires in {$daysRemaining} day(s). Please renew soon to avoid service interruption.";

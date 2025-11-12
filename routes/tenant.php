@@ -94,8 +94,8 @@ Route::middleware([
     Route::get('booking-invoices/{bookingInvoice}/guest', [BookingInvoiceController::class, 'publicView'])->name('tenant.booking-invoices.public-view');
 
     // landing page
-    Route::get('/index', [GuestPortalController::class, 'index'])->name('tenant.guest-portal.index');
-    Route::post('/index', [GuestPortalController::class, 'landingSearch'])->name('tenant.guest-portal.index.post');
+    Route::get('/home', [GuestPortalController::class, 'index'])->name('tenant.guest-portal.index');
+    Route::post('/home', [GuestPortalController::class, 'landingSearch'])->name('tenant.guest-portal.index.post');
 
     // this exposes the error page for guest portal
    Route::get('/error/{errorCode}', [GuestPortalController::class, 'showErrorPage'])->name('tenant.guest-portal.error');
@@ -114,12 +114,33 @@ Route::middleware([
 
         Route::prefix('/portal')->middleware('guest.portal')->group(function () {
             Route::get('/', [GuestPortalController::class, 'dashboard'])->name('tenant.guest-portal.dashboard');
+            
+            // Booking Management
+            Route::get('/bookings', [GuestPortalController::class, 'myBookings'])->name('tenant.guest-portal.bookings');
+            Route::get('/bookings/{booking}', [GuestPortalController::class, 'showBooking'])->name('tenant.guest-portal.bookings.show');
+            Route::get('/bookings/{booking}/download', [GuestPortalController::class, 'downloadBookingInfo'])->name('tenant.guest-portal.bookings.download');
+            Route::post('/bookings/{booking}/cancel', [GuestPortalController::class, 'cancelBooking'])->name('tenant.guest-portal.bookings.cancel');
+            
+            // Invoice Management
+            Route::get('/invoices', [GuestPortalController::class, 'myInvoices'])->name('tenant.guest-portal.invoices');
+            Route::get('/invoices/{invoice}', [GuestPortalController::class, 'viewInvoice'])->name('tenant.guest-portal.invoices.show');
+            Route::get('/invoices/{invoice}/download', [GuestPortalController::class, 'downloadInvoice'])->name('tenant.guest-portal.invoices.download');
+            
+            // Check-in/Check-out
             Route::get('/checkin', [SelfCheckInController::class, 'index'])->name('tenant.guest-portal.checkin');
             Route::post('/checkin/{booking}', [SelfCheckInController::class, 'checkIn'])->name('tenant.guest-portal.checkin.submit');
             Route::post('/checkout/{booking}', [SelfCheckInController::class, 'checkOut'])->name('tenant.guest-portal.checkout.submit');
+            
+            // Reviews & Feedback
+            Route::get('/bookings/{booking}/review', [GuestPortalController::class, 'showReviewForm'])->name('tenant.guest-portal.bookings.review');
+            Route::post('/bookings/{booking}/review', [GuestPortalController::class, 'submitReview'])->name('tenant.guest-portal.bookings.review.submit');
+            
+            // Requests
             Route::get('/requests', [GuestRequestController::class, 'index'])->name('tenant.guest-portal.requests');
             Route::post('/requests', [GuestRequestController::class, 'store'])->name('tenant.guest-portal.requests.store');
             Route::post('/feedback', [GuestRequestController::class, 'storeFeedback'])->name('tenant.guest-portal.feedback.store');
+            
+            // Digital Keys
             Route::get('/keys', [DigitalKeyController::class, 'index'])->name('tenant.guest-portal.keys');
             Route::post('/keys/{key}/deactivate', [DigitalKeyController::class, 'deactivate'])->name('tenant.guest-portal.keys.deactivate');
         });
@@ -141,14 +162,17 @@ Route::middleware([
         Route::post('/paygate', [TenantSettingController::class, 'updatePaygate'])->name('paygate.update');
     });
 
+    // Error route - requires auth but NOT subscription check (to avoid redirect loops)
+    Route::prefix('/t')->middleware(['auth:tenant'])->group(function () {
+        Route::get('/error', [DashboardController::class, 'errorPage'])->name('tenant.error');
+    });
+
     // Protected routes with property context (prefixed 't' for tenant)
     Route::prefix('/t')->middleware(['auth:tenant', 'must.change.password', 'property.selector', 'subscription.check'])->group(function () {
         // redirect to dashboard
         Route::get('/', function () {
             return redirect()->route('tenant.dashboard');
         });
-        // error route
-        Route::get('/error', [DashboardController::class, 'error'])->name('tenant.error');
         // can we redirect page not found to 404 error page to custom
         Route::fallback(function () {
             return redirect()->route('tenant.error')->with('error', 'The page you are looking for does not exist.');
@@ -394,6 +418,9 @@ Route::middleware([
         Route::put('users/{user}', [UserController::class, 'update'])->name('tenant.users.update');
         Route::delete('users/{user}', [UserController::class, 'destroy'])->name('tenant.users.destroy');
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('tenant.users.toggle-status');
+
+        // resend welcome email
+        Route::post('users/{user}/resend-welcome-email', [UserController::class, 'resendWelcomeEmail'])->name('tenant.users.resend-welcome-email');
 
         // Profile management (available to all users)
         Route::get('profile', [UserController::class, 'profile'])->name('tenant.users.profile');

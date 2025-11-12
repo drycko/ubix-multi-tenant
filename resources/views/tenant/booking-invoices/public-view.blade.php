@@ -277,13 +277,20 @@
         <button onclick="window.print()" class="btn btn-primary">
             🖨️ Print Invoice
         </button>
-        {{-- only if user is logged in --}}
+        {{-- only if user is logged in (admin or guest) --}}
         @if(auth()->check())
         <a href="{{ route('tenant.booking-invoices.download', $bookingInvoice) }}" class="btn btn-success">
             📥 Download PDF
         </a>
         <a href="{{ route('tenant.booking-invoices.show', $bookingInvoice) }}" class="btn btn-secondary">
             ⬅️ Back to Invoice
+        </a>
+        @elseif(session('guest_id'))
+        <a href="{{ route('tenant.guest-portal.invoices.download', $bookingInvoice->id) }}" class="btn btn-success">
+            📥 Download PDF
+        </a>
+        <a href="{{ route('tenant.guest-portal.invoices') }}" class="btn btn-secondary">
+            ⬅️ Back to My Invoices
         </a>
         @endif
     </div>

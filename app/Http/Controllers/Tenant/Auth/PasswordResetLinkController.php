@@ -13,7 +13,7 @@ class PasswordResetLinkController extends Controller
      */
     public function create()
     {
-        return view('tenant.auth.forgot-password');
+        return view('tenant.auth.passwords.forgot');
     }
 
     /**

@@ -71,14 +71,15 @@ class CheckResourceLimit
     protected function getCurrentCount($tenant, string $resource): int
     {
         return match ($resource) {
-            'users' => tenancy()->central(function () use ($tenant) {
-                return \App\Models\User::where('tenant_id', $tenant->id)->count();
-            }),
-            'properties' => \App\Models\Property::count(),
-            'bookings' => \App\Models\Booking::whereYear('created_at', now()->year)
+            // 'users' => tenancy()->central(function () use ($tenant) {
+            //     return \App\Models\User::where('tenant_id', $tenant->id)->count();
+            // }),
+            'users' => \App\Models\Tenant\User::count(),
+            'properties' => \App\Models\Tenant\Property::count(),
+            'bookings' => \App\Models\Tenant\Booking::whereYear('created_at', now()->year)
                 ->whereMonth('created_at', now()->month)
                 ->count(),
-            'amenities' => \App\Models\Amenity::count(),
+            'amenities' => \App\Models\Tenant\Amenity::count(),
             'storage' => $this->calculateStorageUsage($tenant),
             default => 0,
         };

@@ -13,13 +13,29 @@ class Authenticate extends Middleware
     protected function redirectTo(Request $request): ?string
     {
         if (! $request->expectsJson()) {
-            // Check if we're on a portal route (tenant admin portal)
+            // Check if we're on the central portal route (tenant admin manages subscriptions on central domain)
             if ($request->is('p/*') || $request->is('portal') || $request->is('portal/*')) {
-                return route('portal.login');
+                // Only redirect to portal.login if we're on central domain
+                if ($request->getHost() === config('tenancy.central_domains')[0]) {
+                    return route('portal.login');
+                }
+                // If somehow accessing /p/* on tenant domain, redirect to tenant login
+                return route('tenant.login');
             }
             
-            // Check if we're in a tenant context
+            // Check if we're on guest portal routes (passwordless authentication)
+            if ($request->is('guest/*') || $request->is('guest-portal/*')) {
+                return route('tenant.guest-portal.login');
+            }
+            
+            // Check if we're on tenant admin routes (/t/* or /dashboard, etc.)
+            if ($request->is('t/*') || $request->is('dashboard') || $request->is('dashboard/*')) {
+                return route('tenant.login');
+            }
+            
+            // Check if we're in a tenant context (not central domain)
             if ($request->getHost() !== config('tenancy.central_domains')[0]) {
+                // For general tenant routes, redirect to tenant admin login
                 return route('tenant.login');
             }
             

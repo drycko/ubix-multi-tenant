@@ -103,7 +103,7 @@
         <div class="col-lg-6 col-xl-4 mb-4">
           <div class="card h-100 shadow-sm">
             <!-- Property Header -->
-            <div class="card-header bg-light">
+            <div class="card-header">
               <div class="d-flex justify-content-between align-items-center">
                 <h6 class="card-title mb-0">
                   <i class="bi bi-building text-success"></i>
@@ -121,7 +121,7 @@
               <div class="row g-3">
                 <!-- Rooms -->
                 <div class="col-6">
-                  <div class="text-center p-2 bg-light rounded">
+                  <div class="text-center p-2 border border-dark rounded">
                     <div class="h4 text-info mb-1">{{ $property['rooms_count'] }}</div>
                     <small class="text-muted">
                       <i class="bi bi-house"></i> Rooms
@@ -131,7 +131,7 @@
                 
                 <!-- Bookings -->
                 <div class="col-6">
-                  <div class="text-center p-2 bg-light rounded">
+                  <div class="text-center p-2 border border-dark rounded">
                     <div class="h4 text-success mb-1">{{ $property['bookings_count'] }}</div>
                     <small class="text-muted">
                       <i class="bi bi-calendar-check"></i> Bookings
@@ -141,7 +141,7 @@
 
                 <!-- Guests -->
                 <div class="col-6">
-                  <div class="text-center p-2 bg-light rounded">
+                  <div class="text-center p-2 border border-dark rounded">
                     <div class="h4 text-warning mb-1">{{ $property['guests_count'] }}</div>
                     <small class="text-muted">
                       <i class="bi bi-people"></i> Guests
@@ -151,7 +151,7 @@
 
                 <!-- Performance Score (calculated) -->
                 <div class="col-6">
-                  <div class="text-center p-2 bg-light rounded">
+                  <div class="text-center p-2 border border-dark rounded">
                     @php
                       $occupancyRate = $property['rooms_count'] > 0 ? round(($property['bookings_count'] / $property['rooms_count']) * 10, 1) : 0;
                       $scoreColor = $occupancyRate >= 80 ? 'success' : ($occupancyRate >= 50 ? 'warning' : 'danger');

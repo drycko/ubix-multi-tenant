@@ -11,7 +11,7 @@
     </div>
 </div>
 
-<form method="POST" action="{{ route('tenant.password.change.store') }}">
+<form method="POST" action="{{ route('tenant.password.update') }}">
     @csrf
 
     @if(session('success'))

@@ -15,12 +15,12 @@ class UserWelcomeEmail extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct($user)
+    public function __construct($user, $temp_password = null)
     {
       $this->user = $user;
       $this->adminEmail = config('app.admin_email');
       $this->tenant = tenant();
-      $this->temp_password = 'password123'; // Ideally, this should be passed as a parameter
+      $this->temp_password = $temp_password;
     }
 
     /**

@@ -1,16 +1,19 @@
 @php
   $tenant_branding_path = asset('storage/branding');
-  $tenantLogoImage = \app\Models\Tenant\TenantSetting::getSetting('tenant_logo');
+  $tenantLogoImage = \App\Models\Tenant\TenantSetting::getSetting('tenant_logo');
   // address 
-  $tenantAddressStreet = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_street');
-  $tenantAddressStreet2 = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_street_2');
-  $tenantAddressCity = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_city');
-  $tenantAddressState = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_state');
-  $tenantAddressZip = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_zip');
-  $tenantAddressCountry = \app\Models\Tenant\TenantSetting::getSetting('tenant_address_country');
+  $tenantAddressStreet = \App\Models\Tenant\TenantSetting::getSetting('tenant_address_street');
+  $tenantAddressStreet2 = \App\Models\Tenant\TenantSetting::getSetting('tenant_address_street_2');
+  $tenantAddressCity = \App\Models\Tenant\TenantSetting::getSetting('tenant_address_city');
+  $tenantAddressState = \App\Models\Tenant\TenantSetting::getSetting('tenant_address_state');
+  $tenantAddressZip = \App\Models\Tenant\TenantSetting::getSetting('tenant_address_zip');
+  $tenantAddressCountry = \App\Models\Tenant\TenantSetting::getSetting('tenant_address_country');
 
   $tenantLogo = $tenantLogoImage ? $tenant_branding_path . '/' . $tenantLogoImage : asset('assets/images/ubix-logo-small.png');
   $tenantLogoSmall = $tenantLogoImage ? $tenant_branding_path . '/' . $tenantLogoImage : asset('assets/images/ubix-logo-small.png');
+  
+  // Get guest if exists
+  $guest = session('guest_id') ? \App\Models\Tenant\Guest::find(session('guest_id')) : null;
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -73,45 +76,87 @@
         <div class="nav-outer">
           <nav class="nav main-menu">
             <ul class="navigation" id="navbar">
-              <li class="current">
-                <a href="{{ url('/') }}">Home</a>
+              <li class="{{ Request::routeIs('tenant.guest-portal.index') ? 'current' : '' }}">
+                <a href="{{ route('tenant.guest-portal.index') }}">Home</a>
               </li>
-              <li><a href="{{ route('tenant.guest-portal.checkin') }}">Check-In/Out</a></li>
-              <li><a href="{{ route('tenant.guest-portal.requests') }}">Requests & Feedback</a></li>
               
-              <li class="mm-add-listing"><a href="#" class="theme-btn btn-style-three"><span class="flaticon-plus-symbol"></span>Book a Room</a></li>
+              @if($guest)
+              <!-- Authenticated Guest Menu -->
+              <li class="{{ Request::routeIs('tenant.guest-portal.dashboard') ? 'current' : '' }}">
+                <a href="{{ route('tenant.guest-portal.dashboard') }}">Dashboard</a>
+              </li>
+              <li class="{{ Request::routeIs('tenant.guest-portal.bookings*') ? 'current' : '' }}">
+                <a href="{{ route('tenant.guest-portal.bookings') }}">My Bookings</a>
+              </li>
+              <li class="{{ Request::routeIs('tenant.guest-portal.invoices*') ? 'current' : '' }}">
+                <a href="{{ route('tenant.guest-portal.invoices') }}">Invoices</a>
+              </li>
+              <li class="{{ Request::routeIs('tenant.guest-portal.checkin') ? 'current' : '' }}">
+                <a href="{{ route('tenant.guest-portal.checkin') }}">Check-In/Out</a>
+              </li>
+              @else
+              <!-- Public Menu -->
+              <li class="{{ Request::routeIs('tenant.guest-portal.booking') ? 'current' : '' }}">
+                <a href="{{ route('tenant.guest-portal.booking') }}">Book a Room</a>
+              </li>
+              @endif
+              
+              <li class="mm-add-listing">
+                <a href="{{ route('tenant.guest-portal.booking') }}" class="theme-btn btn-style-three">
+                  <span class="flaticon-plus-symbol"></span>Book a Room
+                </a>
+              </li>
             </ul>
           </nav>
           <!-- Main Menu End-->
 
           <div class="outer-box">
             <!-- Add Listing -->
-            <a href="#" class="add-listing"> <span class="flaticon-plus-symbol"></span> Book a Room</a>
+            <a href="{{ route('tenant.guest-portal.booking') }}" class="add-listing"> 
+              <span class="flaticon-plus-symbol"></span> Book a Room
+            </a>
 
             {{-- if guest is not authenticated --}}
             @if(!$guest)
             <!-- Login/Register -->
             <div class="login-box">
               <span class="flaticon-user"></span> 
-              <a href="javascript:void(0);" data-toggle="modal" data-target="#loginModal">Login</a>
+              <a href="{{ route('tenant.guest-portal.login') }}">Login</a>
             </div>
             @else
             <!-- Dashboard Option -->
             <div class="dropdown dashboard-option">
               <a class="dropdown-toggle" role="button" data-toggle="dropdown" aria-expanded="false"> 
-                <img src="{{ $guest->profile_photo_url }}" alt="avatar" class="thumb"> 
+                <i class="bi bi-person-circle" style="font-size: 2rem;"></i>
                 <span class="name text-muted">{{ $guest->first_name }} {{ $guest->last_name }}</span>
               </a>
               <div class="dropdown-menu">
-                <a class="dropdown-item active" href="dashboard.html"> <i class="la la-home"></i> Dashboard</a>
-                <a class="dropdown-item" href="dashboard-profile.html"><i class="la la-user"></i>Profile</a>
-                <a class="dropdown-item" href="dashboard-listing.html"><i class="la la-layer-group"></i>Listings</a>
-                <a class="dropdown-item" href="dashboard-messages.html"><i class="la la-envelope"></i> Messages </a>
-                <a class="dropdown-item" href="dashboard-reviews.html"><i class="la la-calendar"></i> Reviews</a>
-                <a class="dropdown-item" href="dashboard-favorites.html"><i class="la la-thumbs-o-up"></i>Favorites</a>
+                <a class="dropdown-item {{ Request::routeIs('tenant.guest-portal.dashboard') ? 'active' : '' }}" 
+                   href="{{ route('tenant.guest-portal.dashboard') }}">
+                  <i class="bi bi-house"></i> Dashboard
+                </a>
+                <a class="dropdown-item {{ Request::routeIs('tenant.guest-portal.bookings*') ? 'active' : '' }}" 
+                   href="{{ route('tenant.guest-portal.bookings') }}">
+                  <i class="bi bi-calendar-check"></i> My Bookings
+                </a>
+                <a class="dropdown-item {{ Request::routeIs('tenant.guest-portal.invoices*') ? 'active' : '' }}" 
+                   href="{{ route('tenant.guest-portal.invoices') }}">
+                  <i class="bi bi-receipt"></i> Invoices
+                </a>
+                <a class="dropdown-item {{ Request::routeIs('tenant.guest-portal.checkin') ? 'active' : '' }}" 
+                   href="{{ route('tenant.guest-portal.checkin') }}">
+                  <i class="bi bi-door-open"></i> Check-In/Out
+                </a>
+                <a class="dropdown-item {{ Request::routeIs('tenant.guest-portal.keys') ? 'active' : '' }}" 
+                   href="{{ route('tenant.guest-portal.keys') }}">
+                  <i class="bi bi-key"></i> Digital Keys
+                </a>
+                <div class="dropdown-divider"></div>
                 <form method="POST" action="{{ route('tenant.guest-portal.logout') }}" class="dropdown-item">
                     @csrf
-                    <button type="submit"><i class="la la-sign-out"></i> Logout</button>
+                    <button type="submit" style="background: none; border: none; padding: 0; cursor: pointer; width: 100%; text-align: left;">
+                      <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
                 </form>
               </div>
             </div>
@@ -122,22 +167,48 @@
 
       <!-- Mobile Header -->
       <div class="mobile-header">
-        <div class="logo"><a href="#"><img src="{{ asset('assets/images/ubix-logo-small.png') }}" alt="" title=""></a></div>
+        <div class="logo"><a href="{{ route('tenant.guest-portal.index') }}"><img src="{{ $tenantLogo }}" alt="" title=""></a></div>
 
         <!--Nav Box-->
         <div class="nav-outer clearfix">
 
           <div class="outer-box">
 
-            <!-- Cart btn -->
-            <div class="cart-btn">
-              <a href="#"><i class="icon flaticon-shopping-bag"></i> <span class="count">2</span></a>
+            @if($guest)
+            <!-- User Menu -->
+            <div class="login-box dropdown dashboard-option"> 
+              <a href="#" class="call-modal dropdown-toggle" role="button" data-toggle="dropdown">
+                <i class="bi bi-person-circle" style="font-size: 1.5rem;"></i>
+              </a>
+              <div class="dropdown-menu dropdown-menu-right">
+                <a class="dropdown-item" href="{{ route('tenant.guest-portal.dashboard') }}">
+                  <i class="bi bi-house"></i> Dashboard
+                </a>
+                <a class="dropdown-item" href="{{ route('tenant.guest-portal.bookings') }}">
+                  <i class="bi bi-calendar-check"></i> My Bookings
+                </a>
+                <a class="dropdown-item" href="{{ route('tenant.guest-portal.invoices') }}">
+                  <i class="bi bi-receipt"></i> Invoices
+                </a>
+                <a class="dropdown-item" href="{{ route('tenant.guest-portal.checkin') }}">
+                  <i class="bi bi-door-open"></i> Check-In/Out
+                </a>
+                <div class="dropdown-divider"></div>
+                <form method="POST" action="{{ route('tenant.guest-portal.logout') }}" class="dropdown-item">
+                    @csrf
+                    <button type="submit" style="background: none; border: none; padding: 0; cursor: pointer; width: 100%; text-align: left;">
+                      <i class="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                </form>
+              </div>
             </div>
-
+            @else
             <!-- Login/Register -->
             <div class="login-box"> 
-              <a href="#" class="call-modal"><span class="flaticon-user"></span></a>
+              <a href="{{ route('tenant.guest-portal.login') }}" class="call-modal"><span class="flaticon-user"></span></a>
             </div>
+            @endif
+            
             <a href="#nav-mobile" class="mobile-nav-toggler navbar-trigger"><span class="fa fa-bars"></span></a>
           </div>
         </div>

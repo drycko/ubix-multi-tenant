@@ -36,7 +36,7 @@ class CheckPlanLimits
         switch ($limitType) {
             case 'properties':
                 if ($plan->max_properties > 0) {
-                    $currentCount = \App\Models\Property::count();
+                    $currentCount = \App\Models\Tenant\Property::count();
                     if ($currentCount >= $plan->max_properties) {
                         $exceeded = true;
                         $message = "You have reached your plan limit of {$plan->max_properties} properties. Please upgrade your plan to add more.";
@@ -46,7 +46,7 @@ class CheckPlanLimits
 
             case 'users':
                 if ($plan->max_users > 0) {
-                    $currentCount = \App\Models\User::count();
+                    $currentCount = \App\Models\Tenant\User::count();
                     if ($currentCount >= $plan->max_users) {
                         $exceeded = true;
                         $message = "You have reached your plan limit of {$plan->max_users} users. Please upgrade your plan to add more.";
@@ -56,7 +56,7 @@ class CheckPlanLimits
 
             case 'rooms':
                 if ($plan->max_rooms > 0) {
-                    $currentCount = \App\Models\Room::count();
+                    $currentCount = \App\Models\Tenant\Room::count();
                     if ($currentCount >= $plan->max_rooms) {
                         $exceeded = true;
                         $message = "You have reached your plan limit of {$plan->max_rooms} rooms. Please upgrade your plan to add more.";
@@ -66,7 +66,7 @@ class CheckPlanLimits
 
             case 'guests':
                 if ($plan->max_guests > 0) {
-                    $currentCount = \App\Models\Guest::count();
+                    $currentCount = \App\Models\Tenant\Guest::count();
                     if ($currentCount >= $plan->max_guests) {
                         $exceeded = true;
                         $message = "You have reached your plan limit of {$plan->max_guests} guests. Please upgrade your plan to add more.";

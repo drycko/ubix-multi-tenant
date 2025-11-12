@@ -31,7 +31,7 @@ class TenantController extends Controller
     {
         // use the central database connection from here because I am in the central app
         config(['database.connections.tenant' => config('database.connections.central')]);
-        
+    
         // Build query with filters
         $query = Tenant::with('domains');
 
@@ -181,10 +181,16 @@ class TenantController extends Controller
                 if (!$plan) {
                     return back()->withErrors(['plan' => 'Selected subscription plan does not exist.'])->withInput();
                 }
-                // if is_active is false set to trialing
+                
+                // Set trial_ends_at if not provided in request
+                if (!$request->trial_ends_at) {
+                    // Default to 14 days trial for new tenants
+                    $request->merge(['trial_ends_at' => now()->addDays(14)]);
+                }
+                
+                // if is_active is false, tenant starts in trial mode
                 if (!$request->is_active) {
-                    $request->is_active = 0;
-                    $request->trial_ends_at = date('Y-m-d H:i:s', strtotime(now()->addDays(14))); // 14 days trial
+                    $request->merge(['is_active' => 0]);
                 }
             }
 

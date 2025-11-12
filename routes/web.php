@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Central\DashboardController;
 use App\Http\Controllers\Central\TenantController;
 use App\Http\Controllers\Central\SubscriptionController;
@@ -9,31 +10,20 @@ use App\Http\Controllers\Central\CentralSettingController;
 use App\Http\Controllers\Central\TaxController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Landing page for central domain and invalid tenant domains
+Route::get('/', [HomeController::class, 'index'])->name('central.landing');
+
+// Home route redirect to landing page
+Route::get('/home', function() {
+    return redirect()->route('central.landing');
+})->name('home');
 
 // Authentication routes (for central admin)
 // require __DIR__.'/auth.php';
 require __DIR__.'/central-auth.php';
 
-// we will create a landing page for unauthenticated users 
-// home route redirect to central dashboard
-Route::get('/home', function() {
-    return redirect()->route('central.dashboard');
-})->middleware(['auth'])->name('home');
-
-Route::get('/', function() {
-    return redirect()->route('central.dashboard');
-})->middleware(['auth'])->name('home');
-
 // tenant admin routes are in routes/portal.php
 require __DIR__.'/portal.php';
-
-// landing page for unauthenticated users
-Route::get('/', function() {
-    return view('home');
-})->name('landing');
 
 // authenticated routes for central admin
 Route::middleware(['auth'])->group(function () {

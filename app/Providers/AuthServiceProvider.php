@@ -26,7 +26,7 @@ class AuthServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register gates for subscription plan features
+     * Register gates for subscription plan features for tenant
      */
     protected function registerSubscriptionFeatureGates(): void
     {

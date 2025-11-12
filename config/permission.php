@@ -189,6 +189,8 @@ return [
 
         /*
          * The cache key used to store all permissions.
+         * Note: We rely on CacheTenancyBootstrapper to scope the cache by tenant,
+         * and our RefreshPermissionCache middleware to clear cache on context switches.
          */
 
         'key' => 'spatie.permission.cache',

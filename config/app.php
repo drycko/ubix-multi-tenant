@@ -13,8 +13,8 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
-    'name_long' => env('APP_NAME_LONG', 'Laravel Application'),
+    'name' => env('APP_NAME', 'UBIX'),
+    'name_long' => env('APP_NAME_LONG', 'UBIX Multi-Property Management System'),
 
     /*
     |--------------------------------------------------------------------------
@@ -138,7 +138,7 @@ return [
 
     'version' => env('APP_VERSION', '1.0.0'),
 
-    'email' => env('MAIL_REPLYTO_ADDRESS', 'info@nexusflow.com'),
+    'email' => env('MAIL_REPLY_TO_ADDRESS', 'info@nexusflow.com'),
     'phone' => env('APP_PHONE', '(555) 555-5555'),
     'address_line_1' => env('APP_ADDRESS_LINE_1', '1234 Main St'),
     'address_line_2' => env('APP_ADDRESS_LINE_2', 'Suite 100'),

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Tenant\Booking;
 use App\Models\Tenant\RoomChange;
+use App\Notifications\Tenant\TenantResetPasswordNotification;
 
 class User extends Authenticatable
 {
@@ -125,5 +126,16 @@ class User extends Authenticatable
     protected function defaultProfilePhotoUrl()
     {
         return 'https://ui-avatars.com/api/?name='.urlencode($this->name).'&color=7F9CF5&background=EBF4FF';
+    }
+
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new TenantResetPasswordNotification($token));
     }
 }

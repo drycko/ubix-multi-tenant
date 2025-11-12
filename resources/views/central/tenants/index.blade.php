@@ -46,7 +46,7 @@
         </div>
       </div>
      
-      <div class="ghost-card-body bg-transparent">
+      <div class="ghost-card-body bg-transparent mt-3">
         <!-- Filters Section -->
         <div class="card card-outline mb-3">
           <div class="card-body">

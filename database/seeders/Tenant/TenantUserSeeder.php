@@ -27,7 +27,7 @@ class TenantUserSeeder extends Seeder
             // super user email get from tenant email or create from tenant domain
             $superUserEmail = $tenant->admin->email ?? $tenant->email ?? 'admin@' . $tenant->domains->where('is_primary', true)->first()->domain;
             $contactPerson = $tenant->contact_person ?? 'Company Admin';
-            $tempPassword = $tenant->data->tenant_admin_temp_password ?? 'password@123';
+            $tempPassword = $tenant->tenant_admin_temp_password ?? 'password@123';
             // check if user already exists
             $superUser = User::updateOrCreate(
                 ['email' => $superUserEmail],

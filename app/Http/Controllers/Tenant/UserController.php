@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\User;
 use App\Models\Tenant\Property;
 use App\Traits\LogsTenantUserActivity;
+use App\Notifications\Tenant\TenantResetPasswordNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -187,6 +188,43 @@ class UserController extends Controller
         $currency = property_currency();
 
         return view('tenant.users.show', compact('user', 'currency'));
+    }
+
+    public function resendWelcomeEmail(User $user)
+    {
+        try {
+            // Authorization check
+            if (!is_super_user() && $user->property_id !== auth()->user()->property_id) {
+                abort(403, 'Unauthorized action.');
+            }
+
+            // reset temporary password
+            $tempPassword = bin2hex(random_bytes(4)); // 8 character temp password
+            $user->password = Hash::make($tempPassword);
+            $user->must_change_password = true;
+            $user->save();
+
+            // Send welcome email with temporary password
+            \Mail::to($user->email)->send(new \App\Mail\Tenant\UserWelcomeEmail($user, $tempPassword));
+
+            // Log activity
+            $this->logTenantActivity(
+                'resend_welcome_email',
+                'Resent welcome email to user: ' . $user->name . ' (' . $user->email . ')',
+                $user,
+                [
+                    'table' => 'users',
+                    'id' => $user->id,
+                    'user_id' => auth()->id(),
+                ]
+            );
+
+            return back()->with('success', 'Welcome email resent successfully!');
+
+        } catch (Exception $e) {
+            \Log::error("Resend welcome email failed: " . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to resend welcome email: ' . $e->getMessage()]);
+        }
     }
 
     /**
