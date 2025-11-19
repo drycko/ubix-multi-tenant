@@ -19,10 +19,10 @@ class PackageController extends Controller
 
     public function __construct()
     {
-        $this->middleware(['auth:tenant', 'permission:view room packages'])->only(['index', 'show']);
-        $this->middleware(['auth:tenant', 'permission:create room packages'])->only(['create', 'store', 'importPackage', 'import']);
-        $this->middleware(['auth:tenant', 'permission:edit room packages'])->only(['edit', 'update']);
-        $this->middleware(['auth:tenant', 'permission:delete room packages'])->only(['destroy']);
+        $this->middleware(['auth:tenant', 'permission:view packages'])->only(['index', 'show']);
+        $this->middleware(['auth:tenant', 'permission:create packages'])->only(['create', 'store', 'importPackage', 'import']);
+        $this->middleware(['auth:tenant', 'permission:edit packages'])->only(['edit', 'update']);
+        $this->middleware(['auth:tenant', 'permission:delete packages'])->only(['destroy']);
     }
     /**
      * Display a listing of the resource.
@@ -221,8 +221,8 @@ class PackageController extends Controller
 
             $tenant_id = tenant('id');
 
-            // Handle image upload to Google Cloud Storage if in production
-            if ($request->hasFile('pkg_image') && config('app.env') === 'production') {
+            // Handle image upload to Google Cloud Storage if in production and default disk is gcs
+            if ($request->hasFile('pkg_image') && config('app.env') === 'production' && config('filesystems.default') === 'gcs') {
                 $file = $request->file('pkg_image');
                 $gcsPath = 'tenant' . $tenant_id . '/package-images/' . uniqid() . '_' . $file->getClientOriginalName();
                 $stream = fopen($file->getRealPath(), 'r');
@@ -357,7 +357,7 @@ class PackageController extends Controller
         $pkg_valid_to = $roomPackage->pkg_valid_to ? $roomPackage->pkg_valid_to->format('Y-m-d') : null;
 
         // if in production
-        if (config('app.env') === 'production') {
+        if (config('app.env') === 'production' && config('filesystems.default') === 'gcs') {
             // Get full GCS image URL if image exists
             $gcsImageUrl = null;
             if ($roomPackage->pkg_image) {
@@ -434,8 +434,8 @@ class PackageController extends Controller
             // Initialize image path variable (keep existing by default)
             $imagePath = $roomPackage->pkg_image;
 
-            // Handle image upload to Google Cloud Storage if in production
-            if ($request->hasFile('pkg_image') && config('app.env') === 'production') {
+            // Handle image upload to Google Cloud Storage if in production and default disk is gcs
+            if ($request->hasFile('pkg_image') && config('app.env') === 'production' && config('filesystems.default') === 'gcs') {
                 $file = $request->file('pkg_image');
                 $gcsPath = 'package_images/' . uniqid() . '_' . $file->getClientOriginalName();
                 $stream = fopen($file->getRealPath(), 'r');

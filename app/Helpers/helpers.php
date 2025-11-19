@@ -37,6 +37,20 @@ if (!function_exists('tenant_currency')) {
     }
 }
 
+// current tenant support email
+if (!function_exists('tenant_support_email')) {
+    function tenant_support_email()
+    {   
+        // first try to get from settings if set
+        $email = \App\Models\Tenant\TenantSetting::getSetting('support_email');
+        if ($email) {
+            return $email;
+        }
+        $tenant = current_tenant();
+        return $tenant ? $tenant->support_email : null;
+    }
+}
+
 if (!function_exists('is_super_user')) {
     function is_super_user()
     {
@@ -221,8 +235,9 @@ if (!function_exists('get_countries')) {
      * @return array
      */
     function get_countries(): array
-    {
-        $json = file_get_contents('../public/vendor/countries.json');
+    {   
+        // if app is in production use public path else use vendor path
+        $json = config('app.env') === 'production' ? file_get_contents('vendor/countries.json') : file_get_contents('../public/vendor/countries.json');
         return json_decode($json, true);
     }
 }

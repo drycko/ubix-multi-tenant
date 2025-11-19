@@ -8,6 +8,7 @@ use App\Http\Controllers\Central\SubscriptionPlanController;
 use App\Http\Controllers\Central\SubscriptionInvoiceController;
 use App\Http\Controllers\Central\CentralSettingController;
 use App\Http\Controllers\Central\TaxController;
+use App\Http\Controllers\Central\ReportController;
 use Illuminate\Support\Facades\Route;
 
 // Landing page for central domain and invalid tenant domains
@@ -114,6 +115,16 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{tax}', [TaxController::class, 'update'])->name('central.taxes.update');
         Route::delete('/{tax}', [TaxController::class, 'destroy'])->name('central.taxes.destroy');
         Route::patch('/{tax}/toggle-status', [TaxController::class, 'toggleStatus'])->name('central.taxes.toggle-status');
+    });
+
+    // Reports - comprehensive reporting system
+    Route::prefix('central/reports')->name('central.reports.')->group(function () {
+        Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::get('/tenants', [ReportController::class, 'tenants'])->name('tenants');
+        Route::get('/subscriptions', [ReportController::class, 'subscriptions'])->name('subscriptions');
+        Route::get('/financial', [ReportController::class, 'financial'])->name('financial');
+        Route::get('/user-activity', [ReportController::class, 'userActivity'])->name('user-activity');
+        Route::get('/export/{type}', [ReportController::class, 'export'])->name('export');
     });
 
     // users

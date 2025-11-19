@@ -52,6 +52,9 @@ class NotificationService
     Log::info("Sending new booking notification email to admin for Booking ID: " . $booking->id);
   }
 
+  /**
+   * Send payment receipt email to guest.
+   */
   public function sendPaymentReceiptToGuest(InvoicePayment $payment): void
   {
     // log sending payment receipt email
@@ -71,7 +74,55 @@ class NotificationService
     // This is a placeholder for the actual email sending logic
     Log::info("Sending payment receipt email to guest for Payment ID: " . $payment->id);
   }
-  
+
+  /**
+   * Send payment failed email to guest.
+   */
+  public function sendPaymentFailedToGuest(InvoicePayment $payment, string $failureReason): void
+  {
+    // log sending payment failed email
+    $this->logEmail('info', 'sending_payment_failed_email', [
+      'payment_id' => $payment->id,
+      'booking_id' => $payment->booking->id,
+      'guest_id' => $payment->booking->guests->first()->id ?? null,
+      'guest_email' => $payment->booking->guests->first()->email ?? null,
+      'failure_reason' => $failureReason,
+    ]);
+    // Implementation for sending payment failed email to guest
+    $guestEmail = $payment->booking->guests->first()->email ?? null;
+    if ($guestEmail) {
+      // You would create a PaymentFailedEmail Mailable class similar to PaymentReceiptEmail
+      Mail::to($guestEmail)->send(new PaymentFailedEmail($payment, $failureReason));
+    }
+    // This is a placeholder for the actual email sending logic
+    Log::info("Sending payment failed email to guest for Payment ID: " . $payment->id);
+  }
+
+  /**
+   * Send payment cancelled email to guest.
+   */
+  public function sendPaymentCancelledToGuest(InvoicePayment $payment): void
+  {
+    // log sending payment cancelled email
+    $this->logEmail('info', 'sending_payment_cancelled_email', [
+      'payment_id' => $payment->id,
+      'booking_id' => $payment->booking->id,
+      'guest_id' => $payment->booking->guests->first()->id ?? null,
+      'guest_email' => $payment->booking->guests->first()->email ?? null,
+    ]);
+    // Implementation for sending payment cancelled email to guest
+    $guestEmail = $payment->booking->guests->first()->email ?? null;
+    if ($guestEmail) {
+      // You would create a PaymentCancelledEmail Mailable class similar to PaymentReceiptEmail
+      Mail::to($guestEmail)->send(new PaymentCancelledEmail($payment));
+    }
+    // This is a placeholder for the actual email sending logic
+    Log::info("Sending payment cancelled email to guest for Payment ID: " . $payment->id);
+  }
+
+  /**
+   * Send invoice email to guest with options.
+   */
   public function sendInvoiceEmail(BookingInvoice $bookingInvoice, array $options = []): void
   {
     $recipientEmail = $options['recipient_email'] ?? null;

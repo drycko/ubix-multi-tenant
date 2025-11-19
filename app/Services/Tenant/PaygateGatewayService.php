@@ -80,7 +80,7 @@ class PaygateGatewayService
 
     return self::INITIATE_URL;
   }
-  
+
   /**
   * Build initiate payload for PayGate.
   *

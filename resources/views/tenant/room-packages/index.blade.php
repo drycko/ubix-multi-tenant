@@ -167,7 +167,7 @@
                           <div class="d-flex align-items-center">
                             @if($package->pkg_image)
                               @php
-                              if (config('app.env') === 'production') {
+                              if (config('app.env') === 'production' && config('filesystems.default') === 'gcs') {
                                 $gcsConfig = config('filesystems.disks.gcs');
                                 $bucket = $gcsConfig['bucket'] ?? null;
                                 $path = ltrim($package->pkg_image, '/');

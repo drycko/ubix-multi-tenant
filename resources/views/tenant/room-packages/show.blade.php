@@ -66,7 +66,7 @@ use Illuminate\Support\Facades\Storage;
           <div class="card-body">
             @if($roomPackage->pkg_image)
               @php
-              if (config('app.env') === 'production') {
+              if (config('app.env') === 'production' && config('filesystems.default') === 'gcs') {
                 $gcsConfig = config('filesystems.disks.gcs');
                 $bucket = $gcsConfig['bucket'] ?? null;
                 $path = ltrim($roomPackage->pkg_image, '/');

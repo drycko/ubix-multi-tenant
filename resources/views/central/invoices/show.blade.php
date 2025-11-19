@@ -7,7 +7,7 @@
 <div class="app-content-header">
   <div class="container-fluid">
     <div class="row">
-      <div class="col-sm-6">
+      <div class="col-sm-6 text-muted">
         <h3 class="mb-0">Invoice #{{ $invoice->invoice_number }}</h3>
       </div>
       <div class="col-sm-6">
@@ -269,7 +269,7 @@
       <div class="modal-body">
         <form action="{{ route('central.invoices.pay', $invoice->id) }}" method="POST">
           @csrf
-          <p>This allocates {{ format_price($invoice->amount) }} to the invoice without a payment gateway.</p>
+          <p>This allocates {{ format_price($invoice->amount, $invoice->currency) }} to the invoice without a payment gateway.</p>
           
           <div class="mb-3">
             <label for="payment_method" class="form-label">Select Payment Method <span class="text-danger">*</span></label>

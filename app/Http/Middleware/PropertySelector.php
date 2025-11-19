@@ -67,13 +67,15 @@ class PropertySelector
                     $request->attributes->set('current_property', $property);
                     $request->attributes->set('currentProperty', $property); // Legacy compatibility
                     app()->instance('currentProperty', $property); // Legacy compatibility
+                    // Auto-select this property in session for consistency
+                    session()->put('selected_property_id', $user->property_id);
                 } else {
                     // Property not found - redirect to property selection or error
-                    return redirect()->route('property.select')->with('error', 'Your assigned property was not found.');
+                    return redirect()->route('tenant.properties.select')->with('error', 'Your assigned property was not found.');
                 }
             } else {
                 // Regular user without property assignment
-                return redirect()->route('property.select')->with('error', 'No property assigned to your account.');
+                return redirect()->route('tenant.properties.select')->with('error', 'No property assigned to your account.');
             }
         }
 
@@ -87,7 +89,8 @@ class PropertySelector
             'tenant.register',
             'password/*',
             'auth/*',
-            'property.select',
+            'tenant.properties.select',
+            'tenant.properties.store-selection',
             'sanctum/*',
             'api/login',
             'api/register',

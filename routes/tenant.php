@@ -155,6 +155,10 @@ Route::middleware([
     // settings route group
     Route::prefix('/t/settings')->middleware('auth:tenant')->name('tenant.settings.')->group(function () {
         Route::get('/', [TenantSettingController::class, 'index'])->name('index');
+        // General settings routes
+        Route::get('/general', [TenantSettingController::class, 'general'])->name('general');
+        Route::put('/general', [TenantSettingController::class, 'updateGeneral'])->name('general.update');
+        // PayFast routes
         Route::get('/payfast', [TenantSettingController::class, 'editPayfast'])->name('payfast.edit');
         Route::post('/payfast', [TenantSettingController::class, 'updatePayfast'])->name('payfast.update');
         // PayGate routes

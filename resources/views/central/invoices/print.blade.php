@@ -270,14 +270,14 @@
                                 - {{ $invoice->subscription->end_date ? \Carbon\Carbon::parse($invoice->subscription->end_date)->format('M d, Y') : 'N/A' }})
                             </div>
                         </td>
-                        <td class="text-end align-middle">{{ format_price($invoice->amount) }}</td>
+                        <td class="text-end align-middle">{{ format_price($invoice->amount, $currency) }}</td>
                     </tr>
                 </tbody>
                 <tfoot class="bg-light">
                     @if($invoice->tax_amount > 0)
                     <tr>
                         <td class="text-end">Subtotal:</td>
-                        <td class="text-end">{{ format_price($invoice->subtotal_amount) }}</td>
+                        <td class="text-end">{{ format_price($invoice->subtotal_amount, $currency) }}</td>
                     </tr>
                     <tr>
                         <td class="text-end">
@@ -292,12 +292,12 @@
                             @endif
                             ):
                         </td>
-                        <td class="text-end">{{ format_price($invoice->tax_amount) }}</td>
+                        <td class="text-end">{{ format_price($invoice->tax_amount, $currency) }}</td>
                     </tr>
                     @endif
                     <tr>
                         <td class="text-end text-uppercase fw-semibold">Total</td>
-                        <td class="text-end fw-bold">{{ format_price($invoice->amount) }}</td>
+                        <td class="text-end fw-bold">{{ format_price($invoice->amount, $currency) }}</td>
                     </tr>
                     @if($invoice->payments && $invoice->payments->where('status', 'completed')->count() > 0)
                     @php
@@ -306,11 +306,11 @@
                     @endphp
                     <tr>
                         <td class="text-end">Amount Paid:</td>
-                        <td class="text-end" style="color: #198754;">{{ format_price($totalPaid) }}</td>
+                        <td class="text-end" style="color: #198754;">{{ format_price($totalPaid, $currency) }}</td>
                     </tr>
                     <tr>
                         <td class="text-end fw-semibold">Balance Due:</td>
-                        <td class="text-end fw-bold" style="color: {{ $balance > 0 ? '#dc3545' : '#198754' }};">{{ format_price($balance) }}</td>
+                        <td class="text-end fw-bold" style="color: {{ $balance > 0 ? '#dc3545' : '#198754' }};">{{ format_price($balance, $currency) }}</td>
                     </tr>
                     @endif
                 </tfoot>

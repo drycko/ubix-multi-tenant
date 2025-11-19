@@ -26,6 +26,75 @@ class TenantSettingController extends Controller
     }
 
     /**
+     * Show general settings page.
+     */
+    public function general()
+    {
+        // must be super user
+        if (!is_super_user()) {
+            abort(403, 'Unauthorized access');
+        }
+
+        // Fetch the tenant settings (These are key value pairs)
+        $settings = TenantSetting::allSettings();
+        return view('tenant.settings.general', compact('settings'));
+    }
+
+    /**
+     * Update general settings.
+     */
+    public function updateGeneral(Request $request)
+    {
+        // must be super user
+        if (!is_super_user()) {
+            abort(403, 'Unauthorized access');
+        }
+
+        // Validate and save settings
+        $validated = $request->validate([
+            'tenant_name' => 'required|string|max:255',
+            'tenant_admin_email' => 'required|email|max:255',
+            'tenant_phone' => 'nullable|string|max:20',
+            'tenant_address_street' => 'nullable|string|max:255',
+            'tenant_address_street_2' => 'nullable|string|max:255',
+            'tenant_address_city' => 'nullable|string|max:100',
+            'tenant_address_state' => 'nullable|string|max:100',
+            'tenant_address_zip' => 'nullable|string|max:20',
+            'tenant_address_country' => 'nullable|string|max:100',
+            'tenant_website' => 'nullable|url|max:255',
+            'tenant_tax_number' => 'nullable|string|max:50',
+            'tenant_registration_number' => 'nullable|string|max:50',
+            'tenant_currency' => 'nullable|string|max:10',
+            'tenant_timezone' => 'nullable|string|max:50',
+            'tenant_logo' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ]);
+
+        // Handle logo upload if present
+        if ($request->hasFile('tenant_logo') && config('app.env') === 'production' && config('filesystems.default') === 'gcs') {
+            $file = $request->file('tenant_logo');
+            $gcsPath = 'tenant' . $tenant_id . '/branding/' . uniqid() . '_' . $file->getClientOriginalName();
+            $stream = fopen($file->getRealPath(), 'r');
+            Storage::disk('gcs')->put($gcsPath, $stream);
+            fclose($stream);
+            $validated['tenant_logo'] = $gcsPath;
+
+        }elseif ($request->hasFile('tenant_logo')) {
+            $file = $request->file('tenant_logo');
+            $logoPath = $file->store('branding', 'public');;
+            $validated['tenant_logo'] = $logoPath;
+        } else {
+            // Remove tenant_logo from validated if no file uploaded
+            unset($validated['tenant_logo']);
+        }
+
+        foreach ($validated as $key => $value) {
+            TenantSetting::setSetting($key, $value);
+        }
+
+        return redirect()->back()->with('success', 'General settings updated successfully.');
+    }
+
+    /**
      * Show the form for creating a new resource.
      */
     public function create()

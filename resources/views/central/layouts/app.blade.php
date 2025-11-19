@@ -323,11 +323,45 @@
 
             {{-- Reports --}}
             <li class="nav-header">REPORTS</li>
-            <li class="nav-item">
+            <li class="nav-item {{ Request::is('central/reports*') ? 'menu-open' : '' }}">
               <a class="nav-link {{ Request::is('central/reports*') ? 'active' : '' }}" href="#">
                 <i class="nav-icon bi bi-bar-chart"></i>
-                <p>Reports</p>
+                <p>Reports
+                  <i class="nav-arrow bi bi-chevron-right"></i>
+                </p>
               </a>
+              <ul class="nav nav-treeview">
+                {{-- <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/reports') && !Request::is('central/reports/*') ? 'active' : '' }}" href="{{ route('central.reports.index') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Dashboard</p>
+                  </a>
+                </li> --}}
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/reports/tenants') ? 'active' : '' }}" href="{{ route('central.reports.tenants') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Tenant Reports</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/reports/subscriptions') ? 'active' : '' }}" href="{{ route('central.reports.subscriptions') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Subscription Reports</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/reports/financial') ? 'active' : '' }}" href="{{ route('central.reports.financial') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Financial Reports</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link {{ Request::is('central/reports/user-activity') ? 'active' : '' }}" href="{{ route('central.reports.user-activity') }}">
+                    <i class="bi bi-circle nav-icon"></i>
+                    <p>Admin Activity</p>
+                  </a>
+                </li>
+              </ul>
             </li>
 
             {{-- System & Settings --}}
@@ -409,12 +443,12 @@
     <!--begin::Footer-->
     <footer class="app-footer">
       <!--begin::To the end-->
-      <div class="float-end d-none d-sm-inline"> Version 1.0.0</div>
+      <div class="float-end d-none d-sm-inline"> Version {{ config('app.version') }}</div>
       <!--end::To the end-->
       <!--begin::Copyright-->
       <strong>
         Copyright &copy; 2025&nbsp;
-        <a href="https://nexusflow.co.za" class="text-decoration-none text-success"> Ubix</a>.
+        <a href="https://ubix.co.za" class="text-decoration-none text-success"> Ubix</a>.
       </strong>
       All rights reserved.
       <!--end::Copyright-->

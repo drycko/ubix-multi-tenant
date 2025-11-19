@@ -1,5 +1,5 @@
 @php
-  $tenant_branding_path = asset('storage/branding');
+  $tenant_branding_path = asset('storage');
   $tenantLogoImage = \App\Models\Tenant\TenantSetting::getSetting('tenant_logo');
   // address 
   $tenantAddressStreet = \App\Models\Tenant\TenantSetting::getSetting('tenant_address_street');

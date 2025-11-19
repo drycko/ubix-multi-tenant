@@ -11,7 +11,7 @@
     <!--begin::Row-->
     <div class="row">
       <div class="col-sm-6">
-        <h3 class="mb-0">
+        <h3 class="mb-0 text-muted">
           <i class="fas fa-file-invoice-dollar me-2"></i>Subscription Invoices
         </h3>
       </div>
@@ -52,7 +52,7 @@
               <div class="flex-grow-1 ms-3">
                 <h3 class="mb-0">{{ $totalPaid }}</h3>
                 <p class="mb-0 small">Paid Invoices</p>
-                <small class="opacity-75">{{ format_price($paidAmount) }}</small>
+                <small class="opacity-75">{{ format_price($paidAmount, $currency) }}</small>
               </div>
             </div>
           </div>
@@ -69,7 +69,7 @@
               <div class="flex-grow-1 ms-3">
                 <h3 class="mb-0">{{ $totalPending }}</h3>
                 <p class="mb-0 small">Pending Invoices</p>
-                <small class="opacity-75">{{ format_price($pendingAmount) }}</small>
+                <small class="opacity-75">{{ format_price($pendingAmount, $currency) }}</small>
               </div>
             </div>
           </div>
@@ -103,7 +103,7 @@
               <div class="flex-grow-1 ms-3">
                 <h3 class="mb-0">{{ $invoices->total() }}</h3>
                 <p class="mb-0 small">Total Invoices</p>
-                <small class="opacity-75">{{ format_price($totalAmount) }}</small>
+                <small class="opacity-75">{{ format_price($totalAmount, $currency) }}</small>
               </div>
             </div>
           </div>

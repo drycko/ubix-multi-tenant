@@ -34,6 +34,13 @@
 
         <!-- Property Selector -->
         @include('tenant.components.property-selector')
+        <!-- Check if a property is selected -->
+        @if (empty($occupancyData))
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Please select a property to view occupancy reports.
+            </div>
+        @else
         <!-- Occupancy Chart -->
         <div class="row mb-4">
             <div class="col-12">
@@ -255,6 +262,7 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
     <!--end::Container-->
 </div>

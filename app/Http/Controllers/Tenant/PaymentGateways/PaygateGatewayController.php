@@ -50,7 +50,7 @@ class PaygateGatewayController extends Controller
       DB::beginTransaction();
       // can we do first or create here so we do not duplicate payments?
       $payment = InvoicePayment::firstOrCreate([
-        'property_id' => selected_property_id(),
+        'property_id' => $invoice->property_id,
         'booking_invoice_id' => $invoice->id,
         'amount' => $amountDue,
         'status' => 'pending',
@@ -278,7 +278,7 @@ class PaygateGatewayController extends Controller
   *
   * Important: If "OK" is not returned, PayWeb will retry the notify later.
   */
-  public function notify(Request $request)
+  public function handleNotify(Request $request)
   {
     $payload = $request->all();
     Log::info('PayGate notify payload received', ['keys' => array_keys($payload)]);
@@ -413,7 +413,7 @@ class PaygateGatewayController extends Controller
               if ($booking && $booking->status !== 'completed') {
                 $booking->update(['status' => 'confirmed']);
                 // send notifications
-                $this->notificationService->sendBookingInformationToGuest($booking);
+                // $this->notificationService->sendBookingInformationToGuest($booking);
                 $this->notificationService->sendPaymentReceiptToGuest($payment);
                 $this->notificationService->sendNewBookingNotificationToAdmin($payment);
               }
@@ -438,134 +438,91 @@ class PaygateGatewayController extends Controller
   }
   
   /**
-  * Return/cancel endpoint for guest redirect.
+  * Return endpoint for guest redirect.
   */
-  public function return(Request $request)
+  public function handleReturn(Request $request)
   {
     $payload = $request->all();
     Log::info('PayGate return payload', ['keys' => array_keys($payload)]);
     
     $orderRef = $payload['REFERENCE'] ?? $payload['order_id'] ?? null;
     $payment = $orderRef ? InvoicePayment::where('meta->order_id', $orderRef)->first() : null;
+    $bookingInvoice = $payment->invoice ?? null;
     
     if (! $payment) {
-      return redirect()->route('bookings.index')->withErrors('Payment not found. If you were charged, contact support.');
+      // log failed if we have enough info
+      Log::warning('PayGate return could not find payment (by REFERENCE)', [
+        'REFERENCE' => $orderRef,
+        'payload_keys' => array_keys($payload),
+      ]);
+
+      // redirect to this specific booking's invoice page if possible
+      if ($orderRef) {
+        $parts = explode('-', $orderRef);
+        foreach ($parts as $part) {
+          if (str_starts_with($part, 'B')) {
+            $bookingId = substr($part, 1);
+            $invoice = BookingInvoice::where('booking_id', $bookingId)->first();
+            if ($invoice) {
+
+              return redirect()->route('tenant.booking-invoices.public-view', $invoice)
+                ->withErrors('Payment not found. If you were charged, contact support.');
+            }
+          }
+        }
+      }
+      return redirect()->route('tenant.booking-invoices.index')->withErrors('Payment not found. If you were charged, contact support.');
     }
     
     if ($payment->status === 'pending') {
-      return view('payments.pending', compact('payment'));
+      return view('tenant.paygate.pending', compact('bookingInvoice'));
     }
     
     if ($payment->status === 'success') {
-      return view('payments.success', compact('payment'));
+      return view('tenant.paygate.success', compact('bookingInvoice'));
     }
     
-    return view('payments.failed', compact('payment'));
+    return view('tenant.paygate.failed', compact('bookingInvoice'));
   }
-  
+
   /**
-  * Notify endpoint (server-to-server).
-  */
-  // public function notify(Request $request)
-  // {
-  //   $payload = $request->all();
-  //   Log::info('PayGate notify payload received', ['keys' => array_keys($payload)]);
-  
-  //   try {
-  //     DB::beginTransaction();
-  
-  //     $orderRef = $payload['REFERENCE'] ?? $payload['order_id'] ?? $payload['merchant_ref'] ?? null;
-  
-  //     if (! $orderRef) {
-  //       Log::warning('PayGate notify missing order id', $payload);
-  //       DB::rollBack();
-  //       return response('Missing order id', 400);
-  //     }
-  
-  //     $payment = InvoicePayment::where('meta->order_id', $orderRef)->first();
-  
-  //     if (! $payment) {
-  //       Log::warning('PayGate notify could not find payment for order', ['order' => $orderRef, 'payload_keys' => array_keys($payload)]);
-  //       DB::rollBack();
-  //       return response('Not found', 404);
-  //     }
-  
-  //     $tenantId = $payment->meta['tenant_id'] ?? null;
-  //     $credential = TenantCredentialFactory::makeForTenant($tenantId, 'paygate');
-  //     $paygateService = new PaygateGatewayService($credential);
-  
-  //     if (! $paygateService->verifyNotification($payload)) {
-  //       Log::warning('PayGate notify signature verification failed', ['order' => $orderRef]);
-  //       DB::rollBack();
-  //       return response('Invalid signature', 400);
-  //     }
-  
-  //     if ($payment->status === 'success') {
-  //       DB::commit();
-  //       return response('OK', 200);
-  //     }
-  
-  //     DB::transaction(function () use ($payment, $payload) {
-  //       $gatewayStatus = strtolower($payload['status'] ?? $payload['PAYMENT_STATUS'] ?? 'unknown');
-  
-  //       $payment->transaction_id = $payload['TRANSACTION_ID'] ?? $payload['transaction_id'] ?? $payment->transaction_id;
-  //       $payment->meta = array_merge($payment->meta ?? [], ['notify_payload' => $payload]);
-  
-  //       if (in_array($gatewayStatus, ['success', 'paid', 'completed'])) {
-  //         $payment->status = 'success';
-  //         $payment->save();
-  
-  //         if (method_exists($payment, 'invoice')) {
-  //           $invoice = $payment->invoice;
-  //           if ($invoice) {
-  //             $invoice->update(['status' => 'paid']);
-  //             $booking = $invoice->booking;
-  //             if ($booking && $booking->status !== 'completed') {
-  //               $booking->update(['status' => 'confirmed']);
-  //               $this->notificationService->sendBookingConfirmationToGuest($booking);
-  //               $this->notificationService->sendPaymentReceiptToGuest($payment);
-  //               $this->notificationService->sendNewBookingNotificationToAdmin($payment);
-  //             }
-  //           }
-  //         }
-  //       } else {
-  //         $payment->status = 'failed';
-  //         $payment->save();
-  //       }
-  //     });
-  
-  //     DB::commit();
-  //     return response('OK', 200);
-  //   } catch (\Throwable $e) {
-  //     DB::rollBack();
-  //     Log::error('PayGate notify processing failed: ' . $e->getMessage(), $payload);
-  //     return response('Error', 500);
-  //   }
-  // }
-  
-  // /**
-  // * Return/cancel endpoint for guest redirect.
-  // */
-  // public function return(Request $request)
-  // {
-  //   $payload = $request->all();
-  //   Log::info('PayGate return payload', ['keys' => array_keys($payload)]);
-  
-  //   $orderRef = $payload['REFERENCE'] ?? $payload['order_id'] ?? null;
-  //   $payment = $orderRef ? InvoicePayment::where('meta->order_id', $orderRef)->first() : null;
-  
-  //   if (! $payment) {
-  //     return redirect()->route('bookings.index')->withErrors('Payment not found. If you were charged, contact support.');
-  //   }
-  
-  //   if ($payment->status === 'pending') {
-  //     return view('payments.pending', compact('payment'));
-  //   }
-  
-  //   if ($payment->status === 'success') {
-  //     return view('payments.success', compact('payment'));
-  //   }
-  
-  //   return view('payments.failed', compact('payment'));
-  // }
+   * Cancel endpoint for guest redirect.
+   */
+  public function handleCancel(Request $request)
+  {
+    $payload = $request->all();
+    Log::info('PayGate cancel payload', ['keys' => array_keys($payload)]);
+    
+    $orderRef = $payload['REFERENCE'] ?? $payload['order_id'] ?? null;
+    $payment = $orderRef ? InvoicePayment::where('meta->order_id', $orderRef)->first() : null;
+    
+    if (! $payment) {
+      if ($orderRef) {
+        $parts = explode('-', $orderRef);
+        foreach ($parts as $part) {
+          if (str_starts_with($part, 'B')) {
+            $bookingId = substr($part, 1);
+            $invoice = BookingInvoice::where('booking_id', $bookingId)->first();
+            if ($invoice) {
+              return redirect()->route('tenant.booking-invoices.public-view', $invoice)
+                ->withErrors('Payment not found. If you were charged, contact support.');
+            }
+          }
+        }
+      }
+      return redirect()->route('tenant.booking-invoices.index')->withErrors('Payment not found. If you were charged, contact support.');
+    }
+
+    // cancel the payment if still pending
+    if ($payment->status === 'pending') {
+      $payment->status = 'cancelled';
+      $payment->save();
+      
+      // Send payment cancelled email
+      $guest = $payment->booking->guest;
+      Mail::to($guest->email)->send(new PaymentCancelledEmail($payment, $payment->invoice, $guest));
+    }
+    
+    return view('tenant.paygate.cancel', compact('payment'));
+  }
 }

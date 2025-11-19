@@ -25,6 +25,8 @@ class ReportController extends Controller
     {
         $this->middleware(['auth:tenant']);
         $this->middleware('permission:view reports')->only(['index', 'advanced', 'bookings', 'financial']);
+        // only if there is a current property
+        // $this->middleware('property.exists')->only(['index', 'advanced', 'bookings', 'financial', 'occupancy']);
     }
 
     /**
@@ -59,6 +61,10 @@ class ReportController extends Controller
      */
     public function advanced()
     {
+        if (!current_property()) {
+            return redirect()->route('tenant.reports.index')->with('warning', 'Please select a property to view advanced reports.');
+        }
+
         $property = current_property();
         
         // Get report data
@@ -260,6 +266,9 @@ class ReportController extends Controller
     private function getReportStats()
     {
         $currentProperty = current_property();
+        if (!$currentProperty) {
+            return [];
+        }
         
         return [
             'total_bookings' => Booking::where('property_id', $currentProperty->id)->count(),
@@ -278,6 +287,10 @@ class ReportController extends Controller
      */
     private function getBookingsSummary($request)
     {
+        // do we have a property selected?
+        if (!current_property()) {
+            return [];
+        }
         $query = Booking::where('property_id', current_property()->id);
         
         if ($request->filled('date_from')) {
@@ -329,7 +342,12 @@ class ReportController extends Controller
      */
     private function getFinancialSummary($request)
     {
-        $query = Booking::where('property_id', current_property()->id)->where('status', 'confirmed');
+        
+        if (!current_property()) {
+            return [];
+        }
+        $query = Booking::where('property_id', current_property()->id)
+            ->where('status', 'confirmed');
         
         if ($request->filled('date_from')) {
             $query->whereDate('arrival_date', '>=', $request->date_from);
@@ -379,6 +397,11 @@ class ReportController extends Controller
      */
     private function getRevenueTrends($request)
     {
+        
+        if (!current_property()) {
+            return [];
+        }
+
         $dateFrom = $request->date_from ?? now()->subDays(30)->toDateString();
         $dateTo = $request->date_to ?? now()->toDateString();
 
@@ -397,6 +420,9 @@ class ReportController extends Controller
      */
     protected function getOccupancyReport()
     {
+        if (!current_property()) {
+            return [];
+        }
         $property = current_property();
         
         $data = [
@@ -432,6 +458,10 @@ class ReportController extends Controller
      */
     protected function getRevenueReport()
     {
+        if (!current_property()) {
+            return [];
+        }
+        
         $property = current_property();
         
         return [
@@ -503,6 +533,10 @@ class ReportController extends Controller
      */
     private function getOccupancyData($dateFrom, $dateTo, $propertyId = null)
     {
+        
+        if (!current_property()) {
+            return [];
+        }
         $query = Booking::selectRaw('DATE(arrival_date) as date, COUNT(*) as bookings')
             ->whereDate('arrival_date', '>=', $dateFrom)
             ->whereDate('arrival_date', '<=', $dateTo)
@@ -521,6 +555,10 @@ class ReportController extends Controller
      */
     private function getRoomPerformanceData($dateFrom, $dateTo, $propertyId = null)
     {
+        
+        if (!current_property()) {
+            return [];
+        }
         $query = Booking::with('room')
             ->selectRaw('room_id, COUNT(*) as booking_count, AVG(DATEDIFF(departure_date, arrival_date)) as avg_nights')
             ->whereDate('arrival_date', '>=', $dateFrom)
@@ -543,6 +581,10 @@ class ReportController extends Controller
      */
     public function export(Request $request, $type)
     {
+        
+        if (!current_property()) {
+            return response()->json(['error' => 'No property selected for export'], 400);
+        }
         $request->validate([
             'report_type' => 'required|in:occupancy,revenue,bookings,rooms,financial,user_activity'
         ]);

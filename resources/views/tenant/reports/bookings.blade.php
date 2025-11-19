@@ -56,6 +56,12 @@
             </ul>
           </div>
         @endif
+        @if (empty(current_property()))
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Please select a property to view booking reports.
+            </div>
+        @else
         <!-- Summary Statistics -->
         <div class="row mb-4">
             <div class="col-md-3 col-6">
@@ -358,6 +364,7 @@
             </div>
             @endif
         </div>
+        @endif
     </div>
     <!--end::Container-->
 </div>

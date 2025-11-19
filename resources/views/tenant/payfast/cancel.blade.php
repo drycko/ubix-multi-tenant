@@ -276,8 +276,9 @@
         <p>Your payment for Invoice {{ $bookingInvoice->invoice_number }} has been cancelled. If this was a mistake, please try again.</p>
     </div>
     <div class="print-actions">
-        <a href="{{ route('tenant.booking.invoice.view', ['invoice' => $bookingInvoice->id]) }}" class="btn btn-primary">Return to Invoice</a>
-        <a href="{{ route('tenant.booking.invoice.pay', ['invoice' => $bookingInvoice->id]) }}" class="btn btn-success">Retry Payment</a>
+        <a href="{{ route('tenant.booking-invoices.public-view', $bookingInvoice) }}" class="btn btn-primary">Return to Invoice</a>
+        
+        <a href="{{ route('tenant.booking-invoices.public-view', $bookingInvoice) }}" class="btn btn-success">Retry Payment</a>
     </div>
 </body>
 </html>

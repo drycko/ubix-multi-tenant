@@ -77,4 +77,10 @@ class TenantSetting extends Model
             ['setting_value' => encrypt($value), 'is_serialized' => false]
         );
     }
+
+    // Get all settings as an associative array
+    public static function allSettings()
+    {
+        return self::all()->pluck('setting_value', 'setting_key')->toArray();
+    }
 }

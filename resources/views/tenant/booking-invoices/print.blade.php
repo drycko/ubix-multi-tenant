@@ -17,6 +17,10 @@
             background: white;
         }
         
+        .d-inline {
+            display: inline-block;
+        }
+        
         .print-header {
             display: flex;
             justify-content: space-between;
@@ -253,20 +257,64 @@
                 page-break-inside: avoid;
             }
         }
+
+        /* mobile view */
+        @media (max-width: 600px) {
+            .print-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            /* buttons */
+            .btn {
+                margin: 5px 0;
+                width: 100%;
+                text-align: center;
+            }
+            
+            .invoice-info {
+                text-align: left;
+                margin-top: 20px;
+                flex: none;
+            }
+
+            .services-table th, .services-table td {
+                font-size: 11px;
+                padding: 8px;
+            }
+        }
     </style>
 </head>
 <body>
     <!-- Print Actions (hidden when printing) -->
     <div class="print-actions">
+        @if ($bookingInvoice->remaining_balance > 0 && in_array($bookingInvoice->status, ['pending', 'partially_paid']))
+        @if ($defaultPaymentMethod === 'payfast')
+        {{-- <div class="d-inline" style="margin-top: 8px;"> --}}
+            {{-- one click initiate payment only send invoice ID --}}
+            {!! $payFastForm !!}
+        {{-- </div> --}}
+        @elseif ($defaultPaymentMethod === 'paygate')
+        {{-- PayGate Payment Form with Button --}}
+        {{-- <div class="d-inline" style="margin-top: 8px;"> --}}
+            <form class="d-inline" action="{{ route('tenant.paygate.initiate', $bookingInvoice->id) }}" method="POST">
+                @csrf
+                <input type="hidden" name="invoice_id" value="{{ $bookingInvoice->id }}">
+                <button type="submit" class="btn btn-danger">Pay Now with PayGate</button>
+            </form>
+        {{-- </div> --}}
+        {{-- {!! $payGateForm !!} --}}
+        @endif
+        @endif
         <button onclick="window.print()" class="btn btn-primary">
             🖨️ Print Invoice
         </button>
-        <a href="{{ route('tenant.booking-invoices.download', $bookingInvoice) }}" class="btn btn-success">
+        <button onclick="window.location.href='{{ route('tenant.booking-invoices.download', $bookingInvoice) }}'" class="btn btn-success">
             📥 Download PDF
-        </a>
-        <a href="{{ route('tenant.booking-invoices.show', $bookingInvoice) }}" class="btn btn-secondary">
+        </button>
+        <button onclick="window.location.href='{{ route('tenant.booking-invoices.show', $bookingInvoice) }}'" class="btn btn-secondary">
             ⬅️ Back to Invoice
-        </a>
+        </button>
     </div>
 
     <div class="print-header">
@@ -302,20 +350,7 @@
                 <br><div>
                     <strong>Due Amount:</strong> {{ $currency }} {{ number_format($bookingInvoice->remaining_balance, 2) }}
                 </div>
-                @if ($defaultPaymentMethod === 'payfast')
-                <div style="margin-top: 8px;">
-                    {{-- one click initiate payment only send invoice ID --}}
-                    {!! $payFastForm !!}
-                </div>
-                @elseif ($defaultPaymentMethod === 'paygate')
-                <div style="margin-top: 8px;">
-                    <form action="{{ route('tenant.paygate.initiate', $bookingInvoice->id) }}" method="POST">
-                        @csrf
-                        <input type="hidden" name="invoice_id" value="{{ $bookingInvoice->id }}">
-                        <button type="submit" class="btn btn-danger">Pay Now with PayGate</button>
-                    </form>
-                </div>
-                @endif
+                
                 @endif
             </div>
             {{-- <div class="invoice-details">

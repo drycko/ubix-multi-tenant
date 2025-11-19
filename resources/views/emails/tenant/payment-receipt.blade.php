@@ -8,6 +8,9 @@ Thank you for your payment. Here are the details of your transaction:
 **Guest Name:** {{ $guest->name }}<br>
 **Amount Paid:** {{ $payment->amount }}
 
+
+You will receive your booking confirmation next as soon as a room is allocated to your booking.
+
 If you have any questions, feel free to contact us.
 
 Thanks,

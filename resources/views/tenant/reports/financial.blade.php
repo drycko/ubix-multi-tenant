@@ -31,7 +31,15 @@
 <div class="app-content">
     <!--begin::Container-->
     <div class="container-fluid">
-
+        <!-- Property Selector -->
+        @include('tenant.components.property-selector')
+        <!-- Check if a property is selected -->
+        @if (empty($summary))
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Please select a property to view financial reports.
+            </div>
+        @else
         <!-- Financial Summary -->
         <div class="row mb-4">
             <div class="col-md-3 col-6">
@@ -71,8 +79,6 @@
                 </div>
             </div>
         </div>
-        <!-- Property Selector -->
-        @include('tenant.components.property-selector')
 
         <!-- Revenue Trends Chart -->
         <div class="row mb-4">
@@ -293,6 +299,7 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
     <!--end::Container-->
 </div>

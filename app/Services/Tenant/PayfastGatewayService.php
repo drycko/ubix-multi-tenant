@@ -44,7 +44,7 @@ class PayfastGatewayService
         'name_last' => $primaryGuest->last_name,
         'email_address' => $primaryGuest->email,
         'cell_number' => $primaryGuest->phone,
-        'm_payment_id' => $bookingInvoice->id,
+        'm_payment_id' => 'UBX-' . $bookingInvoice->id,
     ];
     $cartTotal = $bookingInvoice->remaining_balance;
 
@@ -73,14 +73,30 @@ class PayfastGatewayService
 
     // If in testing mode make use of either sandbox.payfast.co.za or www.payfast.co.za
     $pfHost = $testingMode ? 'sandbox.payfast.co.za' : 'www.payfast.co.za';
-    $htmlForm = '<form action="https://'.$pfHost.'/eng/process" method="post">';
+    $formId = 'payfast-payment-form-' . uniqid();
+    
+    $htmlForm = '<form id="'.$formId.'" action="https://'.$pfHost.'/eng/process" method="post">';
     foreach($data as $name=> $value)
     {
       $htmlForm .= '<input name="'.$name.'" type="hidden" value=\''.$value.'\' />';
     }
-    $htmlForm .= '<button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;">
-                  Pay with PayFast
+    $htmlForm .= '<button type="submit" class="btn btn-danger" style="padding: 10px 20px; font-size: 14px;">
+                  <i class="fas fa-credit-card me-2"></i>Pay Now with PayFast
                   </button></form>';
+    
+    // Add JavaScript to auto-submit when button is clicked
+    $htmlForm .= '<script>
+      document.getElementById("'.$formId.'").addEventListener("submit", function(e) {
+        e.preventDefault();
+        // Disable the button to prevent double submission
+        var btn = this.querySelector("button[type=submit]");
+        btn.disabled = true;
+        btn.innerHTML = "<i class=\"fas fa-spinner fa-spin me-2\"></i>Processing...";
+        // Submit the form
+        this.submit();
+      });
+    </script>';
+    
     return $htmlForm;
   }
     

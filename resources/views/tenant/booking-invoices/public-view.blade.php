@@ -17,6 +17,10 @@
             background: white;
         }
         
+        .d-inline {
+            display: inline-block;
+        }
+        
         .print-header {
             display: flex;
             justify-content: space-between;
@@ -116,7 +120,17 @@
             font-size: 16px;
             color: #059669;
         }
-        
+
+        .paid-amount {
+            color: #10B981;
+        }
+
+        .refunded-amount {
+            color: #EF4444;
+        }
+        .balance-due {
+            color: #B91C1C;
+        }
         .status-badge {
             display: inline-block;
             padding: 4px 12px;
@@ -224,32 +238,6 @@
             background-color: #EF4444;
             color: white;
         }
-
-        .alert {
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            position: relative;
-        }
-
-        .alert-success {
-            background-color: #D1FAE5;
-            color: #065F46;
-        }
-        .alert-danger {
-            background-color: #FEE2E2;
-            color: #991B1B;
-        }
-        .btn-close {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: none;
-            border: none;
-            font-size: 16px;
-            cursor: pointer;
-            color: inherit;
-        }
         
         @media print {
             .print-actions {
@@ -269,11 +257,51 @@
                 page-break-inside: avoid;
             }
         }
+
+        /* mobile view */
+        @media (max-width: 600px) {
+            .print-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            /* buttons */
+            .btn {
+                margin: 5px 0;
+                width: 100%;
+                text-align: center;
+            }
+            
+            .invoice-info {
+                text-align: left;
+                margin-top: 20px;
+                flex: none;
+            }
+
+            .services-table th, .services-table td {
+                font-size: 11px;
+                padding: 8px;
+            }
+        }
     </style>
 </head>
 <body>
     <!-- Print Actions (hidden when printing) -->
     <div class="print-actions">
+        @if ($bookingInvoice->remaining_balance > 0 && in_array($bookingInvoice->status, ['pending', 'partially_paid']))
+        @if ($defaultPaymentMethod === 'payfast')
+        {{-- <div class="d-inline" style="margin-top: 8px;"> --}}
+            {{-- one click initiate payment only send invoice ID --}}
+            {!! $payFastForm !!}
+        {{-- </div> --}}
+        @elseif ($defaultPaymentMethod === 'paygate')
+            <form class="d-inline" action="{{ route('tenant.paygate.initiate', $bookingInvoice->id) }}" method="POST">
+                @csrf
+                <input type="hidden" name="invoice_id" value="{{ $bookingInvoice->id }}">
+                <button type="submit" class="btn btn-danger">Pay Now with PayGate</button>
+            </form>
+        @endif
+        @endif
         <button onclick="window.print()" class="btn btn-primary">
             🖨️ Print Invoice
         </button>
@@ -341,20 +369,7 @@
                 <br><div>
                     <strong>Due Amount:</strong> {{ $currency }} {{ number_format($bookingInvoice->remaining_balance, 2) }}
                 </div>
-                @if ($defaultPaymentMethod === 'payfast')
-                <div style="margin-top: 8px;">
-                    {{-- one click initiate payment only send invoice ID --}}
-                    {!! $payFastForm !!}
-                </div>
-                @elseif ($defaultPaymentMethod === 'paygate')
-                <div style="margin-top: 8px;">
-                    <form action="{{ route('tenant.paygate.initiate', $bookingInvoice->id) }}" method="POST">
-                        @csrf
-                        <input type="hidden" name="invoice_id" value="{{ $bookingInvoice->id }}">
-                        <button type="submit" class="btn btn-danger">Pay Now with PayGate</button>
-                    </form>
-                </div>
-                @endif
+                
                 @endif
             </div>
         </div>

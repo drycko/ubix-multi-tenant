@@ -177,10 +177,18 @@ class PropertyController extends Controller
 
         $property->rooms_count = Room::where('property_id', $property->id)->count();
         $property->users_count = User::where('property_id', $property->id)->count();
-        $property->website = $property->settings ? json_decode($property->settings, true)['website'] ?? null : null;
-        $property->check_in_time = $property->settings ? json_decode($property->settings, true)['check_in_time'] ?? null : null;
-        $property->check_out_time = $property->settings ? json_decode($property->settings, true)['check_out_time'] ?? null : null;
 
+        // check if the settings is stringed json and decode values
+        if (is_string($property->settings)) {
+            $settings = json_decode($property->settings, true);
+        } else {
+            // is just an array
+            $settings = $property->settings;
+        }
+
+        $property->website = $settings['website'] ?? null;
+        $property->check_in_time = $settings['check_in_time'] ?? null;
+        $property->check_out_time = $settings['check_out_time'] ?? null;
         return view('tenant.properties.edit', compact('property', 'currencies', 'timezones'));
     }
 
@@ -215,8 +223,16 @@ class PropertyController extends Controller
             ]);
 
             $validated['is_active'] = $request->has('is_active');
+            // check if the settings is stringed json and decode values
+            if (is_string($property->settings)) {
+                $propertySettings = json_decode($property->settings, true);
+            } else {
+                // is just an array
+                $propertySettings = $property->settings;
+            }
+
             // add the new website, check_in_time, check_out_time fields to settings json
-            $settings = $property->settings ? json_decode($property->settings, true) : [];
+            $settings = $propertySettings ? $propertySettings : [];
             if ($request->filled('website')) {
                 $settings['website'] = $request->input('website');
             } else {

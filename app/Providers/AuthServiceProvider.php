@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -27,97 +28,54 @@ class AuthServiceProvider extends ServiceProvider
 
     /**
      * Register gates for subscription plan features for tenant
+     *
+     * Note: Gates return `true` when no tenant() is resolved (central context),
+     * so central admin users are not blocked by tenant scoped feature gates.
      */
     protected function registerSubscriptionFeatureGates(): void
     {
-        // Advanced reporting feature
-        Gate::define('advanced-reporting', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('advanced_reporting');
-        });
+        $featureGate = function (string $feature) {
+            return function ($user) use ($feature) {
+                // Resolve tenant at check time (not at boot). If no tenant, allow access.
+                $tenant = function_exists('tenant') ? tenant() : null;
 
-        // Advanced analytics feature
-        Gate::define('advanced-analytics', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('advanced_analytics');
-        });
+                // Allow access when no tenant: central portal uses separate checks.
+                if (! $tenant) {
+                    Log::debug('Gate bypassed for central context', [
+                        'gate' => $feature,
+                        'user_id' => $user->id ?? null,
+                    ]);
+                    return true;
+                }
 
-        // Multi-property management
-        Gate::define('multi-property', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('multi_property_management');
-        });
+                // Tenant-scoped feature evaluation; protect with try/catch to avoid throwing in gates.
+                try {
+                    return (bool) $tenant->canAccessFeature($feature);
+                } catch (\Throwable $e) {
+                    Log::warning("Gate '{$feature}' evaluation failed", [
+                        'exception' => $e->getMessage(),
+                        'user_id' => $user->id ?? null,
+                        'tenant_id' => $tenant->id ?? null,
+                    ]);
+                    return false;
+                }
+            };
+        };
 
-        // Housekeeping management
-        Gate::define('housekeeping', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('housekeeping_management');
-        });
-
-        // Email notifications feature
-        Gate::define('email-notifications', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('email_notifications');
-        });
-
-        // SMS notifications feature
-        Gate::define('sms-notifications', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('sms_notifications');
-        });
-
-        // API access feature
-        Gate::define('api-access', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('api_access');
-        });
-
-        // Custom branding feature
-        Gate::define('custom-branding', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('custom_branding');
-        });
-
-        // Priority support feature
-        Gate::define('priority-support', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('priority_support');
-        });
-
-        // White label feature
-        Gate::define('white-label', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('white_label');
-        });
-
-        // Guest portal feature
-        Gate::define('guest-portal', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('guest_portal');
-        });
-
-        // Online payments feature
-        Gate::define('online-payments', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('online_payments');
-        });
-
-        // Inventory management feature
-        Gate::define('inventory-management', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('inventory_management');
-        });
-
-        // Task management feature
-        Gate::define('task-management', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('task_management');
-        });
-
-        // Document storage feature
-        Gate::define('document-storage', function ($user) {
-            $tenant = tenant();
-            return $tenant && $tenant->canAccessFeature('document_storage');
-        });
+        Gate::define('advanced-reporting', $featureGate('advanced_reporting'));
+        Gate::define('advanced-analytics', $featureGate('advanced_analytics'));
+        Gate::define('multi-property', $featureGate('multi_property_management'));
+        Gate::define('housekeeping', $featureGate('housekeeping_management'));
+        Gate::define('email-notifications', $featureGate('email_notifications'));
+        Gate::define('sms-notifications', $featureGate('sms_notifications'));
+        Gate::define('api-access', $featureGate('api_access'));
+        Gate::define('custom-branding', $featureGate('custom_branding'));
+        Gate::define('priority-support', $featureGate('priority_support'));
+        Gate::define('white-label', $featureGate('white_label'));
+        Gate::define('guest-portal', $featureGate('guest_portal'));
+        Gate::define('online-payments', $featureGate('online_payments'));
+        Gate::define('inventory-management', $featureGate('inventory_management'));
+        Gate::define('task-management', $featureGate('task_management'));
+        Gate::define('document-storage', $featureGate('document_storage'));
     }
 }

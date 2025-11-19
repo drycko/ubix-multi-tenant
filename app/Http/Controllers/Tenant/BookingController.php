@@ -186,9 +186,10 @@ class BookingController extends Controller
      */
     public function downloadRoomInfo(Booking $booking)
     {
+        // since we have the middleware selecting the property, we can just check if the booking belongs to the current property but if is_super_user we allow access to all bookings
         // Authorization check - ensure booking belongs to current property
-        if ($booking->property_id !== selected_property_id()) {
-            abort(403, 'Unauthorized action.');
+        if ($booking->property_id !== selected_property_id() && !is_super_user()) {
+            abort(403, 'Unauthorized action. Please select a property to continue.');
         }
 
         // Eager load relationships needed for the PDF
@@ -237,7 +238,7 @@ class BookingController extends Controller
     {
         // Authorization check - ensure booking belongs to current property
         if ($booking->property_id !== selected_property_id()) {
-            abort(403, 'Unauthorized action.');
+            abort(403, 'Unauthorized action. Please select a property to continue.');
         }
 
         // Eager load relationships needed for the email/PDF
@@ -456,8 +457,8 @@ class BookingController extends Controller
     public function show(Booking $booking)
     {
         // Authorization check - ensure booking belongs to current property
-        if ($booking->property_id !== selected_property_id()) {
-            abort(403, 'Unauthorized action.');
+        if ($booking->property_id !== selected_property_id() && !is_super_user()) {
+            abort(403, 'Unauthorized action! Please select a property to continue.');
         }
 
         // get all guests related to this booking
@@ -490,7 +491,7 @@ class BookingController extends Controller
     public function edit(Booking $booking)
     {
         if ($booking->property_id !== selected_property_id()) {
-            abort(403, 'Unauthorized action.');
+            abort(403, 'Unauthorized action. Please select a property to continue.');
         }
 
         $rooms = Room::where('property_id', selected_property_id())
@@ -555,7 +556,7 @@ class BookingController extends Controller
     {
         try {
             if ($booking->property_id !== selected_property_id()) {
-                abort(403, 'Unauthorized action.');
+                abort(403, 'Unauthorized action. Please select a property to continue.');
             }
 
             $validated = $request->validate([
@@ -703,7 +704,7 @@ class BookingController extends Controller
     public function destroy(Booking $booking)
     {
         if ($booking->property_id !== selected_property_id()) {
-            abort(403, 'Unauthorized action.');
+            abort(403, 'Unauthorized action. Please select a property to continue.');
         }
 
         $bookingCode = $booking->bcode;
@@ -750,7 +751,7 @@ class BookingController extends Controller
     {
         $booking = Booking::onlyTrashed()->findOrFail($id);
         if ($booking->property_id !== selected_property_id()) {
-            abort(403, 'Unauthorized action.');
+            abort(403, 'Unauthorized action. Please select a property to continue.');
         }
         // must restore related booking guests and invoices too, does this automatically with withTrashed?
         $booking->restore();
@@ -777,7 +778,7 @@ class BookingController extends Controller
     {
         $booking = Booking::onlyTrashed()->findOrFail($id);
         if ($booking->property_id !== selected_property_id()) {
-            abort(403, 'Unauthorized action.');
+            abort(403, 'Unauthorized action. Please select a property to continue.');
         }
         $oldBooking = $booking;
         $booking->forceDelete();
@@ -1183,7 +1184,7 @@ class BookingController extends Controller
     public function clone(Booking $booking)
     {
         if ($booking->property_id !== selected_property_id()) {
-            abort(403, 'Unauthorized action.');
+            abort(403, 'Unauthorized action. Please select a property to continue.');
         }
 
         // Clone the booking
@@ -1226,7 +1227,7 @@ class BookingController extends Controller
     public function toggleStatus(Booking $booking)
     {
         if ($booking->property_id !== selected_property_id()) {
-            abort(403, 'Unauthorized action.');
+            abort(403, 'Unauthorized action. Please select a property to continue.');
         }
 
         $newStatus = $booking->status === 'cancelled' ? 'pending' : 'cancelled';

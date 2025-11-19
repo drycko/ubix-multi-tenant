@@ -178,4 +178,14 @@ class DashboardController extends Controller
     return view('tenant.error');
   
   }
+
+  /**
+   * Display unauthorized access page
+   */
+  public function unauthorizedPage()
+  {
+    // redirect to dashboard with error message
+    return redirect()->route('tenant.dashboard')->with('error', 'Unauthorized access. Please select a property to continue.');
+    // return view('tenant.unauthorized');
+  }
 }

@@ -308,6 +308,10 @@
               <a href="{{ route('tenant.booking-invoices.print', $bookingInvoice) }}" target="_blank" class="btn btn-outline-primary">
                 <i class="fas fa-print"></i> Print Invoice
               </a>
+              {{-- view invoice as public link --}}
+              <a href="{{ route('tenant.booking-invoices.public-view', $bookingInvoice) }}" target="_blank" class="btn btn-outline-warning">
+                <i class="fas fa-external-link-alt"></i> View as Guest
+              </a>
               <hr>
               <a href="{{ route('tenant.bookings.show', $bookingInvoice->booking) }}" class="btn btn-outline-secondary">
                 <i class="fas fa-bed"></i> View Booking

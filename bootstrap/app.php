@@ -21,6 +21,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // You can adjust the interval as needed (everyMinute, hourly, etc.)
     })
     ->withMiddleware(function (Middleware $middleware): void {
+        // Exclude payment gateway routes from CSRF verification
+        $middleware->validateCsrfTokens(except: [
+            'tg/paygate/*',
+            'tg/payfast/*',
+            '*/tg/paygate/*',
+            '*/tg/payfast/*',
+        ]);
+        
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             // other middlewares
@@ -56,6 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'must.change.password' => \App\Http\Middleware\CheckMustChangePassword::class,
             'subscription.check' => \App\Http\Middleware\CheckSubscriptionStatus::class,
             'resource.limit' => \App\Http\Middleware\CheckResourceLimit::class,
+            'handle.tenant.unauthorized' => \App\Http\Middleware\HandleTenantUnauthorized::class,
             // other middleware aliases
         ]);
     })
@@ -63,5 +72,30 @@ return Application::configure(basePath: dirname(__DIR__))
         // Handle Tenant Not Found exceptions - redirect to central domain
         $exceptions->render(function (\Stancl\Tenancy\Exceptions\TenantCouldNotBeIdentifiedOnDomainException $e) {
             return redirect('https://ubix.co.za/?error=tenant_not_found');
+        });
+
+        // Handle Authorization exceptions (403) - redirect to dashboard with property selection message
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, \Illuminate\Http\Request $request) {
+            // Only handle for tenant routes (authenticated users)
+            if ($request->is('t/*') && auth('tenant')->check()) {
+                \Illuminate\Support\Facades\Log::warning('Authorization failed - redirecting to dashboard', [
+                    'user_id' => auth('tenant')->id(),
+                    'url' => $request->fullUrl(),
+                    'message' => $e->getMessage(),
+                ]);
+
+                // If this is an AJAX request, return JSON response
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'message' => 'You do not have permission to perform this action. Please select a property from the dashboard.',
+                        'redirect' => route('tenant.dashboard')
+                    ], 403);
+                }
+
+                // For regular requests, redirect to dashboard with error message
+                return redirect()
+                    ->route('tenant.dashboard')
+                    ->with('error', 'Unauthorized action. Please select a property to continue.');
+            }
         });
     })->create();

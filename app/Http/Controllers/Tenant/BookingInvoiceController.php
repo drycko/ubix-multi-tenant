@@ -9,6 +9,7 @@ use App\Models\Tenant\TenantSetting;
 use App\Traits\LogsTenantUserActivity;
 use App\Services\Tenant\NotificationService;
 use App\Services\Tenant\PayfastGatewayService;
+use App\Services\Tenant\PaygateGatewayService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -18,8 +19,9 @@ class BookingInvoiceController extends Controller
 
     protected NotificationService $notificationService;
     protected PayfastGatewayService $payfastGatewayService;
+    protected PaygateGatewayService $paygateGatewayService;
 
-    public function __construct(NotificationService $notificationService, PayfastGatewayService $payfastGatewayService)
+    public function __construct(NotificationService $notificationService, PayfastGatewayService $payfastGatewayService, PaygateGatewayService $paygateGatewayService)
     {
         $this->middleware('permission:view invoices')->only(['index', 'show']);
         $this->middleware('permission:create invoices')->only(['create', 'store']);
@@ -28,6 +30,7 @@ class BookingInvoiceController extends Controller
 
         $this->notificationService = $notificationService;
         $this->payfastGatewayService = $payfastGatewayService;
+        $this->paygateGatewayService = $paygateGatewayService;
     }
 
     /**
@@ -244,6 +247,7 @@ class BookingInvoiceController extends Controller
         $bookingInvoice->taxes = $bookingInvoice->tax_breakdown;
         \Log::info('Default payment remaining balance: ' . $bookingInvoice->remaining_balance);
         $payFastForm = $this->payfastGatewayService->buildPayfastForm($bookingInvoice);
+        // $payGateForm = $this->paygateGatewayService->buildPaygateForm($bookingInvoice);
 
         return view('tenant.booking-invoices.print', compact('bookingInvoice', 'property', 'currency', 'paymentMethods', 'defaultPaymentMethod', 'payFastForm'));
     }
